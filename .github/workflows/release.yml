@@ -1,10 +1,17 @@
-# Builds StayOnTarget.zip and publishes a GitHub Release whenever a version tag (v1.0.0, v1.1.0, ...) is pushed.
+# Builds StayOnTarget.zip and publishes a GitHub Release.
+# Runs when a version tag (v1.0.0, v1.1.0, ...) is pushed, or by hand from the Actions tab
+# ("Release" → "Run workflow", type the version), which creates the tag for you.
 # The README's download link always points at the newest release's zip.
 name: Release
 
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to publish, e.g. v1.1.0"
+        required: true
 
 permissions:
   contents: write
@@ -12,8 +19,15 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Check version format
+        run: |
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Version must look like v1.2.3, got '$TAG'"; exit 1; }
 
       - name: Build StayOnTarget.zip
         run: |
@@ -23,13 +37,11 @@ jobs:
           cd dist && zip -r StayOnTarget.zip "Stay On Target"
 
       - name: Publish release
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           # A release made by hand on GitHub already exists for this tag: just attach the zip to it.
-          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" dist/StayOnTarget.zip --clobber
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/StayOnTarget.zip --clobber
           else
-            gh release create "$GITHUB_REF_NAME" dist/StayOnTarget.zip \
-              --title "Stay On Target $GITHUB_REF_NAME" --generate-notes --latest
+            gh release create "$TAG" dist/StayOnTarget.zip --target "$GITHUB_SHA" \
+              --title "Stay On Target $TAG" --generate-notes --latest
           fi
