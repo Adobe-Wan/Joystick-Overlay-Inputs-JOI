@@ -399,23 +399,26 @@ let panelMode = "home"; // "home" | "widget" | "multi" | "settings" | "export"
 let showHeat = false;
 const runtime = {};
 
-// Ship manufacturer MFD color schemes. Primary: widget text and border. Accent: live/active
-// marks (stick dot, bars, pressed buttons). Background: widget container.
+// Ship manufacturer MFD color schemes, sampled from each maker's in-game power management screen:
+// accent = a filled power pip (stick dot, bars, pressed buttons), border = an empty pip's outline,
+// background = the MFD background, primary = the MFD's text. Crusader, Banu and AopoA are fan picks
+// until we have screenshots of theirs.
 const MFG_THEMES = [
-  { id: "aegis", name: "Aegis Dynamics", colors: { primary: "#35B6EC", accent: "#9BC3D1", background: "#111F29" } },
-  { id: "drake", name: "Drake Interplanetary", colors: { primary: "#FFBB00", accent: "#FF8220", background: "#1A140A" } },
-  { id: "anvil", name: "Anvil Aerospace", colors: { primary: "#00FF6B", accent: "#35B6EC", background: "#141C18" } },
-  { id: "esperia", name: "Esperia", colors: { primary: "#FF5000", accent: "#FFF220", background: "#0D0502" } },
-  { id: "crusader", name: "Crusader Industries", colors: { primary: "#FFFFFF", accent: "#004FFE", background: "#0A101D" } },
-  { id: "origin", name: "Origin Jumpworks", colors: { primary: "#0066FF", accent: "#4D94FF", background: "#0B111A" } },
-  { id: "misc", name: "MISC", colors: { primary: "#799A82", accent: "#E0E5E2", background: "#131A15" } },
-  { id: "rsi", name: "Roberts Space Industries", colors: { primary: "#7F00FF", accent: "#B366FF", background: "#0A0214" } },
-  { id: "gatac", name: "GATAC Manufacture", colors: { primary: "#D11589", accent: "#9A4BFF", background: "#15051A" } },
-  { id: "mirai", name: "Mirai", colors: { primary: "#00FFD5", accent: "#FF0055", background: "#031412" } },
-  { id: "banu", name: "Banu Souli", colors: { primary: "#10FF70", accent: "#85C399", background: "#04140B" } },
-  { id: "argo", name: "ARGO Astronautics", colors: { primary: "#FF7300", accent: "#FFE600", background: "#221C16" } },
+  { id: "aegis", name: "Aegis Dynamics", colors: { primary: "#CDE8EC", accent: "#92D0DA", background: "#0E1E27" }, border: "#3C616B" },
+  { id: "anvil", name: "Anvil Aerospace", colors: { primary: "#B4F2E0", accent: "#84E0C8", background: "#182A29" }, border: "#3F6D6A" },
   { id: "aopoa", name: "AopoA", colors: { primary: "#FF9000", accent: "#FFEA00", background: "#1A0F00" } },
-  { id: "greycat", name: "Greycat Industrial", colors: { primary: "#FFD000", accent: "#A69665", background: "#1A170F" } }
+  { id: "argo", name: "ARGO Astronautics", colors: { primary: "#F2E27A", accent: "#EDD62A", background: "#1F1C16" }, border: "#8F7C3A" },
+  { id: "banu", name: "Banu Souli", colors: { primary: "#10FF70", accent: "#85C399", background: "#04140B" } },
+  { id: "crusader", name: "Crusader Industries", colors: { primary: "#FFFFFF", accent: "#004FFE", background: "#0A101D" } },
+  { id: "drake", name: "Drake Interplanetary", colors: { primary: "#F0C27A", accent: "#E9A23B", background: "#1E150D" }, border: "#8C6E4D" },
+  { id: "esperia", name: "Esperia", colors: { primary: "#FFFFFF", accent: "#EDF1F6", background: "#2A1B1D" }, border: "#CB8C8D" },
+  { id: "gatac", name: "GATAC Manufacture", colors: { primary: "#D9CCFF", accent: "#8A5CF5", background: "#120C33" }, border: "#A9A6E8" },
+  { id: "greycat", name: "Greycat Industrial", colors: { primary: "#B9EE8F", accent: "#8FE04A", background: "#061A03" }, border: "#4C7A30" },
+  { id: "kruger", name: "Kruger Intergalactic", colors: { primary: "#E9FBEF", accent: "#C2EBCD", background: "#071509" }, border: "#5E7A6C" },
+  { id: "mirai", name: "Mirai", colors: { primary: "#E4E1CC", accent: "#C9C5AC", background: "#2B2C2C" }, border: "#96978D" },
+  { id: "misc", name: "MISC", colors: { primary: "#E0E5E2", accent: "#34B3A6", background: "#141614" }, border: "#A89E95" },
+  { id: "origin", name: "Origin Jumpworks", colors: { primary: "#E3F1FF", accent: "#C4E3FC", background: "#22222A" }, border: "#57596D" },
+  { id: "rsi", name: "Roberts Space Industries", colors: { primary: "#E6EAF2", accent: "#E6EAF2", background: "#1C1A1A" }, border: "#4A4D63" }
 ];
 // Featured palettes shown as tiles above the manufacturer list. border: "" keeps the subtle default edge.
 const FEATURED_THEMES = [
