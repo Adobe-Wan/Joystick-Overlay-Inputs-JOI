@@ -569,6 +569,26 @@ function wizChooseType(t) {
   wiz = { kind: "device", type: t, name: TYPES[t].name, stage: "steps", step: 0, axes: {}, inv: {}, base: snapshotAll() };
   renderWiz();
 }
+// Detect Device: rerun the move/press steps for an existing widget and rebind it in place,
+// keeping its name, position, size and colors.
+function startRemap(w) {
+  closeFab(); closeWelcome(); wizBg = false; wizAdded = [];
+  wiz = w.type === "button"
+    ? { kind: "button", stage: "press", base: snapshotAll(), remap: w.id }
+    : { kind: "device", type: w.type, name: w.label, stage: "steps", step: 0, axes: {}, inv: {}, base: snapshotAll(), remap: w.id };
+  renderWiz();
+}
+function finishRemap() {
+  const w = profile.widgets.find(o => o.id === wiz.remap), d = wiz.dev;
+  if (w && d) {
+    Object.assign(w, { match: d.id, nth: d.nth });
+    if (wiz.kind === "button") w.button = wiz.button; else { w.axes = wiz.axes; w.inv = wiz.inv; }
+    save(); rebuildAll();
+  }
+  closeWizard();
+  if (w) setSelection([w.id]);
+  if (w && d) toast(`${w.label || "Widget"} now uses ${devName(d)}`);
+}
 function wizSkip() { wiz.step++; wiz.base = snapshotAll(); wizAfterStep(); }
 function wizAfterStep() {
   if (wiz.step >= TYPES[wiz.type].steps.length) wiz.stage = "name";
@@ -607,6 +627,7 @@ function wizardTick(pads) {
   }
 }
 function wizFinish() {
+  if (wiz.remap) return finishRemap();
   const d = wiz.dev, s = profile.settings;
   const w = { id: uid(), x: 0, y: 0, label: wiz.name, match: d.id, nth: d.nth,
     accent: s.accent, text: s.text, bg: s.panel, bgAlpha: s.panelAlpha, border: s.border || undefined, theme: s.theme || undefined, size: 1 };
@@ -1607,8 +1628,9 @@ function renderWiz() {
   host.classList.toggle("see-through", !!wiz && wiz.stage === "bg");
   b.innerHTML = "";
   if (!wiz) { if (was && editing) $("#fab").focus(); return; }
+  if (wiz.remap && wiz.stage === "name") return finishRemap();   // re-detecting keeps the widget's name
   const off = wizBg ? 1 : 0, total = 3 + off;
-  const st = (k, suffix) => [k + off, `Step ${k + off} of ${total}` + (suffix ? " · " + suffix : "")];
+  const st = (k, suffix) => wiz.remap ? [0, "Detect Device" + (suffix ? " · " + suffix : "")] : [k + off, `Step ${k + off} of ${total}` + (suffix ? " · " + suffix : "")];
   const head = (step, kicker, title, lead) => {
     const k = el("div", { class: "kicker" });
     k.append(el("span", {}, kicker));
@@ -1659,7 +1681,7 @@ function renderWiz() {
   } else if (wiz.kind === "button" && wiz.stage === "press") {
     head(...st(2, "Button"), "Press the Button You Want to Show", "Any button on any device. Hold it for a moment.");
     b.append(noPad());
-    actions(el("button", { onclick: startDeviceWizard }, "Back"), el("button", { onclick: closeWizard }, "Cancel"));
+    actions(wiz.remap ? null : el("button", { onclick: startDeviceWizard }, "Back"), el("button", { onclick: closeWizard }, "Cancel"));
   } else if (wiz.stage === "type") {
     head(...(wizAdded.length ? [0, "Add Another"] : st(1)), "What Are You Adding?",
       "Pick one and we'll set it up right here. It appears at the bottom middle of your screen.");
@@ -1676,7 +1698,7 @@ function renderWiz() {
     if (steps.length > 1) steps.forEach((s, i) => b.append(el("div", { class: i < wiz.step ? "step done" : i === wiz.step ? "step active" : "step" }, s.ask.charAt(0) + s.ask.slice(1).toLowerCase())));
     if (wiz.dev) b.append(el("p", { class: "tip" }, "Device: " + devName(wiz.dev)));
     b.append(noPad());
-    actions(el("button", { onclick: startDeviceWizard }, "Back"),
+    actions(wiz.remap ? el("button", { onclick: closeWizard }, "Cancel") : el("button", { onclick: startDeviceWizard }, "Back"),
       cur.optional ? el("button", { class: "primary", "data-autofocus": "", onclick: wizSkip }, "Skip, I Don't Have This") : null);
   } else {
     const devText = wiz.kind === "button" ? `${devName(wiz.dev)}, button ${wiz.button + 1}` : devName(wiz.dev);
@@ -1937,9 +1959,13 @@ function renderWidgetPanel(p) {
   perspectiveSection(p, [w]);
   themeSection(p, [w]);
   colorSection(p, [w]);
-  if (w.match) {
+  if (w.type !== "label") {
     p.append(el("h4", {}, "Device"));
-    p.append(el("div", { class: "hint" }, prettyName(w.match) + (w.nth ? " #" + (w.nth + 1) : "")));
+    const seen = w.match && padFor(w, connectedPads());
+    p.append(el("div", { class: "hint" }, w.match ? prettyName(w.match) + (w.nth ? " #" + (w.nth + 1) : "") + (seen ? "" : " (not connected)") : "No device yet."));
+    p.append(el("div", { class: "actions" }, el("button", { onclick: () => startRemap(w), title: w.type === "button" ? "Press the button again to remap it" : "Move the device again to remap it" }, "Detect Device")));
+  }
+  if (w.match) {
     if (w.type !== "button") {
       for (const s of TYPES[w.type].steps) if (w.axes[s.key] != null) {
         const lbl = { x: "Invert X", y: "Invert Y", t: "Invert throttle", r: "Invert rudder", bl: "Invert left brake", br: "Invert right brake", a: "Invert axis" }[s.key];
