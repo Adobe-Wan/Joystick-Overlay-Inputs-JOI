@@ -762,11 +762,13 @@ function buildWidget(w) {
     root.append(...[title, rt.canvas, readout(
       el("span", {}, lab("X"), span("x")), el("span", {}, lab("Y"), span("y")))].filter(Boolean));
   } else if (w.type === "throttle" || w.type === "axis") {
-    rt.canvas = makeCanvas(D.bw * k, D.bh * k);
+    // bw = thickness, bh = length; a horizontal bar just swaps them.
+    rt.canvas = w.orient === "h" ? makeCanvas(D.bh * k, D.bw * k) : makeCanvas(D.bw * k, D.bh * k);
     root.append(...[title, rt.canvas, readout(span("v"))].filter(Boolean));
   } else if (w.type === "pedals") {
     const hasBrakes = w.axes.bl != null || w.axes.br != null;
-    rt.canvas = makeCanvas(D.rw * k * kx, D.rh * k * ky);
+    // rw = rudder length, rh = thickness; the rudder can stand upright between the brakes.
+    rt.canvas = w.orient === "v" ? makeCanvas(D.rh * k * kx, D.rw * k * ky) : makeCanvas(D.rw * k * kx, D.rh * k * ky);
     const parts = [title];
     const cap = t => showAx ? el("span", {}, t) : null;
     if (hasBrakes) {
@@ -1002,13 +1004,13 @@ function drawWidget(w, rt, pad, dt) {
   if (w.type === "stick") return drawStick(w, rt, pad, dt);
   if (w.type === "throttle" || w.type === "axis") {
     const zero = w.type === "throttle", key = w.type === "throttle" ? "t" : "a", v = readAxis(pad, w, key);
-    drawBar(rt.canvas, v, accent, { vertical: true, zero, rt, key, dt, live, skip: !rt.dirty, ink });
+    drawBar(rt.canvas, v, accent, { vertical: w.orient !== "h", zero, rt, key, dt, live, skip: !rt.dirty, ink });
     if (rt.dirty) setText(rt.spans.v, v, zero);
     return;
   }
   if (w.type === "pedals") {
     const r = readAxis(pad, w, "r");
-    drawBar(rt.canvas, r, accent, { vertical: false, zero: false, rt, key: "r", dt, live, skip: !rt.dirty, ink });
+    drawBar(rt.canvas, r, accent, { vertical: w.orient === "v", zero: false, rt, key: "r", dt, live, skip: !rt.dirty, ink });
     if (rt.dirty) { const sp = rt.spans.r, p = pct(r); setText(sp, r); sp.classList.toggle("pos", p > 0); sp.classList.toggle("neg", p < 0); }
     for (const [key, c] of [["bl", rt.brakeL], ["br", rt.brakeR]]) {
       if (w.axes[key] == null || !c) continue;
@@ -1878,6 +1880,12 @@ function layoutSection(p, ws) {
     p.append(row("Show values (%)", checkIn(flag("showValues"), "v", upd)));
     p.append(row("Show axis labels", checkIn(flag("showAxisLabels"), "v", upd)));
   }
+  if (ws.every(w => w.type === "throttle" || w.type === "axis" || w.type === "pedals")) {
+    const def = w => w.orient || (w.type === "pedals" ? "h" : "v");
+    const o = all(w => def(w), (w, k, v) => { w.orient = v; });
+    p.append(row(ws.every(w => w.type === "pedals") ? "Rudder bar" : "Bar direction",
+      selectIn(o, "v", [["v", "Vertical"], ["h", "Horizontal"]], upd)));
+  }
   if (ws.every(w => w.type === "button" || w.type === "pedals")) {
     pctRow(p, "Width scale", ws, w => w.scaleW || 1, (w, v) => { w.scaleW = v; }, 25, 400, upd);
     pctRow(p, "Height scale", ws, w => w.scaleH || 1, (w, v) => { w.scaleH = v; }, 25, 400, upd);
@@ -1885,9 +1893,9 @@ function layoutSection(p, ws) {
   const type = ws.every(w => w.type === w0.type) ? w0.type : null;
   const SLIDERS = {
     stick: [["Stick area (square)", "box", 60, 400]],
-    throttle: [["Bar width", "bw", 8, 80], ["Bar height", "bh", 40, 400]],
-    axis: [["Bar width", "bw", 8, 80], ["Bar height", "bh", 40, 400]],
-    pedals: [["Rudder bar width", "rw", 80, 500], ["Rudder bar height", "rh", 6, 80],
+    throttle: [["Bar thickness", "bw", 8, 80], ["Bar length", "bh", 40, 400]],
+    axis: [["Bar thickness", "bw", 8, 80], ["Bar length", "bh", 40, 400]],
+    pedals: [["Rudder bar length", "rw", 80, 500], ["Rudder bar thickness", "rh", 6, 80],
       ...(ws.some(w => w.axes && (w.axes.bl != null || w.axes.br != null)) ? [["Brake bar width", "bkw", 6, 60], ["Brake bar height", "bkh", 20, 200]] : [])]
   }[type];
   if (SLIDERS) {
@@ -1895,7 +1903,7 @@ function layoutSection(p, ws) {
     for (const [label, key, min, max] of SLIDERS) slider(label, dims, key, min, max);
   }
   p.append(el("div", { class: "actions" }, el("button", { onclick: () => {
-    for (const w of ws) { delete w.pad; delete w.radius; delete w.depth; delete w.dims; delete w.showTitle; delete w.showValues; delete w.showAxisLabels; delete w.scaleW; delete w.scaleH; }
+    for (const w of ws) { delete w.pad; delete w.radius; delete w.depth; delete w.dims; delete w.showTitle; delete w.showValues; delete w.showAxisLabels; delete w.scaleW; delete w.scaleH; delete w.orient; }
     save(); upd(); renderPanel();
   } }, "Reset Layout")));
 }

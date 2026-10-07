@@ -73,7 +73,8 @@ Then use **Layout**:
 - **Padding** and **Corner radius**. The stick's inner box uses the same corner radius as the widget, so the corners match.
 - **Show name**, **Show values (%)** and **Show axis labels** switch those parts on or off. On pedals with axis labels off, the rudder value is anchored to the widget's center: 0% sits dead center, right rudder grows the number to the right and left rudder grows it to the left, with the brake values under their bars.
 - **3D depth** (0 to 100%) gives the panel a beveled, raised edge, sinks the stick gate into the panel, and turns the stick's ball into a lit sphere with a shadow. It's drawn once with CSS shadows and gradients, so it adds no per-frame cost in OBS.
-- **Inner sizes:** stick area for sticks (always a square 4×4 gate before any perspective), bar width and height for throttles and single axes, and rudder and brake bar width and height for pedals. These are in pixels before the **Size** slider, which still scales the whole widget.
+- **Bar direction:** throttles and single axes can be **Vertical** (default) or **Horizontal**. On pedals, **Rudder bar** stands the rudder upright between the brakes or lays it flat (default).
+- **Inner sizes:** stick area for sticks (always a square 4×4 gate before any perspective), bar thickness and length for throttles and single axes, and rudder and brake bar sizes for pedals. These are in pixels before the **Size** slider, which still scales the whole widget.
 - **Reset Layout** puts them back to the defaults.
 
 Widgets keep a fixed size while you fly. The % values reserve room for their widest reading, so moving a stick never resizes anything.
