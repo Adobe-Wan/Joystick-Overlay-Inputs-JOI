@@ -510,7 +510,7 @@ function loadProfile() {
 let firstRun = false;
 let saveTimer = null;
 function save() {
-  profile.savedAt = Date.now();
+  profile.savedAt = Date.now(); stampLayout();
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => { try { localStorage.setItem(STORE_KEY, JSON.stringify(profile)); } catch (e) {} }, 150);
 }
@@ -519,7 +519,7 @@ function download(name, text, type) {
   document.body.append(a); a.click(); a.remove();
 }
 function exportProfile(asScript) {
-  profile.savedAt = Date.now();
+  profile.savedAt = Date.now(); stampLayout();
   const json = JSON.stringify(profile, null, 2);
   if (asScript) download("profile.js", "// Stay On Target profile. Keep next to StayOnTarget.html.\nwindow.STAYONTARGET_PROFILE = " + json + ";\n", "text/javascript");
   else download("stayontarget-profile.json", json, "application/json");
@@ -788,8 +788,52 @@ function rebuildAll() {
   stage.querySelectorAll(".widget").forEach(e => e.remove());
   for (const id in runtime) if (!profile.widgets.find(w => w.id === id)) delete runtime[id];
   for (const w of profile.widgets) stage.append(buildWidget(w));
+  adaptLayout();
   renderPanel();
   updateOffscreenNote();
+}
+// ---------- moving a layout between screen shapes ----------
+// Positions are saved together with the canvas they were arranged on (settings.layoutW/H). When the
+// page opens on a different shape, e.g. a 4K browser tab with toolbars (wider than 16:9) vs a 1080p OBS
+// source, each group of touching widgets keeps its place relative to the nearest part of the screen:
+// left, center or right third horizontally, and top, middle or bottom third vertically. A row along the
+// bottom middle stays at the bottom middle; a panel in a corner keeps its distance from that corner.
+// Only the copy in memory moves; nothing is saved until you edit, so the original layout is never lost.
+let layoutFor = null, layoutBase = null;
+const GROUP_GAP = 40;
+function adaptLayout() {
+  const s = profile.settings, C = canvasSize();
+  // Profiles saved before this existed don't say which canvas they were made on: leave them where they are
+  // until the next save records it.
+  if (layoutFor !== profile) { layoutFor = profile; layoutBase = +s.layoutW && +s.layoutH ? { w: +s.layoutW, h: +s.layoutH } : { w: C.w, h: C.h }; }
+  if (!(C.w > 0 && C.h > 0 && isFinite(C.w) && isFinite(C.h))) return;   // window not laid out yet
+  const from = layoutBase, dW = C.w - from.w, dH = C.h - from.h;
+  if (Math.abs(dW) < 2 && Math.abs(dH) < 2) return;
+  layoutBase = { w: C.w, h: C.h };
+  const ws = profile.widgets, bs = ws.map(boxOf);
+  // Group widgets whose boxes touch or sit within GROUP_GAP of each other (union-find).
+  const parent = ws.map((_, i) => i), find = i => parent[i] === i ? i : (parent[i] = find(parent[i]));
+  const near = (a, b) => a.x - GROUP_GAP < b.x + b.w && b.x - GROUP_GAP < a.x + a.w && a.y - GROUP_GAP < b.y + b.h && b.y - GROUP_GAP < a.y + a.h;
+  for (let i = 0; i < ws.length; i++) for (let j = i + 1; j < ws.length; j++) if (near(bs[i], bs[j])) parent[find(i)] = find(j);
+  const groups = {};
+  ws.forEach((w, i) => (groups[find(i)] ||= []).push(i));
+  const shift = (c, size, d) => c < size / 3 ? 0 : c > size * 2 / 3 ? d : d / 2;
+  for (const idx of Object.values(groups)) {
+    const x0 = Math.min(...idx.map(i => bs[i].x)), y0 = Math.min(...idx.map(i => bs[i].y));
+    const x1 = Math.max(...idx.map(i => bs[i].x + bs[i].w)), y1 = Math.max(...idx.map(i => bs[i].y + bs[i].h));
+    let dx = shift((x0 + x1) / 2, from.w, dW), dy = shift((y0 + y1) / 2, from.h, dH);
+    // Keep the whole group on screen if it would fall off an edge.
+    dx = clamp(dx, -x0, Math.max(-x0, C.w - x1)); dy = clamp(dy, -y0, Math.max(-y0, C.h - y1));
+    for (const i of idx) {
+      ws[i].x = Math.round(ws[i].x + dx); ws[i].y = Math.round(ws[i].y + dy);
+      const r = runtime[ws[i].id] && runtime[ws[i].id].root;
+      if (r) { r.style.left = ws[i].x + "px"; r.style.top = ws[i].y + "px"; }
+    }
+  }
+}
+function stampLayout() {
+  if (!layoutBase) return;
+  profile.settings.layoutW = Math.round(layoutBase.w); profile.settings.layoutH = Math.round(layoutBase.h);
 }
 // Layouts are designed on a 1920x1080 canvas. "auto" scales the overlay with the source so a
 // 1080p layout looks identical at 1440p or 4K, and the whole 1080-tall layout always fits:
