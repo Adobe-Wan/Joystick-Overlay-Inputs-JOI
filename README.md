@@ -120,6 +120,13 @@ For a permanent fix, give one stick a different USB Product ID in VPC Configurat
 ## Starting over
 **Reset All** (next to **Import Profile** on the editor's home panel) asks for confirmation, then removes every widget and returns all settings, colors and the edit-mode background to their defaults. It can't be undone, so use **Save / Share** first if you might want the layout back.
 
+## A device isn't showing up
+Open the editor and click **Check Devices** on the home panel. It lists every controller your browser is passing to Stay On Target, live, and which widgets are still waiting for theirs.
+- **Wake it up.** Browsers hide controllers until you use them after the page opens. Pedals have no buttons, so push a pedal or a toe brake all the way once.
+- **Four controllers at most.** Browsers and OBS show no more than 4 game controllers at a time. If all 4 slots are taken, a fifth device (often the pedals) gets left out. Unplug or disable what you don't need on stream: a spare throttle, a wheel, an Xbox pad, or virtual controllers from Steam, vJoy or similar tools. Win+R, `joy.cpl` lists everything Windows sees.
+- **Different browsers.** A layout made in OBS also works in Chrome, Edge or Firefox; devices are matched by their USB ids.
+- Still missing? Close other apps that read controllers, unplug the device and plug it back in, then refresh.
+
 ## Sharing with a trainee
 Send `StayOnTarget.html` and your `profile.js`. With the same hardware it just works. With different hardware they remove the widgets and use **+ Device** for their own.
 
