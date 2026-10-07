@@ -52,7 +52,7 @@ Layouts are designed on a 1920×1080 canvas and **fit to the screen size** autom
 - Grid size, safe margin, and turning guides or the grid off are in **Settings**.
 
 ## Sample backgrounds
-Sample screenshots live in the `Background Images for Edit Mode` folder next to `StayOnTarget.html`. The download includes a 16:9 sample; ultrawide samples will follow. The editor uses whichever sample best matches your screen shape, as long as the files keep these exact names:
+Sample screenshots live in the `Background Images for Edit Mode` folder next to `StayOnTarget.html`. The download includes 16:9 and 21:9 ultrawide samples. The editor uses whichever sample best matches your screen shape, as long as the files keep these exact names:
 
 | File | Screen shape |
 |---|---|
