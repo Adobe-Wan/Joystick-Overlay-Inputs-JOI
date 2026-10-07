@@ -20,7 +20,7 @@ Every version, with its change notes, is on the [Releases page](https://github.c
 Download the new zip and replace `StayOnTarget.html` in your folder. Keep your `profile.js`: your layout comes back automatically. You don't need to change anything in OBS.
 
 ## Set up in OBS
-1. [Download](#download) and extract the zip. The folder holds `StayOnTarget.html`, this README and the license.
+1. [Download](#download) and extract the zip. The folder holds `StayOnTarget.html`, the `Background Images for Edit Mode` sample screenshots, this README and the license. Keep them together.
 2. In OBS, add a **Browser** source, tick **Local file** and pick `StayOnTarget.html`.
    - **Width / Height:** use your OBS canvas size (Settings → Video → Base Canvas, usually **1920 × 1080**). The overlay then maps 1:1 to your screen, and you position widgets by dragging them in step 4 rather than by moving the source.
    - **FPS:** tick custom frame rate and set **60**.
@@ -52,7 +52,7 @@ Layouts are designed on a 1920×1080 canvas and **fit to the screen size** autom
 - Grid size, safe margin, and turning guides or the grid off are in **Settings**.
 
 ## Sample backgrounds
-Sample screenshots live in the `Background Images for Edit Mode` folder next to `StayOnTarget.html`. The editor uses whichever sample best matches your screen shape, as long as the files keep these exact names:
+Sample screenshots live in the `Background Images for Edit Mode` folder next to `StayOnTarget.html`. The download includes a 16:9 sample; ultrawide samples will follow. The editor uses whichever sample best matches your screen shape, as long as the files keep these exact names:
 
 | File | Screen shape |
 |---|---|
