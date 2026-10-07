@@ -1205,22 +1205,22 @@ for (const sm of SAMPLES) {
   const img = new Image();
   img.onload = () => {
     availableSamples.push(sm); availableSamples.sort((a, b) => a.ratio - b.ratio);
-    if (!refImage && autoSample) pickSampleForScreen();
+    if ((!refImage || autoPicked) && autoSample) pickSampleForScreen();   // samples load in any order: re-pick as each one arrives
     if (editing) renderPanel();
   };
   img.src = SAMPLE_DIR + sm.file;
 }
-let refImage = null, autoSample = true;
+let refImage = null, autoSample = true, autoPicked = false;   // autoPicked: the sample was chosen for the screen shape, not by the user
 try { refImage = localStorage.getItem(REF_KEY); if (refImage === "none") { refImage = null; autoSample = false; } } catch (e) {}
 // Use the sample whose shape is closest to the current screen.
 function pickSampleForScreen() {
   if (!availableSamples.length) return;
   const r = window.innerWidth / window.innerHeight;
   const best = availableSamples.reduce((a, b) => Math.abs(b.ratio - r) < Math.abs(a.ratio - r) ? b : a);
-  refImage = SAMPLE_DIR + best.file; applyReference();
+  refImage = SAMPLE_DIR + best.file; autoPicked = true; applyReference();
 }
 function useSample(sm) {
-  refImage = SAMPLE_DIR + sm.file; applyReference(); renderPanel();
+  refImage = SAMPLE_DIR + sm.file; autoPicked = false; applyReference(); renderPanel();
   try { localStorage.setItem(REF_KEY, refImage); } catch (e) {}
 }
 function applyReference() { document.body.style.backgroundImage = editing && refImage ? `url("${refImage}")` : ""; }
@@ -1228,12 +1228,12 @@ $("#ref-in").addEventListener("change", e => {
   const f = e.target.files[0]; if (!f) return;
   const r = new FileReader();
   r.onload = () => {
-    refImage = r.result; applyReference(); renderPanel(); if (wiz) renderWiz();
+    refImage = r.result; autoPicked = false; applyReference(); renderPanel(); if (wiz) renderWiz();
     try { localStorage.setItem(REF_KEY, refImage); } catch (err) { toast("Screenshot shown, but too large to remember after reload"); }
   };
   r.readAsDataURL(f); e.target.value = "";
 });
-function clearReference() { refImage = null; autoSample = false; try { localStorage.setItem(REF_KEY, "none"); } catch (e) {} applyReference(); renderPanel(); }
+function clearReference() { refImage = null; autoSample = false; autoPicked = false; try { localStorage.setItem(REF_KEY, "none"); } catch (e) {} applyReference(); renderPanel(); }
 
 $("#edit-switch").addEventListener("change", e => setEditing(e.target.checked));
 $("#enter-edit-btn").addEventListener("click", () => setEditing(true));
