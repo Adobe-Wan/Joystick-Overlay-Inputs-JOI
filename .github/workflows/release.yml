@@ -1,0 +1,35 @@
+# Builds StayOnTarget.zip and publishes a GitHub Release whenever a version tag (v1.0.0, v1.1.0, ...) is pushed.
+# The README's download link always points at the newest release's zip.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build StayOnTarget.zip
+        run: |
+          mkdir -p "dist/Stay On Target"
+          cp StayOnTarget.html README.md LICENSE "dist/Stay On Target/"
+          if [ -d "Background Images for Edit Mode" ]; then cp -r "Background Images for Edit Mode" "dist/Stay On Target/"; fi
+          cd dist && zip -r StayOnTarget.zip "Stay On Target"
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # A release made by hand on GitHub already exists for this tag: just attach the zip to it.
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/StayOnTarget.zip --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" dist/StayOnTarget.zip \
+              --title "Stay On Target $GITHUB_REF_NAME" --generate-notes --latest
+          fi

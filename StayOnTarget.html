@@ -1,0 +1,1971 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stay On Target</title>
+<style>
+:root {
+  --ui-accent: #4fd1ff;
+  --guide: #ff3fb4;
+  --panel: #0d131b;
+  --line: rgba(255, 255, 255, 0.12);
+  --text: #e8f1f8;
+  --muted: #8a9aab;
+  --hot: #ff5d73;
+  --font: "Segoe UI", "Inter", system-ui, -apple-system, Roboto, sans-serif;
+  --mono: "Cascadia Mono", "Consolas", "SF Mono", ui-monospace, monospace;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; height: 100%; overflow: hidden;
+  background: transparent; color: var(--text); font-family: var(--font);
+  -webkit-font-smoothing: antialiased; user-select: none;
+}
+body.editing { background-color: #11161d; background-size: cover; background-position: center; }
+body.bg-solid:not(.editing) { background: var(--bgcolor, #00ff00); }
+/* Opened in a normal browser (not OBS): dark preview instead of a blank white page. */
+body.preview:not(.editing):not(.bg-solid) { background: #0b1016; }
+#preview-chip { position: fixed; left: 1rem; bottom: 1rem; z-index: 10; display: none; align-items: center; gap: 0.6rem; padding: 0.5rem 0.9rem; font: 500 0.93rem/1.4 var(--font); color: #b6c3d1; max-width: calc(100vw - 2rem); flex-wrap: wrap; }
+body.preview:not(.editing).has-widgets #preview-chip { display: flex; }
+#preview-chip .warn { color: #ffb547; }
+#stage { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+
+/* ---------- widgets ---------- */
+.widget {
+  --accent: #ffffff; --wtext: #ffffff; --wbg: #121212;
+  position: absolute; padding: 8px; text-align: center;
+  background: var(--wbg); color: var(--wtext);
+  border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.55);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.9);
+}
+.widget .title {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+  margin-bottom: 7px; white-space: nowrap;
+}
+.widget.offline { opacity: 0.45; }
+.widget.offline .title::after { content: " · not connected"; color: var(--hot); letter-spacing: 0.04em; text-transform: none; }
+.widget canvas { display: block; margin: 0 auto; }
+.readout {
+  font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 600;
+  display: flex; justify-content: center; gap: 14px; margin-top: 7px; white-space: nowrap;
+}
+.readout b { opacity: 0.7; font-weight: 500; margin-right: 5px; font-family: var(--font); font-size: 11px; letter-spacing: 0.08em; }
+.readout .full { color: var(--accent); }
+/* Each value reserves room for its widest reading ("+100%"), so widgets never change size as inputs move. */
+.readout .val { display: inline-block; min-width: 5ch; text-align: left; }
+/* Pedals with axis labels off: L | rudder | R. 0% sits dead center; positive readings grow to the right
+   from the "0" position, negative ones to the left, so the number tracks the rudder's direction. */
+.readout.ped-split { display: grid; grid-template-columns: 1fr 9ch 1fr; gap: 6px; }
+.ped-split > .bl { grid-column: 1; justify-self: start; }
+.ped-split > .rud { grid-column: 2; position: relative; height: 1.3em; }
+.ped-split > .br { grid-column: 3; justify-self: end; text-align: right; }
+.ped-split > .br .val { text-align: right; }
+.ped-split .rud .val { position: absolute; top: 0; left: 50%; min-width: 0; transform: translateX(-50%); }
+.ped-split .rud .val.pos { transform: translateX(-1ch); }
+.ped-split .rud .val.neg { transform: translateX(calc(-100% + 1ch)); }
+.bars { display: flex; gap: 14px; align-items: flex-end; justify-content: center; }
+.bars .col { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.bars .col span { font-size: 10px; letter-spacing: 0.1em; opacity: 0.75; text-transform: uppercase; }
+.btn-widget { padding: 8px 14px; min-width: 64px; font-weight: 700; font-size: 13px; letter-spacing: 0.06em; transition: background 60ms, color 60ms, box-shadow 60ms; }
+.btn-widget.on { background: var(--accent); color: var(--on, #031018); border-color: var(--accent); box-shadow: 0 0 14px var(--accent); text-shadow: none; }
+.label-widget { font-weight: 700; letter-spacing: 0.06em; }
+/* Perspective: one GPU-composited CSS transform per widget, no per-frame cost. */
+.widget.tilted { transform-origin: 50% 50%; will-change: transform; backface-visibility: hidden; }
+
+/* ---------- edit mode: guides, selection ---------- */
+#grid, #center-lines, #guides { position: absolute; left: 0; top: 0; pointer-events: none; display: none; }
+body.editing #grid, body.editing #guides { display: block; }
+body.editing.show-center #center-lines { display: block; }
+#center-lines i, #guides i { position: absolute; display: block; }
+#center-lines i { background: rgba(79, 209, 255, 0.6); }
+#center-lines i.v { width: 1px; top: 0; bottom: 0; }
+#center-lines i.h { height: 1px; left: 0; right: 0; }
+#guides i { background: var(--guide); box-shadow: 0 0 4px var(--guide); }
+#center-lines, #guides { z-index: 5; width: 100%; height: 100%; }
+#marquee { position: fixed; display: none; border: 1px solid var(--ui-accent); background: rgba(79,209,255,0.12); pointer-events: none; z-index: 15; }
+body.editing .widget { cursor: move; }
+body.editing .widget:hover { outline: 1px solid rgba(79,209,255,0.45); }
+body.editing .widget.selected { outline: 2px solid var(--ui-accent); outline-offset: 2px; }
+
+/* ---------- editor UI (MUI dark-theme conventions, rem-based so it scales for 4K) ---------- */
+html { font-size: 14px; }   /* set from JS: grows with the viewport so 4K stays readable */
+#ui, #welcome, #wizard, #confirm, #enter-edit, #toast { font-family: var(--font); }
+#ui { display: none; }
+body.editing #ui { display: block; }
+body.panel-hidden #panel { display: none; }
+body.panel-hidden #toolbar { left: 50%; max-width: calc(100vw - 1.5rem); }
+.paper {
+  background: #121a24; color: var(--text); border: 1px solid rgba(255,255,255,0.12); border-radius: 0.5rem;
+  box-shadow: 0 0.6rem 1.2rem -0.4rem rgba(0,0,0,0.6), 0 1.6rem 2.4rem 0.2rem rgba(0,0,0,0.3);
+}
+#toolbar {
+  position: fixed; top: 0.75rem; left: calc(50% - 11.5rem); transform: translateX(-50%); z-index: 20;
+  display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem;
+  flex-wrap: wrap; justify-content: center; max-width: calc(100vw - 25rem);
+}
+#toolbar .divider { width: 1px; align-self: stretch; background: rgba(255,255,255,0.12); margin: 0 0.25rem; }
+button, select, input[type=text], input[type=number] {
+  font: 500 1rem/1.4 var(--font); color: var(--text); background: transparent;
+  border: 1px solid rgba(255,255,255,0.23); border-radius: 0.3rem; padding: 0.4rem 0.9rem; min-height: 2.5rem;
+}
+select, input[type=text], input[type=number] { background: rgba(255,255,255,0.06); }
+/* Native dropdown lists: dark menu with light text. Without this, Windows draws the open list
+   white while the options inherit our light text color, which is unreadable. */
+#ui, #wizard { color-scheme: dark; }
+select { background-color: #1b2632; }
+select option, select optgroup { background-color: #121a24; color: #e8f1f8; }
+select option:checked { background-color: #2a3d52; color: #ffffff; }
+button { cursor: pointer; letter-spacing: 0.02em; transition: background 120ms, border-color 120ms; }
+button:hover { background: rgba(79,209,255,0.08); border-color: var(--ui-accent); }
+button.primary { background: var(--ui-accent); color: #00131c; border-color: var(--ui-accent); font-weight: 650;
+  box-shadow: 0 0.2rem 0.1rem -0.1rem rgba(0,0,0,0.2), 0 0.15rem 0.15rem rgba(0,0,0,0.14); }
+button.primary:hover { background: #7fdfff; }
+button.text { border-color: transparent; color: var(--ui-accent); }
+button.on { border-color: var(--ui-accent); color: var(--ui-accent); }
+button.danger:hover { border-color: var(--hot); color: var(--hot); background: rgba(255,93,115,0.08); }
+button:focus-visible, select:focus-visible, input:focus-visible, .switch:focus-within {
+  outline: 0.2rem solid #ffd34d; outline-offset: 0.15rem;   /* WCAG 2.4.7 visible focus */
+}
+/* Color picker: a swatch button that opens a popover (saturation/brightness area, hue slider, hex, presets). */
+.cpick { display: inline-flex; align-items: center; gap: 0.55rem; padding: 0.3rem 0.7rem 0.3rem 0.35rem; min-width: 8.4rem; background: rgba(255,255,255,0.06); }
+.cpick .chip { width: 1.75rem; height: 1.75rem; border-radius: 0.35rem; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.25), 0 1px 2px rgba(0,0,0,0.4); flex: none; }
+.cpick .hex { font: 600 0.92rem/1 var(--mono); letter-spacing: 0.04em; text-transform: uppercase; }
+.cpop { position: fixed; z-index: 70; width: 16rem; padding: 0.8rem; display: grid; gap: 0.7rem; }
+.cpop .sv { position: relative; height: 9.5rem; border-radius: 0.4rem; cursor: crosshair; touch-action: none;
+  background: linear-gradient(to top, #000, rgba(0,0,0,0)), linear-gradient(to right, #fff, rgba(255,255,255,0)), var(--hue); }
+.cpop .sv:focus-visible { outline: 0.2rem solid #ffd34d; outline-offset: 0.15rem; }
+.cpop .knob { position: absolute; width: 1rem; height: 1rem; margin: -0.5rem 0 0 -0.5rem; border-radius: 50%;
+  border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,0.5), 0 1px 4px rgba(0,0,0,0.5); pointer-events: none; }
+.cpop input.hue { -webkit-appearance: none; appearance: none; width: 100%; height: 0.8rem; border-radius: 0.4rem; margin: 0.2rem 0;
+  background: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00); }
+.cpop input.hue::-webkit-slider-thumb { -webkit-appearance: none; width: 1.1rem; height: 1.1rem; border-radius: 50%; background: var(--hue);
+  border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,0.5), 0 1px 4px rgba(0,0,0,0.5); cursor: pointer; }
+.cpop input.hue::-moz-range-thumb { width: 1rem; height: 1rem; border-radius: 50%; background: var(--hue); border: 2px solid #fff; cursor: pointer; }
+.cpop .line { display: flex; align-items: center; gap: 0.5rem; }
+.cpop .now { width: 2.5rem; height: 2.5rem; border-radius: 0.4rem; flex: none; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.25); }
+.cpop .hexin { flex: 1 1 0; width: 0; min-width: 0; font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.04em; }
+.cpop .drop { padding: 0.4rem 0.6rem; }
+.cpop .presets { display: grid; grid-template-columns: repeat(8, 1fr); gap: 0.35rem; }
+.cpop .presets button { min-height: 0; height: 1.6rem; padding: 0; border-radius: 0.3rem; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.22); }
+.cpop .presets button[aria-pressed=true] { outline: 2px solid #fff; outline-offset: 1px; }
+input[type=range] { accent-color: var(--ui-accent); width: 11rem; height: 1.6rem; }
+input[type=checkbox] { accent-color: var(--ui-accent); width: 1.3rem; height: 1.3rem; }
+/* MUI-style switch */
+.switch { display: inline-flex; align-items: center; gap: 0.6rem; cursor: pointer; font-weight: 600; font-size: 1rem; padding: 0.2rem 0.4rem; border-radius: 0.3rem; }
+.switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.switch .track { width: 2.6rem; height: 1.1rem; border-radius: 1rem; background: rgba(255,255,255,0.3); position: relative; transition: background 150ms; }
+.switch .thumb { position: absolute; top: 50%; left: -0.1rem; width: 1.45rem; height: 1.45rem; border-radius: 50%; background: #e0e0e0;
+  transform: translateY(-50%); transition: left 150ms, background 150ms; box-shadow: 0 0.1rem 0.25rem rgba(0,0,0,0.5); }
+.switch input:checked + .track { background: rgba(79,209,255,0.5); }
+.switch input:checked + .track .thumb { left: 1.25rem; background: var(--ui-accent); }
+#panel {
+  position: fixed; top: 0.75rem; right: 0.75rem; bottom: 0.75rem; width: 22rem; z-index: 20; overflow-y: auto; padding: 1.1rem;
+  font-size: 1rem;
+}
+#panel h3 { margin: 0.2rem 0 0.8rem; font-size: 1.3rem; font-weight: 600; }
+#panel h4 { margin: 1.4rem 0 0.6rem; font-size: 0.85rem; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600; }
+#panel .row { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; margin: 0.5rem 0; }
+#panel .row > span { color: #b6c3d1; }
+#panel .row select, #panel .row input[type=text], #panel .row input[type=number] { width: 11rem; }
+#panel .hint { color: #a9b6c4; line-height: 1.5; margin: 0.6rem 0; }
+#panel .actions { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.9rem; }
+.icon-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.3rem; }
+.icon-row button { padding: 0.4rem 0; display: flex; align-items: center; justify-content: center; }
+.icon-row svg { width: 1.4rem; height: 1.4rem; stroke: currentColor; fill: none; stroke-width: 1.6; pointer-events: none; }
+.themes { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin: 0.4rem 0; }
+.theme-tile { display: flex; flex-direction: column; gap: 0.45rem; padding: 0.5rem; text-align: left; font-size: 0.86rem; line-height: 1.25; min-height: 0; font-weight: 600; }
+.theme-tile[aria-pressed=true] { border-color: var(--ui-accent); box-shadow: inset 0 0 0 1px var(--ui-accent); }
+.theme-prev { display: flex; align-items: center; gap: 0.45rem; padding: 0.4rem 0.5rem; border: 1px solid; border-radius: 0.35rem; pointer-events: none; }
+.theme-prev .sq { position: relative; flex: none; width: 1.7rem; height: 1.7rem; border: 1px solid; border-radius: 0.15rem; }
+.theme-prev .sq i { position: absolute; left: 60%; top: 28%; width: 0.45rem; height: 0.45rem; border-radius: 50%; }
+.theme-prev .col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+.theme-prev b { font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; white-space: nowrap; overflow: hidden; }
+.theme-prev .bar { position: relative; height: 0.35rem; border-radius: 0.2rem; overflow: hidden; }
+.theme-prev .bar i { position: absolute; left: 50%; top: 0; bottom: 0; width: 32%; }
+.swatch { position: relative; flex: none; width: 2.6rem; height: 1.5rem; border: 2px solid; border-radius: 0.25rem; }
+.swatch b { position: absolute; left: 0.3rem; top: 50%; width: 1.1rem; height: 2px; margin-top: -1px; }
+.swatch i { position: absolute; right: 0.3rem; top: 50%; width: 0.5rem; height: 0.5rem; margin-top: -0.25rem; border-radius: 50%; }
+.swatch.empty { border-style: dashed; border-color: rgba(255,255,255,0.35); }
+.tsel { position: relative; margin: 0.2rem 0 0.4rem; }
+.tsel-btn { width: 100%; display: flex; align-items: center; gap: 0.6rem; text-align: left; padding: 0.4rem 0.6rem; }
+.tsel-btn .tsel-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tsel-btn[aria-expanded=true] .chev { transform: rotate(180deg); }
+.tsel-list { position: absolute; left: 0; right: 0; top: calc(100% + 0.25rem); z-index: 5; margin: 0; padding: 0.3rem 0; list-style: none;
+  max-height: 20rem; overflow-y: auto; background: #121a24; border: 1px solid rgba(255,255,255,0.2); border-radius: 0.4rem; box-shadow: 0 0.6rem 1.4rem rgba(0,0,0,0.6); }
+.tsel-list:focus-visible { outline: 0.2rem solid #ffd34d; outline-offset: 0.15rem; }
+.tsel-list li { display: flex; align-items: center; gap: 0.6rem; padding: 0.45rem 0.7rem; cursor: pointer; }
+.tsel-list li.active { background: rgba(79,209,255,0.14); }
+.tsel-list li[aria-selected=true] { color: var(--ui-accent); font-weight: 650; }
+.tsel-list li[aria-selected=true]::after { content: "✓"; margin-left: auto; }
+.wide-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.3rem; margin-top: 0.3rem; }
+.choices { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin: 0.8rem 0; }
+.choices button { padding: 1rem 0.6rem; font-size: 1.05rem; font-weight: 600; }
+.step { border: 1px solid rgba(255,255,255,0.15); border-radius: 0.5rem; padding: 0.8rem; margin: 0.6rem 0; color: #a9b6c4; }
+.step.active { border-color: var(--ui-accent); color: var(--text); }
+.step.done { color: var(--text); }
+.step.done::before { content: "✓ "; color: var(--ui-accent); }
+.step .live { height: 0.45rem; background: rgba(255,255,255,0.1); border-radius: 0.3rem; margin-top: 0.6rem; overflow: hidden; }
+.step .live i { display: block; height: 100%; width: 0; background: var(--ui-accent); }
+#toast {
+  position: fixed; left: 50%; top: 5rem; transform: translateX(-50%); z-index: 40; padding: 0.7rem 1.1rem; font-size: 1rem;
+  opacity: 0; transition: opacity 200ms; pointer-events: none;
+}
+#toast.show { opacity: 1; }
+/* First-run dialog */
+#welcome { position: fixed; inset: 0; z-index: 50; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.55); }
+#welcome.open { display: flex; }
+#confirm { position: fixed; inset: 0; z-index: 60; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); color-scheme: dark; }
+#confirm.open { display: flex; }
+#confirm .dialog { width: min(30rem, calc(100vw - 2rem)); padding: 1.6rem 1.8rem; font-size: 1.07rem; line-height: 1.55; }
+#confirm h2 { margin: 0 0 0.5rem; font-size: 1.4rem; font-weight: 600; }
+#confirm p { color: #b6c3d1; margin: 0 0 1.3rem; }
+#confirm .foot { display: flex; justify-content: flex-end; gap: 0.5rem; flex-wrap: wrap; }
+#confirm button.danger.solid { background: var(--hot); border-color: var(--hot); color: #1a0508; font-weight: 600; }
+#confirm button.danger.solid:hover { filter: brightness(1.1); color: #1a0508; }
+#welcome .dialog { width: min(40rem, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); overflow: auto; padding: 1.8rem 2rem; font-size: 1.07rem; line-height: 1.55; }
+#welcome h2 { margin: 0 0 0.4rem; font-size: 1.8rem; font-weight: 600; }
+#welcome .lead { color: #b6c3d1; margin: 0 0 1.2rem; }
+#welcome ol { list-style: none; padding: 0; margin: 0 0 1.2rem; display: grid; gap: 0.7rem; }
+#welcome li { display: block; }
+#welcome .wstep { width: 100%; display: grid; grid-template-columns: 2.2rem 1fr auto; align-items: center; gap: 0.8rem; text-align: left;
+  padding: 0.8rem 1rem; border: 1px solid rgba(255,255,255,0.14); border-radius: 0.5rem; letter-spacing: normal; line-height: 1.45; }
+#welcome .wstep:hover { border-color: var(--ui-accent); background: rgba(79,209,255,0.06); }
+#welcome .wstep .go { font-size: 1.6rem; color: #a9b6c4; transition: transform 120ms, color 120ms; }
+#welcome .wstep:hover .go, #welcome .wstep:focus-visible .go { color: var(--ui-accent); transform: translateX(0.15rem); }
+#welcome li .num { width: 2.2rem; height: 2.2rem; border-radius: 50%; display: grid; place-items: center; font-weight: 700;
+  background: rgba(79,209,255,0.16); color: var(--ui-accent); }
+#welcome li b { display: block; }
+#welcome li small { color: #a9b6c4; font-size: 0.93rem; }
+#welcome .foot { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; flex-wrap: wrap; color: #a9b6c4; }
+kbd { font: 600 0.9em var(--mono); padding: 0.1em 0.45em; border: 1px solid rgba(255,255,255,0.35); border-bottom-width: 2px; border-radius: 0.3em; background: rgba(255,255,255,0.08); color: #fff; }
+/* Setup wizard: walks through each device in the middle of the screen */
+#wizard { position: fixed; inset: 0; z-index: 50; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.4); }
+#wizard.open { display: flex; }
+#wizard.see-through { background: rgba(0,0,0,0.12); }
+#wizard .shots { display: grid; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); gap: 0.7rem; margin: 0.4rem 0; }
+#wizard .shot { display: flex; flex-direction: column; gap: 0.4rem; padding: 0.45rem; font-weight: 600; }
+#wizard .shot img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 0.3rem; }
+#wizard .shot[aria-pressed=true] { border-color: var(--ui-accent); box-shadow: inset 0 0 0 1px var(--ui-accent); color: var(--ui-accent); }
+#wizard .dialog { position: relative; width: min(38rem, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); overflow: auto; padding: 1.8rem 2rem; font-size: 1.07rem; line-height: 1.55; }
+#wizard .close { position: absolute; top: 0.9rem; right: 0.9rem; min-height: 0; padding: 0.3rem 0.6rem; color: #b6c3d1; }
+#wizard .kicker { display: flex; align-items: center; gap: 0.7rem; color: var(--ui-accent); font-size: 0.85rem; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 700; }
+/* Step tracker: earlier steps are buttons you can jump back to. */
+#wizard .wsteps { display: flex; flex-wrap: wrap; gap: 0.35rem; list-style: none; padding: 0; margin: 0 0 0.7rem; font-size: 0.85rem; }
+#wizard .wsteps > li > * { display: inline-flex; align-items: center; gap: 0.35rem; min-height: 0; padding: 0.25rem 0.7rem; border-radius: 1rem;
+  border: 1px solid rgba(255,255,255,0.18); color: #8a98a8; font-weight: 600; letter-spacing: 0.02em; }
+#wizard .wsteps button { color: var(--ui-accent); border-color: rgba(79,209,255,0.45); }
+#wizard .wsteps button:hover { background: rgba(79,209,255,0.12); }
+#wizard .wsteps [aria-current] { background: var(--ui-accent); border-color: var(--ui-accent); color: #00131c; }
+#wizard h2 { margin: 0.4rem 0 0.3rem; font-size: 1.7rem; font-weight: 650; line-height: 1.25; }
+#wizard .lead { color: #b6c3d1; margin: 0 0 1rem; }
+#wizard .warn { color: #ffb547; margin: 0.6rem 0; }
+#wizard .types { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.7rem; margin: 1rem 0 0.4rem; }
+#wizard .types button { display: flex; flex-direction: column; align-items: center; gap: 0.35rem; padding: 1rem 0.5rem; font-weight: 650; font-size: 1.05rem; }
+#wizard .types svg, #fab-menu svg { width: 2.4rem; height: 2.4rem; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+#wizard .types small { color: #a9b6c4; font-weight: 400; font-size: 0.85rem; }
+#wizard .live { height: 0.7rem; margin: 0.9rem 0 0.3rem; background: rgba(255,255,255,0.1); border-radius: 0.4rem; overflow: hidden; }
+#wizard .live i { display: block; height: 100%; width: 0; background: var(--ui-accent); }
+#wizard .name-in { width: 100%; font-size: 1.2rem; margin: 0.4rem 0 0.2rem; }
+#wizard .added { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.8rem 0; padding: 0; list-style: none; }
+#wizard .added li { padding: 0.25rem 0.7rem; border-radius: 1rem; background: rgba(79,209,255,0.14); color: var(--text); font-size: 0.93rem; }
+#wizard .added li::before { content: "✓ "; color: var(--ui-accent); }
+#wizard .actions { display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end; margin-top: 1.3rem; }
+#wizard .actions .spacer { flex: 1; }
+#wizard .tip { color: #a9b6c4; font-size: 0.93rem; margin-top: 1rem; }
+/* Round + button with a radial menu, bottom right of the editing area */
+#fab-wrap { position: fixed; right: 24.25rem; bottom: 1.5rem; width: 4.5rem; height: 4.5rem; z-index: 25; }
+body.panel-hidden #fab-wrap { right: 1.5rem; }
+#fab { position: relative; z-index: 2; width: 4.5rem; height: 4.5rem; border-radius: 50%; padding: 0; display: grid; place-items: center;
+  box-shadow: 0 0.4rem 0.9rem rgba(0,0,0,0.55); transition: transform 180ms, background 120ms; }
+#fab svg { width: 2rem; height: 2rem; stroke: currentColor; stroke-width: 2.4; fill: none; stroke-linecap: round; pointer-events: none; }
+#fab[aria-expanded=true] { transform: rotate(45deg); }
+#fab-menu { position: absolute; inset: 0; }
+#fab-menu button { position: absolute; left: 0.25rem; top: 0.25rem; width: 4rem; height: 4rem; min-height: 0; border-radius: 50%; padding: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.05rem;
+  background: #121a24; border-color: rgba(255,255,255,0.3); font-size: 0.75rem; font-weight: 650; letter-spacing: 0.02em;
+  box-shadow: 0 0.3rem 0.7rem rgba(0,0,0,0.5); opacity: 0; pointer-events: none; transform: scale(0.4);
+  transition: transform 220ms cubic-bezier(0.2, 0.8, 0.3, 1.15), opacity 150ms; }
+#fab-menu button svg { width: 1.6rem; height: 1.6rem; }
+#fab-menu.open button { opacity: 1; pointer-events: auto; transform: translate(var(--x), var(--y)) scale(1); transition-delay: var(--d); }
+#fab-menu button:hover, #fab-menu button:focus-visible { background: #1b2a3a; border-color: var(--ui-accent); color: var(--ui-accent); }
+@media (prefers-reduced-motion: reduce) { #fab, #fab-menu button { transition: none; } }
+/* Prominent way back into edit mode when the overlay is empty */
+#enter-edit { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; z-index: 10; pointer-events: none; }
+body:not(.editing):not(.has-widgets) #enter-edit { display: flex; }
+#enter-edit .card { pointer-events: auto; text-align: center; padding: 1.8rem 2.2rem; font-size: 1.15rem; max-width: calc(100vw - 2rem); }
+#enter-edit .card p { margin: 0.8rem 0 0; color: #b6c3d1; }
+#enter-edit button { font-size: 1.25rem; padding: 0.7rem 1.6rem; }
+</style>
+</head>
+<body>
+<canvas id="grid"></canvas>
+<div id="stage">
+  <div id="center-lines"><i class="v"></i><i class="h"></i></div>
+  <div id="guides"></div>
+</div>
+<div id="marquee"></div>
+<div id="enter-edit"><div class="card paper" role="region" aria-label="Stay On Target">
+  <button class="primary" id="enter-edit-btn">Open the Editor</button>
+  <p>or press <kbd>E</kbd> at any time</p>
+</div></div>
+
+<div id="preview-chip" class="paper" role="note"><span>Browser preview. In OBS this background is transparent.</span><span class="warn" id="offscreen-note" hidden></span><button class="text" id="preview-edit">Open Editor (E)</button></div>
+
+<div id="welcome" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
+  <div class="dialog paper">
+    <h2 id="welcome-title">Welcome to Stay On Target</h2>
+    <p class="lead">Show your sticks, throttle and pedals on stream, then watch your replays to see exactly what your hands and feet were doing.</p>
+    <ol>
+      <li><button class="wstep" data-welcome="bg"><span class="num">1</span><span><b>Choose a background</b><small>A Star Citizen screenshot behind your widgets, so they sit around the HUD instead of on top of it. Only shown while editing.</small></span><span class="go" aria-hidden="true">›</span></button></li>
+      <li><button class="wstep" data-welcome="add"><span class="num">2</span><span><b>Add your devices</b><small>Pick Stick, Pedals or a Button, then move it when asked. We walk you through it right here.</small></span><span class="go" aria-hidden="true">›</span></button></li>
+      <li><button class="wstep" data-welcome="arrange"><span class="num">3</span><span><b>Arrange, then leave edit mode</b><small>Drag widgets into place, then switch <i>Edit Mode</i> off (top bar) or press <kbd>E</kbd>.</small></span><span class="go" aria-hidden="true">›</span></button></li>
+    </ol>
+    <div class="foot">
+      <span>Already have a setup? <button class="text" data-welcome="import">Import a Profile</button></span>
+      <span style="display:flex;gap:0.5rem;flex-wrap:wrap"><button data-welcome="close">Explore on My Own</button><button class="primary" data-welcome="device">Get Started</button></span>
+    </div>
+  </div>
+</div>
+<div id="confirm" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-body">
+  <div class="dialog paper">
+    <h2 id="confirm-title"></h2>
+    <p id="confirm-body"></p>
+    <div class="foot"><button data-confirm="no">Cancel</button><button class="danger solid" data-confirm="yes"></button></div>
+  </div>
+</div>
+<div id="wizard" role="dialog" aria-modal="true" aria-labelledby="wiz-title"><div class="dialog paper" id="wiz-body"></div></div>
+
+<div id="ui">
+  <div id="toolbar" class="paper">
+    <label class="switch" title="Leave edit mode (E)"><input type="checkbox" id="edit-switch" checked><span class="track"><span class="thumb"></span></span>Edit Mode</label>
+    <span class="divider"></span>
+    <button class="primary" data-act="add-device">+ Device</button>
+    <button data-act="add-button">+ Button</button>
+    <button data-act="add-label">+ Label</button>
+    <button data-act="heat" id="heat-btn">Session Heatmap</button>
+    <button data-act="settings">Settings</button>
+    <button data-act="export">Save / Share</button>
+    <button data-act="help">Getting Started</button>
+    <button data-act="panel" title="Show / hide the side panel (Tab)">Panel</button>
+  </div>
+  <div id="panel" class="paper" role="complementary" aria-label="Editor panel"></div>
+  <div id="fab-wrap">
+    <div id="fab-menu" role="menu" aria-label="Add to Overlay"></div>
+    <button id="fab" class="primary" aria-haspopup="menu" aria-expanded="false" aria-controls="fab-menu" aria-label="Add to Overlay" title="Add to overlay (A)"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+  </div>
+  <input type="file" id="file-in" accept=".json,.js,application/json" hidden>
+  <input type="file" id="ref-in" accept="image/*" hidden>
+</div>
+<div id="toast" class="paper" role="status" aria-live="polite"></div>
+
+<script>
+"use strict";
+/* Stay On Target. MIT License, see LICENSE. No third-party code. */
+/*
+ * Stay On Target — an OBS input overlay for Star Citizen pilots: see your sticks,
+ * throttle and pedals in your recordings and learn from your replays.
+ *
+ * Every widget remembers its device by hardware name (the Gamepad id) plus its order
+ * among identical devices, never by the browser's slot number, so mappings survive
+ * restarts and re-plugging. Setup is a wizard: pick a device type, then move each
+ * axis when asked.
+ *
+ * Layout editing follows design-tool conventions: smart guides that snap to the
+ * screen center/edges and other widgets, an optional grid, box or Shift+click
+ * multi-select, arrow-key nudging, and align / distribute / place-on-screen buttons.
+ */
+
+const STORE_KEY = "stayontarget.profile";
+const OLD_STORE_KEY = "joyviz2.v2.profile";   // carried over from the JoyViz 2 builds
+const REF_KEY = "stayontarget.reference";
+const SNAP_PX = 6;                            // smart-guide snap distance, screen pixels
+const DEFAULT_SETTINGS = { scaleMode: "auto", scale: 1, uiScale: "auto", background: "transparent", bgColor: "#00ff00",
+  accent: "#ffffff", text: "#ffffff", panel: "#121212", panelAlpha: 100, border: "", theme: "default", spaceGap: "",
+  gridSnap: true, gridSize: 16, smartGuides: true, centerLines: true, margin: 24 };
+
+let profile = null;     // { savedAt, settings, widgets: [] }
+let editing = false;
+const selected = new Set();
+let panelMode = "home"; // "home" | "widget" | "multi" | "settings" | "export"
+let showHeat = false;
+const runtime = {};
+
+// Ship manufacturer MFD color schemes. Primary: widget text and border. Accent: live/active
+// marks (stick dot, bars, pressed buttons). Background: widget container.
+const MFG_THEMES = [
+  { id: "aegis", name: "Aegis Dynamics", colors: { primary: "#35B6EC", accent: "#9BC3D1", background: "#111F29" } },
+  { id: "drake", name: "Drake Interplanetary", colors: { primary: "#FFBB00", accent: "#FF8220", background: "#1A140A" } },
+  { id: "anvil", name: "Anvil Aerospace", colors: { primary: "#00FF6B", accent: "#35B6EC", background: "#141C18" } },
+  { id: "esperia", name: "Esperia", colors: { primary: "#FF5000", accent: "#FFF220", background: "#0D0502" } },
+  { id: "crusader", name: "Crusader Industries", colors: { primary: "#FFFFFF", accent: "#004FFE", background: "#0A101D" } },
+  { id: "origin", name: "Origin Jumpworks", colors: { primary: "#0066FF", accent: "#4D94FF", background: "#0B111A" } },
+  { id: "misc", name: "MISC", colors: { primary: "#799A82", accent: "#E0E5E2", background: "#131A15" } },
+  { id: "rsi", name: "Roberts Space Industries", colors: { primary: "#7F00FF", accent: "#B366FF", background: "#0A0214" } },
+  { id: "gatac", name: "GATAC Manufacture", colors: { primary: "#D11589", accent: "#9A4BFF", background: "#15051A" } },
+  { id: "mirai", name: "Mirai", colors: { primary: "#00FFD5", accent: "#FF0055", background: "#031412" } },
+  { id: "banu", name: "Banu Souli", colors: { primary: "#10FF70", accent: "#85C399", background: "#04140B" } },
+  { id: "argo", name: "ARGO Astronautics", colors: { primary: "#FF7300", accent: "#FFE600", background: "#221C16" } },
+  { id: "aopoa", name: "AopoA", colors: { primary: "#FF9000", accent: "#FFEA00", background: "#1A0F00" } },
+  { id: "greycat", name: "Greycat Industrial", colors: { primary: "#FFD000", accent: "#A69665", background: "#1A170F" } }
+];
+// Featured palettes shown as tiles above the manufacturer list. border: "" keeps the subtle default edge.
+const FEATURED_THEMES = [
+  { id: "default", name: "Default", colors: { primary: "#FFFFFF", accent: "#FFFFFF", background: "#121212" }, border: "", alpha: 100 },   // neutral: white on opaque charcoal
+  { id: "avs", name: "AVS", title: "Avenger Squadron", colors: { primary: "#FFFFFF", accent: "#1E8FE8", background: "#000000" }, border: "#1E8FE8" }
+];
+const themeColors = t => ({ accent: t.colors.accent.toLowerCase(), text: t.colors.primary.toLowerCase(),
+  border: (t.border ?? t.colors.primary).toLowerCase(), bg: t.colors.background.toLowerCase(), theme: t.id,
+  ...(t.alpha != null ? { bgAlpha: t.alpha } : {}) });
+
+// ---------- helpers ----------
+const $ = (s, el = document) => el.querySelector(s);
+const el = (tag, props = {}, ...kids) => {
+  const e = document.createElement(tag);
+  for (const k in props) {
+    if (k === "class") e.className = props[k];
+    else if (k === "style") e.style.cssText = props[k];
+    else if (k === "html") e.innerHTML = props[k];
+    else if (k.startsWith("on")) e.addEventListener(k.slice(2), props[k]);
+    else e.setAttribute(k, props[k]);
+  }
+  for (const c of kids) if (c != null) e.append(c.nodeType ? c : document.createTextNode(c));
+  return e;
+};
+const uid = () => Math.random().toString(36).slice(2, 9);
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+function toast(msg) {
+  const t = $("#toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove("show"), 2200);
+}
+function prettyName(id) {
+  return (id || "").replace(/\s*\((STANDARD GAMEPAD\s*)?Vendor:.*\)\s*$/i, "").replace(/^[0-9a-f]{4}-[0-9a-f]{4}-/i, "").trim() || id;
+}
+// Dark or light text, whichever reads better on a given fill (WCAG relative luminance).
+function onColor(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || ""); if (!m) return "#031018";
+  const n = parseInt(m[1], 16), lin = c => { c /= 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+  const L = 0.2126 * lin(n >> 16) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
+  return L > 0.18 ? "#031018" : "#ffffff";
+}
+function hexA(hex, a) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || ""); if (!m) return `rgba(79,209,255,${a})`;
+  const n = parseInt(m[1], 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`;
+}
+
+// ---------- devices ----------
+function connectedPads() {
+  const list = [];
+  const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+  for (const p of pads) if (p && p.connected !== false) list.push(p);
+  list.sort((a, b) => a.index - b.index);
+  const count = {};
+  return list.map(p => ({ pad: p, id: p.id, nth: count[p.id] = (count[p.id] ?? -1) + 1 }));
+}
+function padFor(w, pads) {
+  const hit = pads.find(d => d.id === w.match && d.nth === w.nth);
+  return hit ? hit.pad : null;
+}
+function twinsOf(w, pads) { return pads.filter(d => d.id === w.match).length; }
+function swapTwins(match) {
+  const n = Math.max(2, connectedPads().filter(d => d.id === match).length);
+  for (const w of profile.widgets) if (w.match === match) w.nth = (w.nth + 1) % n;
+  save(); rebuildAll(); toast("Swapped identical devices");
+}
+
+// ---------- profile ----------
+function newProfile() { return { savedAt: 0, settings: { ...DEFAULT_SETTINGS }, widgets: [] }; }
+function normalize(p) {
+  const n = newProfile();
+  if (!p || typeof p !== "object") return n;
+  n.savedAt = +p.savedAt || 0;
+  n.settings = { ...DEFAULT_SETTINGS, ...(p.settings || {}) };
+  n.widgets = Array.isArray(p.widgets) ? p.widgets.filter(w => w && w.id && w.type) : [];
+  // Earlier builds defaulted to a see-through 62% background, too faint over Star Citizen's HUD.
+  if (n.settings.panelAlpha === 62) { n.settings.panelAlpha = 88; n.settings.panel = "#05080c"; n.settings.text = "#f2f7fb"; }
+  for (const w of n.widgets) if (w.bgAlpha === 62) { w.bgAlpha = 88; if (w.bg === "#080c12") w.bg = "#05080c"; }
+  return n;
+}
+function loadProfile() {
+  let stored = null;
+  try { stored = JSON.parse(localStorage.getItem(STORE_KEY) || localStorage.getItem(OLD_STORE_KEY) || "null"); } catch (e) {}
+  firstRun = !stored;
+  profile = normalize(stored);
+}
+let firstRun = false;
+let saveTimer = null;
+function save() {
+  profile.savedAt = Date.now();
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => { try { localStorage.setItem(STORE_KEY, JSON.stringify(profile)); } catch (e) {} }, 150);
+}
+function download(name, text, type) {
+  const a = el("a", { href: URL.createObjectURL(new Blob([text], { type })), download: name });
+  document.body.append(a); a.click(); a.remove();
+}
+function exportProfile(asScript) {
+  profile.savedAt = Date.now();
+  const json = JSON.stringify(profile, null, 2);
+  if (asScript) download("profile.js", "// Stay On Target profile. Keep next to StayOnTarget.html.\nwindow.STAYONTARGET_PROFILE = " + json + ";\n", "text/javascript");
+  else download("stayontarget-profile.json", json, "application/json");
+}
+function importProfileText(text) {
+  const m = /window\.(?:STAYONTARGET|JOYVIZ)_PROFILE\s*=\s*([\s\S]*?);?\s*$/.exec(text);
+  profile = normalize(JSON.parse(m ? m[1] : text));
+  save(); rebuildAll(); toast("Profile imported");
+}
+
+// ---------- device types ----------
+// Each wizard step captures one axis. dir says which way the user moves it, so we can
+// auto-invert: after capture, "positive" always means right / forward / pressed.
+const TYPES = {
+  stick: { name: "Stick", steps: [
+    { key: "x", ask: "Move the stick fully RIGHT", dir: +1 },
+    { key: "y", ask: "Push the stick fully FORWARD", dir: +1 } ] },
+  throttle: { name: "Throttle", steps: [
+    { key: "t", ask: "Push the throttle fully FORWARD", dir: +1 } ] },
+  pedals: { name: "Pedals", steps: [
+    { key: "r", ask: "Push the RIGHT rudder pedal forward", dir: +1 },
+    { key: "bl", ask: "Press the LEFT toe brake", dir: +1, optional: true },
+    { key: "br", ask: "Press the RIGHT toe brake", dir: +1, optional: true } ] },
+  axis: { name: "Single axis", steps: [
+    { key: "a", ask: "Move the axis to its MAXIMUM", dir: +1 } ] }
+};
+
+// ---------- wizard ----------
+let wiz = null;
+
+function snapshotAll() {
+  const s = {};
+  for (const d of connectedPads()) s[d.pad.index + "|" + d.id] = { axes: d.pad.axes.slice(), buttons: d.pad.buttons.map(b => b.pressed) };
+  return s;
+}
+let wizAdded = [];   // names added since the wizard opened, for the "Add More" summary
+let wizBg = false;   // this run started with the background step (first setup)
+function startSetup() { closeFab(); closeWelcome(); wizBg = true; wiz = { kind: "device", stage: "bg" }; renderWiz(); }
+function startDeviceWizard() { closeFab(); closeWelcome(); if (!wiz) wizBg = false; wiz = { kind: "device", stage: "type" }; renderWiz(); }
+function startButtonWizard() { closeFab(); closeWelcome(); wiz = { kind: "button", stage: "press", base: snapshotAll() }; renderWiz(); }
+function closeWizard() { wiz = null; wizAdded = []; wizBg = false; renderWiz(); }
+const cancelWizard = closeWizard;
+function wizChooseType(t) {
+  closeFab(); closeWelcome();
+  if (t === "button") return startButtonWizard();
+  if (t === "label") { closeWizard(); return addLabel(); }
+  wiz = { kind: "device", type: t, name: TYPES[t].name, stage: "steps", step: 0, axes: {}, inv: {}, base: snapshotAll() };
+  renderWiz();
+}
+function wizSkip() { wiz.step++; wiz.base = snapshotAll(); wizAfterStep(); }
+function wizAfterStep() {
+  if (wiz.step >= TYPES[wiz.type].steps.length) wiz.stage = "name";
+  renderWiz();
+}
+function wizardTick(pads) {
+  if (!wiz) return;
+  const np = $("#wiz-nopad"); if (np) np.hidden = pads.length > 0;
+  if (wiz.kind === "button" && wiz.stage === "press") {
+    for (const d of pads) {
+      const b0 = (wiz.base[d.pad.index + "|" + d.id] || {}).buttons || [];
+      const i = d.pad.buttons.findIndex((b, k) => b.pressed && !b0[k]);
+      if (i >= 0) { wiz.dev = d; wiz.button = i; wiz.name = "Button " + (i + 1); wiz.stage = "name"; renderWiz(); return; }
+    }
+    return;
+  }
+  if (wiz.kind !== "device" || wiz.stage !== "steps") return;
+  let best = null;
+  for (const d of pads) {
+    if (wiz.dev && !(d.id === wiz.dev.id && d.nth === wiz.dev.nth)) continue;
+    const a0 = (wiz.base[d.pad.index + "|" + d.id] || {}).axes || [];
+    d.pad.axes.forEach((v, i) => {
+      if (wiz.dev && Object.values(wiz.axes).includes(i)) return;
+      const delta = v - (a0[i] ?? v);
+      if (!best || Math.abs(delta) > Math.abs(best.delta)) best = { d, i, delta };
+    });
+  }
+  const live = $("#wiz-live"); if (live) live.style.width = (best ? clamp(Math.abs(best.delta) / 0.8, 0, 1) * 100 : 0) + "%";
+  if (best && Math.abs(best.delta) > 0.6) {
+    const step = TYPES[wiz.type].steps[wiz.step];
+    wiz.dev = wiz.dev || best.d;
+    wiz.axes[step.key] = best.i;
+    wiz.inv[step.key] = Math.sign(best.delta) !== step.dir;
+    wiz.step++; wiz.base = snapshotAll();
+    wizAfterStep();
+  }
+}
+function wizFinish() {
+  const d = wiz.dev, s = profile.settings;
+  const w = { id: uid(), x: 0, y: 0, label: wiz.name, match: d.id, nth: d.nth,
+    accent: s.accent, text: s.text, bg: s.panel, bgAlpha: s.panelAlpha, border: s.border || undefined, theme: s.theme || undefined, size: 1 };
+  if (wiz.kind === "button") Object.assign(w, { type: "button", button: wiz.button });
+  else Object.assign(w, { type: wiz.type, axes: wiz.axes, inv: wiz.inv });
+  addAndPlace(w);
+  wizAdded.push(w.label || TYPES[w.type]?.name || "Button");
+  wiz = { kind: "done", last: w };
+  renderWiz();
+}
+// New widgets join a row along the bottom middle of the screen, where most streamers keep
+// their input overlay. A centered row stays centered as it grows; when it is full, the widget
+// goes above it. Widgets the user placed elsewhere are never moved.
+function addAndPlace(w) {
+  profile.widgets.push(w); rebuildAll();
+  const C = canvasSize(), m = profile.settings.margin, gap = 16, b = boxOf(w), floor = C.h - m;
+  const row = profile.widgets.filter(o => o !== w && Math.abs(o.y + boxOf(o).h - floor) <= 2);
+  w.x = Math.round((C.w - b.w) / 2); w.y = Math.round(floor - b.h);
+  if (row.length) {
+    const u = unionBox(row), total = u.w + gap + b.w;
+    const centered = Math.abs(u.x + u.w / 2 - C.w / 2) <= 2;
+    if (centered && total <= C.w - 2 * m) {
+      const nx = Math.round((C.w - total) / 2);
+      moveWidgets(row, nx - u.x, 0);
+      w.x = nx + u.w + gap;
+    } else if (!centered && u.x + u.w + gap + b.w <= C.w - m) w.x = Math.round(u.x + u.w + gap);
+    else w.y = Math.round(u.y - gap - b.h);
+  }
+  while (profile.widgets.some(o => o !== w && o.x === w.x && o.y === w.y)) { w.x += 24; w.y -= 24; }
+  positionWidget(w); save(); setSelection([w.id]);
+}
+
+// ---------- rendering ----------
+const DUMMY_SPAN = document.createElement("span");   // sink for readouts that are switched off
+function makeCanvas(w, h) {
+  const c = el("canvas"), dpr = (window.devicePixelRatio || 1) * Math.max(1, overlayScale());
+  c.width = Math.round(w * dpr); c.height = Math.round(h * dpr);
+  c.style.width = w + "px"; c.style.height = h + "px";
+  c.getContext("2d").setTransform(dpr, 0, 0, dpr, 0, 0);
+  c._w = w; c._h = h; return c;
+}
+const HEAT = 24, HEAT1 = 40;
+function getRt(w) { return runtime[w.id] = runtime[w.id] || { heat2: new Float32Array(HEAT * HEAT), heat1: {} }; }
+function readAxis(pad, w, key) {
+  const i = w.axes && w.axes[key];
+  if (pad == null || i == null || pad.axes[i] == null) return 0;
+  const v = clamp(pad.axes[i], -1, 1);
+  return w.inv && w.inv[key] ? -v : v;
+}
+const pct = (v, zero) => zero ? Math.round((v + 1) * 50) : Math.round(v * 100);
+function fmt(v, zero) { const p = pct(v, zero); return (!zero && p > 0 ? "+" : "") + p + "%"; }
+function setText(span, v, zero) {
+  const t = fmt(v, zero); if (span.textContent !== t) span.textContent = t;
+  span.classList.toggle("full", Math.abs(zero ? (v + 1) / 2 : v) >= 0.98);
+}
+function styleWidget(root, w) {
+  root.style.setProperty("--accent", w.accent || profile.settings.accent);
+  root.style.setProperty("--wtext", w.text || profile.settings.text);
+  root.style.setProperty("--wbg", hexA(w.bg || profile.settings.panel, (w.bgAlpha ?? profile.settings.panelAlpha) / 100));
+  root.style.setProperty("--on", onColor(w.accent || profile.settings.accent));
+  if (w.border) root.style.borderColor = hexA(w.border, 0.6);
+  const solid = (w.bgAlpha ?? profile.settings.panelAlpha) > 0;
+  if (!solid) { root.style.borderColor = "transparent"; root.style.boxShadow = "none"; }
+  // 3D depth: a bevel (light top edge, dark bottom), an extruded side and a deeper drop shadow.
+  // Plain CSS gradients and box-shadows, painted once; nothing changes per frame.
+  const d = clamp((w.depth || 0) / 100, 0, 1);
+  if (solid && d > 0) {
+    const edge = mixHex(w.border || w.bg || profile.settings.panel, "#000000", 0.55);
+    root.style.backgroundImage = `linear-gradient(180deg, rgba(255,255,255,${(0.12 * d).toFixed(3)}) 0%, rgba(255,255,255,0) 42%, rgba(0,0,0,${(0.38 * d).toFixed(3)}) 100%)`;
+    root.style.boxShadow = [
+      `inset 0 1px 0 rgba(255,255,255,${(0.28 * d).toFixed(3)})`,
+      `inset 0 -2px 0 rgba(0,0,0,${(0.45 * d).toFixed(3)})`,
+      `0 ${(1 + 5 * d).toFixed(1)}px 0 -1px ${hexA(edge, 0.95)}`,
+      `0 ${(6 + 14 * d).toFixed(1)}px ${(16 + 18 * d).toFixed(1)}px rgba(0,0,0,0.6)`].join(", ");
+  }
+}
+// Blend two #rrggbb colors; t = 0 gives a, 1 gives b.
+function mixHex(a, b, t) {
+  const p = h => { const m = /^#?([0-9a-f]{6})$/i.exec(h || ""); const n = m ? parseInt(m[1], 16) : 0; return [n >> 16, (n >> 8) & 255, n & 255]; };
+  const A = p(a), B = p(b);
+  return "#" + A.map((v, i) => Math.round(v + (B[i] - v) * t).toString(16).padStart(2, "0")).join("");
+}
+// 2.5D look: perspective + rotations + skew in a single transform string. The browser
+// composites it on the GPU, so it costs nothing per frame once applied.
+const PERSP_DEFAULT = { rx: 0, ry: 0, rz: 0, sx: 0, sy: 0, d: 900 };
+const PERSP_PRESETS = {
+  "Flat": { rx: 0, ry: 0, rz: 0, sx: 0, sy: 0, d: 900 },
+  "Left HUD Panel": { rx: 0, ry: 28, rz: 0, sx: 0, sy: 0, d: 900 },
+  "Right HUD Panel": { rx: 0, ry: -28, rz: 0, sx: 0, sy: 0, d: 900 },
+  "Lower Console": { rx: 35, ry: 0, rz: 0, sx: 0, sy: 0, d: 900 },
+  "Upper Canopy": { rx: -25, ry: 0, rz: 0, sx: 0, sy: 0, d: 900 }
+};
+function applyPerspective(root, w) {
+  const p = w.persp;
+  const flat = !p || (!p.rx && !p.ry && !p.rz && !p.sx && !p.sy);
+  root.classList.toggle("tilted", !flat);
+  root.style.transform = flat ? "" :
+    `perspective(${p.d || 900}px) rotateX(${p.rx || 0}deg) rotateY(${p.ry || 0}deg) rotateZ(${p.rz || 0}deg) skew(${p.sx || 0}deg, ${p.sy || 0}deg)`;
+}
+function positionWidget(w) {
+  const rt = runtime[w.id]; if (!rt || !rt.root) return;
+  rt.root.style.left = w.x + "px"; rt.root.style.top = w.y + "px";
+}
+
+// Inner container sizes per widget type, before the Size multiplier. Users can override each.
+const DIMS = { stick: { box: 150 }, throttle: { bw: 26, bh: 140 }, axis: { bw: 26, bh: 140 }, pedals: { rw: 200, rh: 22, bkw: 18, bkh: 50 } };
+const dimsOf = w => ({ ...(DIMS[w.type] || {}), ...(w.dims || {}) });
+const RADIUS = 8, PAD = 8;
+const SIZE_BASE = 0.75;   // "Size 100%" draws at 75% of the original scale (Alex: the old 75% looked right as the default)
+function buildWidget(w) {
+  const root = el("div", { class: "widget", "data-id": w.id });
+  root.style.left = w.x + "px"; root.style.top = w.y + "px";
+  styleWidget(root, w);
+  applyPerspective(root, w);
+  const rt = getRt(w); rt.root = root; rt.spans = {}; rt._key = null;
+  const k = (w.size || 1) * SIZE_BASE, D = dimsOf(w);
+  // Width / Height scale (buttons and pedals): stretch the box on one axis without changing text size.
+  const kx = w.scaleW || 1, ky = w.scaleH || 1;
+  // Per-widget layout: padding, corner radius (the stick box uses the same radius), and what to show.
+  const pad = w.pad ?? PAD;
+  if (w.type === "button") root.style.padding = `${pad}px ${pad + 6}px`;   // buttons keep a little extra width around the text
+  else if (w.type !== "label" || w.pad != null) root.style.padding = pad + "px";
+  rt.radius = w.radius ?? RADIUS; root.style.borderRadius = rt.radius + "px";
+  const showTitle = w.showTitle !== false, showVals = w.showValues !== false, showAx = w.showAxisLabels !== false;
+  const title = showTitle ? el("div", { class: "title" }, w.label || "") : null;
+  const span = key => (rt.spans[key] = el("span", { class: "val" }, "0%"));
+  const lab = t => showAx ? el("b", {}, t) : null;
+  const readout = (...xs) => showVals ? el("div", { class: "readout" }, ...xs) : null;
+  if (!showVals) rt.spans = new Proxy({}, { get: () => DUMMY_SPAN });   // values still computed, never shown
+  if (w.type === "stick") {
+    rt.canvas = makeCanvas(D.box * k, D.box * k);
+    root.append(...[title, rt.canvas, readout(
+      el("span", {}, lab("X"), span("x")), el("span", {}, lab("Y"), span("y")))].filter(Boolean));
+  } else if (w.type === "throttle" || w.type === "axis") {
+    rt.canvas = makeCanvas(D.bw * k, D.bh * k);
+    root.append(...[title, rt.canvas, readout(span("v"))].filter(Boolean));
+  } else if (w.type === "pedals") {
+    const hasBrakes = w.axes.bl != null || w.axes.br != null;
+    rt.canvas = makeCanvas(D.rw * k * kx, D.rh * k * ky);
+    const parts = [title];
+    const cap = t => showAx ? el("span", {}, t) : null;
+    if (hasBrakes) {
+      rt.brakeL = makeCanvas(D.bkw * k * kx, D.bkh * k * ky); rt.brakeR = makeCanvas(D.bkw * k * kx, D.bkh * k * ky);
+      parts.push(el("div", { class: "bars" },
+        w.axes.bl != null ? el("div", { class: "col" }, rt.brakeL, cap("L")) : null,
+        el("div", { class: "col" }, rt.canvas, cap("Rudder")),
+        w.axes.br != null ? el("div", { class: "col" }, rt.brakeR, cap("R")) : null));
+    } else parts.push(rt.canvas);
+    const ro = readout(
+      w.axes.bl != null ? el("span", { class: "bl" }, lab("L"), span("bl")) : null,
+      el("span", { class: "rud" }, lab("RUD"), span("r")),
+      w.axes.br != null ? el("span", { class: "br" }, lab("R"), span("br")) : null);
+    if (ro && !showAx) ro.classList.add("ped-split");
+    parts.push(ro);
+    root.append(...parts.filter(Boolean));
+  } else if (w.type === "button") {
+    root.classList.add("btn-widget");
+    root.style.fontSize = 13 * k + "px";
+    root.textContent = w.label || "Button";
+    if (kx !== 1 || ky !== 1) {
+      // Measure the natural box once (build time only, never per frame), then stretch it.
+      root.style.visibility = "hidden"; $("#stage").append(root);
+      const nw = root.offsetWidth, nh = root.offsetHeight; root.remove(); root.style.visibility = "";
+      Object.assign(root.style, { width: Math.round(nw * kx) + "px", height: Math.round(nh * ky) + "px", minWidth: "0", boxSizing: "border-box",
+        display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", whiteSpace: "nowrap" });
+    }
+  } else if (w.type === "label") {
+    root.classList.add("label-widget");
+    root.style.fontSize = 18 * k + "px";
+    root.textContent = w.label || "Label";
+  }
+  if (selected.has(w.id)) root.classList.add("selected");
+  return root;
+}
+
+function rebuildAll() {
+  applySettings();
+  const stage = $("#stage");
+  stage.querySelectorAll(".widget").forEach(e => e.remove());
+  for (const id in runtime) if (!profile.widgets.find(w => w.id === id)) delete runtime[id];
+  for (const w of profile.widgets) stage.append(buildWidget(w));
+  renderPanel();
+  updateOffscreenNote();
+}
+// Layouts are designed on a 1920x1080 canvas. "auto" scales the overlay with the source so a
+// 1080p layout looks identical at 1440p or 4K, and the whole 1080-tall layout always fits:
+// a shorter browser window or an ultrawide never pushes bottom widgets out of view.
+function overlayScale() {
+  const s = profile.settings;
+  return s.scaleMode === "auto" ? Math.min(window.innerWidth / 1920, window.innerHeight / 1080) : s.scale;
+}
+function offscreenWidgets() {
+  const C = canvasSize();
+  return profile.widgets.filter(w => { const b = boxOf(w); return b.x < -1 || b.y < -1 || b.x + b.w > C.w + 1 || b.y + b.h > C.h + 1; });
+}
+function bringIntoView() {
+  const C = canvasSize();
+  for (const w of offscreenWidgets()) { const b = boxOf(w); w.x = Math.round(clamp(w.x, 0, Math.max(0, C.w - b.w))); w.y = Math.round(clamp(w.y, 0, Math.max(0, C.h - b.h))); }
+  save(); rebuildAll(); toast("Widgets moved into view");
+}
+function updateOffscreenNote() {
+  const n = offscreenWidgets().length, note = $("#offscreen-note");
+  note.hidden = !n; note.textContent = n ? `${n} widget${n > 1 ? "s are" : " is"} outside this window.` : "";
+}
+function uiScale() {
+  const u = profile.settings.uiScale;
+  return u === "auto" ? Math.max(1, Math.min(window.innerWidth / 1920, window.innerHeight / 1080)) : +u;
+}
+function canvasSize() { const s = overlayScale(); return { w: window.innerWidth / s, h: window.innerHeight / s }; }
+function applySettings() {
+  const s = profile.settings, C = canvasSize();
+  document.documentElement.style.setProperty("--bgcolor", s.bgColor);
+  document.body.classList.toggle("bg-solid", s.background === "solid");
+  document.body.classList.toggle("has-widgets", profile.widgets.length > 0);
+  document.body.classList.toggle("show-center", !!s.centerLines);
+  const stage = $("#stage");
+  document.documentElement.style.fontSize = (14 * uiScale()).toFixed(2) + "px";
+  stage.style.transform = `scale(${overlayScale()})`; stage.style.width = C.w + "px"; stage.style.height = C.h + "px";
+  $("#center-lines .v").style.left = Math.round(C.w / 2) + "px";
+  $("#center-lines .h").style.top = Math.round(C.h / 2) + "px";
+  $("#heat-btn").classList.toggle("on", showHeat);
+  drawGrid();
+}
+function drawGrid() {
+  const c = $("#grid"), dpr = window.devicePixelRatio || 1, W = window.innerWidth, H = window.innerHeight;
+  c.width = W * dpr; c.height = H * dpr; c.style.width = W + "px"; c.style.height = H + "px";
+  const g = c.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+  const s = profile.settings; if (!s.gridSnap) return;
+  const step = s.gridSize * overlayScale(); if (step < 4) return;
+  g.fillStyle = "rgba(255,255,255,0.18)";
+  for (let x = 0; x <= W; x += step) for (let y = 0; y <= H; y += step) g.fillRect(Math.round(x), Math.round(y), 1, 1);
+  // Brighter every 4th intersection so the grid reads at a glance.
+  g.fillStyle = "rgba(255,255,255,0.35)";
+  for (let x = 0; x <= W; x += step * 4) for (let y = 0; y <= H; y += step * 4) g.fillRect(Math.round(x) - 1, Math.round(y) - 1, 3, 3);
+}
+window.addEventListener("resize", () => rebuildAll());
+
+function heatColor(t, accent) {
+  t = clamp(t, 0, 1);
+  if (t < 0.5) return hexA(accent, 0.15 + t * 0.9);
+  const k = (t - 0.5) * 2;
+  return `rgba(255,${Math.round(190 - 110 * k)},${Math.round(70 + 30 * k)},${0.6 + 0.35 * k})`;
+}
+function drawStick(w, rt, pad, dt) {
+  const c = rt.canvas, g = c.getContext("2d"), S = c._w, R = S / 2;
+  const accent = w.accent || profile.settings.accent, ink = w.text || profile.settings.text;
+  const x = readAxis(pad, w, "x"), y = readAxis(pad, w, "y");
+  if (pad) {
+    const bx = clamp(Math.floor((x + 1) / 2 * HEAT), 0, HEAT - 1), by = clamp(Math.floor((1 - y) / 2 * HEAT), 0, HEAT - 1);
+    rt.heat2[by * HEAT + bx] += dt;
+  }
+  if (!rt.dirty) return;
+  g.clearRect(0, 0, S, S);
+  const rad = Math.min(rt.radius ?? RADIUS, S / 2);
+  g.save(); roundRect(g, 0.5, 0.5, S - 1, S - 1, rad); g.clip();
+  if (showHeat) {
+    let mx = 0; for (const v of rt.heat2) mx = Math.max(mx, v);
+    const cell = S / HEAT;
+    if (mx > 0) for (let j = 0; j < HEAT; j++) for (let i = 0; i < HEAT; i++) {
+      const v = rt.heat2[j * HEAT + i]; if (!v) continue;
+      g.fillStyle = heatColor(Math.sqrt(v / mx), accent); g.fillRect(i * cell, j * cell, cell + 0.5, cell + 0.5);
+    }
+  }
+  g.strokeStyle = hexA(ink, 0.16); g.lineWidth = 1;
+  for (let k = 1; k < 4; k++) { const p = Math.round(S * k / 4) + 0.5; g.beginPath(); g.moveTo(p, 0); g.lineTo(p, S); g.moveTo(0, p); g.lineTo(S, p); g.stroke(); }
+  const depth = clamp((w.depth || 0) / 100, 0, 1);
+  if (depth > 0) {   // recessed gate: shadow under the top lip, faint light on the bottom edge
+    const lip = g.createLinearGradient(0, 0, 0, S * 0.3);
+    lip.addColorStop(0, `rgba(0,0,0,${0.5 * depth})`); lip.addColorStop(1, "rgba(0,0,0,0)");
+    g.fillStyle = lip; g.fillRect(0, 0, S, S * 0.3);
+    const side = g.createLinearGradient(0, 0, S * 0.12, 0);
+    side.addColorStop(0, `rgba(0,0,0,${0.3 * depth})`); side.addColorStop(1, "rgba(0,0,0,0)");
+    g.fillStyle = side; g.fillRect(0, 0, S * 0.12, S);
+  }
+  g.restore();
+  g.strokeStyle = hexA(ink, 0.4); g.lineWidth = 1; roundRect(g, 0.5, 0.5, S - 1, S - 1, rad); g.stroke();
+  if (depth > 0) { g.strokeStyle = `rgba(255,255,255,${0.14 * depth})`; g.beginPath(); g.moveTo(rad, S - 1.5); g.lineTo(S - rad, S - 1.5); g.stroke(); }
+  const px = R + x * (R - 7), py = R - y * (R - 7);
+  g.strokeStyle = hexA(accent, 0.5); g.setLineDash([3, 3]);
+  g.beginPath(); g.moveTo(px, 0); g.lineTo(px, S); g.moveTo(0, py); g.lineTo(S, py); g.stroke(); g.setLineDash([]);
+  if (depth > 0) {
+    // A lit sphere: soft shadow cast down-right, accent glow, then a radial gradient with a specular highlight.
+    const r = 6.5 + 2.5 * depth;
+    g.fillStyle = `rgba(0,0,0,${0.55 * depth})`; g.filter = `blur(${(1.5 + 2 * depth).toFixed(1)}px)`;
+    g.beginPath(); g.ellipse(px + 2 * depth, py + 3.5 * depth, r, r * 0.8, 0, 0, Math.PI * 2); g.fill(); g.filter = "none";
+    g.shadowColor = accent; g.shadowBlur = 10;
+    const ball = g.createRadialGradient(px - r * 0.35, py - r * 0.4, r * 0.1, px, py, r);
+    ball.addColorStop(0, mixHex(accent, "#ffffff", 0.75)); ball.addColorStop(0.35, accent); ball.addColorStop(1, mixHex(accent, "#000000", 0.55));
+    g.fillStyle = ball; g.beginPath(); g.arc(px, py, r, 0, Math.PI * 2); g.fill(); g.shadowBlur = 0;
+  } else {
+    g.fillStyle = accent; g.shadowColor = accent; g.shadowBlur = 12;
+    g.beginPath(); g.arc(px, py, 6.5, 0, Math.PI * 2); g.fill(); g.shadowBlur = 0;
+  }
+  setText(rt.spans.x, x); setText(rt.spans.y, y);
+}
+function roundRect(g, x, y, w, h, r) {
+  r = Math.min(r, w / 2, h / 2); g.beginPath();
+  g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+}
+function drawBar(c, v, accent, { vertical, zero, rt, key, dt, live, skip, ink = "#ffffff" }) {
+  const g = c.getContext("2d"), W = c._w, H = c._h, L = vertical ? H : W, T = vertical ? W : H;
+  const t = (v + 1) / 2;
+  if (live && rt) {
+    const h = rt.heat1[key] = rt.heat1[key] || new Float32Array(HEAT1);
+    h[clamp(Math.floor(t * HEAT1), 0, HEAT1 - 1)] += dt;
+  }
+  if (skip) return;
+  g.clearRect(0, 0, W, H);
+  g.save();
+  if (vertical) { g.translate(0, H); g.rotate(-Math.PI / 2); }
+  g.fillStyle = hexA(ink, 0.14); roundRect(g, 0, 0, L, T, 5); g.fill();
+  if (showHeat && rt && rt.heat1[key]) {
+    const h = rt.heat1[key]; let mx = 0; for (const q of h) mx = Math.max(mx, q);
+    const bw = L / HEAT1;
+    if (mx > 0) for (let i = 0; i < HEAT1; i++) if (h[i]) { g.fillStyle = heatColor(Math.sqrt(h[i] / mx), accent); g.fillRect(i * bw, 0, bw + 0.5, T); }
+  } else {
+    const from = zero ? 0 : L / 2, to = t * L;
+    g.fillStyle = accent;
+    roundRect(g, Math.min(from, to), 0, Math.max(2, Math.abs(to - from)), T, 5); g.fill();
+  }
+  if (!zero) { g.fillStyle = hexA(ink, 0.5); g.fillRect(L / 2 - 0.5, 0, 1, T); }
+  g.fillStyle = ink; g.fillRect(clamp(t * L, 1, L - 1) - 1, 0, 2, T);
+  g.restore();
+}
+function drawWidget(w, rt, pad, dt) {
+  const accent = w.accent || profile.settings.accent, ink = w.text || profile.settings.text, live = !!pad;
+  if (w.type === "stick") return drawStick(w, rt, pad, dt);
+  if (w.type === "throttle" || w.type === "axis") {
+    const zero = w.type === "throttle", key = w.type === "throttle" ? "t" : "a", v = readAxis(pad, w, key);
+    drawBar(rt.canvas, v, accent, { vertical: true, zero, rt, key, dt, live, skip: !rt.dirty, ink });
+    if (rt.dirty) setText(rt.spans.v, v, zero);
+    return;
+  }
+  if (w.type === "pedals") {
+    const r = readAxis(pad, w, "r");
+    drawBar(rt.canvas, r, accent, { vertical: false, zero: false, rt, key: "r", dt, live, skip: !rt.dirty, ink });
+    if (rt.dirty) { const sp = rt.spans.r, p = pct(r); setText(sp, r); sp.classList.toggle("pos", p > 0); sp.classList.toggle("neg", p < 0); }
+    for (const [key, c] of [["bl", rt.brakeL], ["br", rt.brakeR]]) {
+      if (w.axes[key] == null || !c) continue;
+      const v = readAxis(pad, w, key);
+      drawBar(c, v, accent, { vertical: true, zero: true, rt, key, dt, live, skip: !rt.dirty, ink });
+      if (rt.dirty) setText(rt.spans[key], v, true);
+    }
+    return;
+  }
+  if (w.type === "button") {
+    const b = pad && pad.buttons[w.button], on = !!(b && (b.pressed || b.value > 0.5));
+    if (rt._on !== on) { rt._on = on; rt.root.classList.toggle("on", on); }
+  }
+}
+
+// ---------- main loop ----------
+let lastFrame = performance.now();
+let heatTick = 0;
+function inputKey(w, pad) {
+  if (!pad) return "off";
+  if (w.type === "button") { const b = pad.buttons[w.button]; return b && (b.pressed || b.value > 0.5) ? "1" : "0"; }
+  let k = "";
+  for (const a in w.axes) { const i = w.axes[a]; k += (pad.axes[i] ?? 0).toFixed(3) + ","; }
+  return k;
+}
+function frame(now) {
+  const dt = Math.min(0.1, (now - lastFrame) / 1000); lastFrame = now;
+  heatTick = Math.floor(now / 250);   // heatmap repaints at 4 Hz, which is plenty
+  const pads = connectedPads();
+  if (editing && wiz) wizardTick(pads);
+  for (const w of profile.widgets) {
+    const rt = runtime[w.id]; if (!rt || !rt.root || w.type === "label") continue;
+    const pad = padFor(w, pads), off = !pad;
+    if (rt._off !== off) { rt._off = off; rt.root.classList.toggle("offline", off); }
+    // Only repaint a widget's canvases when its input (or the visible heatmap) changed.
+    // A still stick costs no drawing at all, which keeps OBS's browser source light.
+    const key = inputKey(w, pad) + (showHeat ? "|h" + heatTick : "");
+    rt.dirty = key !== rt._key; rt._key = key;
+    drawWidget(w, rt, pad, dt);
+  }
+  requestAnimationFrame(frame);
+}
+
+// ---------- selection ----------
+function setSelection(ids, mode) {
+  selected.clear(); for (const id of ids) selected.add(id);
+  panelMode = mode || (selected.size > 1 ? "multi" : selected.size === 1 ? "widget" : "home");
+  syncSelectionClasses(); renderPanel();
+}
+function toggleSelected(id) {
+  if (selected.has(id)) selected.delete(id); else selected.add(id);
+  setSelection([...selected]);
+}
+function syncSelectionClasses() {
+  document.querySelectorAll(".widget").forEach(e => e.classList.toggle("selected", selected.has(e.dataset.id)));
+}
+const selectedWidgets = () => profile.widgets.filter(w => selected.has(w.id));
+
+// ---------- geometry, snapping, alignment ----------
+function boxOf(w) {
+  const r = runtime[w.id] && runtime[w.id].root;
+  return { x: w.x, y: w.y, w: r ? r.offsetWidth : 0, h: r ? r.offsetHeight : 0 };
+}
+function unionBox(ws) {
+  const bs = ws.map(boxOf);
+  const x = Math.min(...bs.map(b => b.x)), y = Math.min(...bs.map(b => b.y));
+  return { x, y, w: Math.max(...bs.map(b => b.x + b.w)) - x, h: Math.max(...bs.map(b => b.y + b.h)) - y };
+}
+function moveWidgets(ws, dx, dy) { for (const w of ws) { w.x = Math.round(w.x + dx); w.y = Math.round(w.y + dy); positionWidget(w); } }
+
+// Snap a moving box: smart guides first (screen center/edges/safe margin and other
+// widgets' edges and centers), then the grid. Returns the adjusted delta and guide lines.
+function snapMove(box, dx, dy, movingIds, noSnap) {
+  const s = profile.settings, C = canvasSize(), m = s.margin;
+  let nx = box.x + dx, ny = box.y + dy;
+  const guides = [];
+  if (noSnap) return { dx, dy, guides };
+  let snappedX = false, snappedY = false;
+  if (s.smartGuides) {
+    const tol = SNAP_PX / overlayScale();
+    const xs = [0, m, C.w / 2, C.w - m, C.w], ys = [0, m, C.h / 2, C.h - m, C.h];
+    for (const o of profile.widgets) {
+      if (movingIds.has(o.id)) continue;
+      const b = boxOf(o);
+      xs.push(b.x, b.x + b.w / 2, b.x + b.w); ys.push(b.y, b.y + b.h / 2, b.y + b.h);
+    }
+    const bestFor = (start, size, cands) => {
+      let best = null;
+      for (const off of [0, size / 2, size]) for (const c of cands) {
+        const d = c - (start + off);
+        if (Math.abs(d) <= tol && (!best || Math.abs(d) < Math.abs(best.d))) best = { d, line: c };
+      }
+      return best;
+    };
+    const bx = bestFor(nx, box.w, xs), by = bestFor(ny, box.h, ys);
+    if (bx) { nx += bx.d; snappedX = true; guides.push({ v: true, at: bx.line }); }
+    if (by) { ny += by.d; snappedY = true; guides.push({ v: false, at: by.line }); }
+  }
+  if (s.gridSnap) {
+    const gs = s.gridSize;
+    if (!snappedX) nx = Math.round(nx / gs) * gs;
+    if (!snappedY) ny = Math.round(ny / gs) * gs;
+  }
+  return { dx: nx - box.x, dy: ny - box.y, guides };
+}
+function drawGuides(guides) {
+  const g = $("#guides"); g.innerHTML = "";
+  const C = canvasSize(), px = 1 / overlayScale();
+  for (const l of guides) g.append(el("i", { style: l.v
+    ? `left:${l.at}px;top:0;width:${px}px;height:${C.h}px`
+    : `top:${l.at}px;left:0;height:${px}px;width:${C.w}px` }));
+}
+
+// Align each selected widget to the selection bounds (2+ selected) or to the screen (1 selected).
+function align(edge) {
+  const ws = selectedWidgets(); if (!ws.length) return;
+  const C = canvasSize();
+  const ref = ws.length > 1 ? unionBox(ws) : { x: 0, y: 0, w: C.w, h: C.h };
+  for (const w of ws) {
+    const b = boxOf(w);
+    if (edge === "left") w.x = ref.x;
+    if (edge === "hcenter") w.x = ref.x + (ref.w - b.w) / 2;
+    if (edge === "right") w.x = ref.x + ref.w - b.w;
+    if (edge === "top") w.y = ref.y;
+    if (edge === "vcenter") w.y = ref.y + (ref.h - b.h) / 2;
+    if (edge === "bottom") w.y = ref.y + ref.h - b.h;
+    w.x = Math.round(w.x); w.y = Math.round(w.y); positionWidget(w);
+  }
+  save();
+}
+// Space widgets apart. With a gap (px) they sit exactly that far apart, starting from the
+// leftmost/topmost one; without one, 3+ widgets spread evenly between the outermost two.
+function distribute(horizontal, fixedGap) {
+  const ws = selectedWidgets(), fixed = fixedGap !== "" && fixedGap != null && !isNaN(+fixedGap);
+  if (ws.length < (fixed ? 2 : 3)) { toast(fixed ? "Select 2 or more widgets to space" : "Select 3 or more widgets, or enter a gap in pixels"); return; }
+  const items = ws.map(w => ({ w, b: boxOf(w) })).sort((a, b) => horizontal ? a.b.x - b.b.x : a.b.y - b.b.y);
+  const first = items[0].b, last = items[items.length - 1].b;
+  const span = horizontal ? (last.x + last.w) - first.x : (last.y + last.h) - first.y;
+  const total = items.reduce((t, i) => t + (horizontal ? i.b.w : i.b.h), 0);
+  const gap = fixed ? Math.max(0, +fixedGap) : (span - total) / (items.length - 1);
+  let pos = horizontal ? first.x : first.y;
+  for (const i of items) {
+    if (horizontal) i.w.x = Math.round(pos); else i.w.y = Math.round(pos);
+    pos += (horizontal ? i.b.w : i.b.h) + gap; positionWidget(i.w);
+  }
+  save();
+}
+// Move the whole selection as one block to a spot on screen.
+function placeOnScreen(where) {
+  const ws = selectedWidgets(); if (!ws.length) return;
+  const C = canvasSize(), m = profile.settings.margin, u = unionBox(ws);
+  let tx = u.x, ty = u.y;
+  if (where === "center" || where === "bottom-center" || where === "hcenter") tx = (C.w - u.w) / 2;
+  if (where === "center") ty = (C.h - u.h) / 2;
+  if (where === "bottom" || where === "bottom-center") ty = C.h - m - u.h;
+  moveWidgets(ws, tx - u.x, ty - u.y); save();
+}
+
+// ---------- pointer: select, drag, marquee ----------
+let drag = null, marquee = null;
+document.addEventListener("pointerdown", e => {
+  if (!editing || e.button !== 0) return;
+  if (e.target.closest("#ui, #welcome, #wizard, #enter-edit")) return;
+  const wEl = e.target.closest(".widget");
+  if (wEl) {
+    const id = wEl.dataset.id;
+    if (e.shiftKey || e.ctrlKey || e.metaKey) { toggleSelected(id); if (!selected.has(id)) return; }
+    else if (!selected.has(id)) setSelection([id]);
+    const ws = selectedWidgets();
+    drag = { start: ws.map(w => ({ w, x: w.x, y: w.y })), box: unionBox(ws), ids: new Set(ws.map(w => w.id)),
+      sx: e.clientX, sy: e.clientY, sc: overlayScale(), moved: false };
+    wEl.setPointerCapture(e.pointerId);
+    return;
+  }
+  marquee = { sx: e.clientX, sy: e.clientY, add: e.shiftKey || e.ctrlKey || e.metaKey, base: new Set(selected) };
+});
+document.addEventListener("pointermove", e => {
+  if (drag) {
+    const rdx = (e.clientX - drag.sx) / drag.sc, rdy = (e.clientY - drag.sy) / drag.sc;
+    if (!drag.moved && Math.hypot(rdx, rdy) < 2) return;
+    drag.moved = true;
+    const r = snapMove(drag.box, rdx, rdy, drag.ids, e.altKey);
+    for (const s of drag.start) { s.w.x = Math.round(s.x + r.dx); s.w.y = Math.round(s.y + r.dy); positionWidget(s.w); }
+    drawGuides(r.guides);
+    return;
+  }
+  if (marquee) {
+    const x = Math.min(marquee.sx, e.clientX), y = Math.min(marquee.sy, e.clientY);
+    const w = Math.abs(e.clientX - marquee.sx), h = Math.abs(e.clientY - marquee.sy);
+    Object.assign($("#marquee").style, { display: "block", left: x + "px", top: y + "px", width: w + "px", height: h + "px" });
+    marquee.rect = { x, y, w, h };
+  }
+});
+document.addEventListener("pointerup", () => {
+  if (drag) { if (drag.moved) save(); drag = null; drawGuides([]); return; }
+  if (marquee) {
+    const r = marquee.rect;
+    $("#marquee").style.display = "none";
+    if (!r || (r.w < 3 && r.h < 3)) { const add = marquee.add; marquee = null; if (!add) setSelection([]); return; }
+    const hit = new Set(marquee.add ? marquee.base : []);
+    document.querySelectorAll("#stage .widget").forEach(e => {
+      const b = e.getBoundingClientRect();
+      if (b.right > r.x && b.left < r.x + r.w && b.bottom > r.y && b.top < r.y + r.h) hit.add(e.dataset.id);
+    });
+    marquee = null; setSelection([...hit]);
+  }
+});
+
+// ---------- keys ----------
+document.addEventListener("keydown", e => {
+  if (e.target.matches("input, select, textarea") || $("#welcome").classList.contains("open") || wiz) return;
+  if (e.target.closest("#fab-menu, .tsel")) return;   // the + menu and theme dropdown handle their own keys
+  const k = e.key.toLowerCase();
+  if (k === "e" && !e.ctrlKey && !e.metaKey) setEditing(!editing);
+  else if (k === "a" && editing && !e.ctrlKey && !e.metaKey) openFab();
+  else if (k === "h" && !e.ctrlKey) toggleHeat();
+  else if (k === "r" && !e.ctrlKey) resetHeat();
+  else if (!editing) return;
+  else if ((e.key === "Delete" || e.key === "Backspace") && selected.size) deleteSelected();
+  else if (e.key === "Escape") { if (selected.size) setSelection([]); else setEditing(false); }
+  else if (e.key === "Tab") { e.preventDefault(); document.body.classList.toggle("panel-hidden"); }
+  else if (k === "a" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); setSelection(profile.widgets.map(w => w.id)); }
+  else if (k === "d" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); if (selected.size) duplicateSelected(); }
+  else if (e.key.startsWith("Arrow") && selected.size) {
+    e.preventDefault();
+    const step = e.shiftKey ? 10 : 1;
+    const dx = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0;
+    const dy = e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0;
+    moveWidgets(selectedWidgets(), dx, dy); save();
+  }
+});
+document.addEventListener("dblclick", e => { if (!editing && !e.target.closest("#ui, #welcome, #wizard, #enter-edit")) setEditing(true); });
+
+// ---------- edit mode ----------
+function setEditing(on) {
+  editing = on;
+  document.body.classList.toggle("editing", on);
+  $("#edit-switch").checked = on;
+  if (!on) { closeWelcome(); closeFab(); if (wiz) closeWizard(); }
+  applyReference();
+  setSelection([]);
+}
+function addLabel() {
+  const s = profile.settings;
+  addAndPlace({ id: uid(), type: "label", x: 0, y: 0, label: "Label", size: 1, accent: s.accent, text: s.text, bg: s.panel, bgAlpha: 0 });
+}
+function toggleHeat() { showHeat = !showHeat; applySettings(); renderPanel(); toast(showHeat ? "Session heatmap on (H to hide, R to reset)" : "Session heatmap off"); }
+function resetHeat() {
+  for (const id in runtime) { runtime[id].heat2.fill(0); for (const k in runtime[id].heat1) runtime[id].heat1[k].fill(0); }
+  toast("Heatmap reset");
+}
+function deleteSelected() {
+  profile.widgets = profile.widgets.filter(w => !selected.has(w.id));
+  for (const id of selected) delete runtime[id];
+  selected.clear(); save(); rebuildAll(); setSelection([]);
+}
+function duplicateSelected() {
+  const copies = selectedWidgets().map(w => ({ ...JSON.parse(JSON.stringify(w)), id: uid(), x: w.x + 24, y: w.y + 24 }));
+  profile.widgets.push(...copies); save(); rebuildAll(); setSelection(copies.map(c => c.id));
+}
+
+// Reference screenshot behind the editor, so widgets can be lined up against the game HUD.
+// It is either a user upload (data URL) or one of the sample images shipped next to this file.
+const SAMPLE_DIR = "Background Images for Edit Mode/";
+const SAMPLES = [
+  { file: "16by9.jpg", label: "16:9 Sample", ratio: 16 / 9 },
+  { file: "21by9.jpg", label: "21:9 Ultrawide Sample", ratio: 21 / 9 },
+  { file: "32by9.jpg", label: "32:9 Super Ultrawide Sample", ratio: 32 / 9 }
+];
+const availableSamples = [];
+// Probe which samples exist (an <img> works from file://, fetch does not).
+for (const sm of SAMPLES) {
+  const img = new Image();
+  img.onload = () => {
+    availableSamples.push(sm); availableSamples.sort((a, b) => a.ratio - b.ratio);
+    if (!refImage && autoSample) pickSampleForScreen();
+    if (editing) renderPanel();
+  };
+  img.src = SAMPLE_DIR + sm.file;
+}
+let refImage = null, autoSample = true;
+try { refImage = localStorage.getItem(REF_KEY); if (refImage === "none") { refImage = null; autoSample = false; } } catch (e) {}
+// Use the sample whose shape is closest to the current screen.
+function pickSampleForScreen() {
+  if (!availableSamples.length) return;
+  const r = window.innerWidth / window.innerHeight;
+  const best = availableSamples.reduce((a, b) => Math.abs(b.ratio - r) < Math.abs(a.ratio - r) ? b : a);
+  refImage = SAMPLE_DIR + best.file; applyReference();
+}
+function useSample(sm) {
+  refImage = SAMPLE_DIR + sm.file; applyReference(); renderPanel();
+  try { localStorage.setItem(REF_KEY, refImage); } catch (e) {}
+}
+function applyReference() { document.body.style.backgroundImage = editing && refImage ? `url("${refImage}")` : ""; }
+$("#ref-in").addEventListener("change", e => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    refImage = r.result; applyReference(); renderPanel(); if (wiz) renderWiz();
+    try { localStorage.setItem(REF_KEY, refImage); } catch (err) { toast("Screenshot shown, but too large to remember after reload"); }
+  };
+  r.readAsDataURL(f); e.target.value = "";
+});
+function clearReference() { refImage = null; autoSample = false; try { localStorage.setItem(REF_KEY, "none"); } catch (e) {} applyReference(); renderPanel(); }
+
+$("#edit-switch").addEventListener("change", e => setEditing(e.target.checked));
+$("#enter-edit-btn").addEventListener("click", () => setEditing(true));
+
+// ---------- first-run / getting-started dialog ----------
+function openWelcome() {
+  $("#welcome").classList.add("open");
+  setTimeout(() => $("#welcome [data-welcome=device]").focus(), 0);
+}
+function closeWelcome() { $("#welcome").classList.remove("open"); }
+
+// Small confirm dialog. Resolves true only on the confirm button; Cancel, Escape and the backdrop all cancel.
+function confirmDialog({ title, body, ok }) {
+  const d = $("#confirm"), back = document.activeElement;
+  $("#confirm-title").textContent = title; $("#confirm-body").textContent = body;
+  d.querySelector("[data-confirm=yes]").textContent = ok;
+  d.classList.add("open");
+  setTimeout(() => d.querySelector("[data-confirm=no]").focus(), 0);   // safe choice gets focus
+  return new Promise(resolve => {
+    const done = v => { d.classList.remove("open"); d.removeEventListener("click", onClick); d.removeEventListener("keydown", onKey); if (back && back.focus) back.focus(); resolve(v); };
+    const onClick = e => { if (e.target === d) return done(false); const a = e.target.closest("[data-confirm]"); if (a) done(a.dataset.confirm === "yes"); };
+    const onKey = e => {
+      if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); done(false); }
+      else if (e.key === "Tab") { e.preventDefault(); const f = [...d.querySelectorAll("button")]; f[(f.indexOf(document.activeElement) + (e.shiftKey ? f.length - 1 : 1)) % f.length].focus(); }
+      e.stopPropagation();
+    };
+    d.addEventListener("click", onClick); d.addEventListener("keydown", onKey);
+  });
+}
+async function resetAll() {
+  const ok = await confirmDialog({ title: "Reset Everything?",
+    body: "This removes every widget and puts all settings, colors and the edit-mode background back to their defaults. It can't be undone. Use Save / Share first if you might want this layout back.",
+    ok: "Reset All" });
+  if (!ok) return;
+  closeWizard();
+  try { localStorage.removeItem(STORE_KEY); localStorage.removeItem(OLD_STORE_KEY); localStorage.removeItem(REF_KEY); } catch (e) {}
+  profile = newProfile(); save();   // fresh savedAt, so an older profile.js next to the HTML doesn't bring the old layout back
+  refImage = null; autoSample = true; pickSampleForScreen();
+  selected.clear(); panelMode = "home";
+  rebuildAll(); toast("Everything reset");
+  openWelcome();
+}
+$("#welcome").addEventListener("click", e => {
+  const act = e.target.closest("[data-welcome]")?.dataset.welcome;
+  if (e.target.id === "welcome") return closeWelcome();
+  if (!act) return;
+  closeWelcome();
+  if (act === "device" || act === "bg") startSetup();
+  else if (act === "add") startDeviceWizard();
+  else if (act === "arrange") { setSelection([]); toast(profile.widgets.length ? "Drag widgets to place them. Press E when you're done." : "Add a device first with the round + button."); }
+  else if (act === "import") $("#file-in").click();
+});
+$("#welcome").addEventListener("keydown", e => {
+  if (e.key === "Escape") { e.stopPropagation(); closeWelcome(); }
+  if (e.key === "Tab") {   // keep focus inside the dialog
+    const f = [...$("#welcome").querySelectorAll("button")];
+    const i = f.indexOf(document.activeElement);
+    if (e.shiftKey && i <= 0) { e.preventDefault(); f[f.length - 1].focus(); }
+    else if (!e.shiftKey && i === f.length - 1) { e.preventDefault(); f[0].focus(); }
+  }
+});
+
+$("#toolbar").addEventListener("click", e => {
+  const act = e.target.dataset && e.target.dataset.act; if (!act) return;
+  if (act === "done") setEditing(false);
+  else if (act === "add-device") profile.widgets.length ? startDeviceWizard() : startSetup();
+  else if (act === "add-button") startButtonWizard();
+  else if (act === "add-label") addLabel();
+  else if (act === "heat") toggleHeat();
+  else if (act === "settings") setSelection([], "settings");
+  else if (act === "export") setSelection([], "export");
+  else if (act === "panel") document.body.classList.toggle("panel-hidden");
+  else if (act === "help") openWelcome();
+});
+$("#file-in").addEventListener("change", async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try { importProfileText(await f.text()); } catch (err) { toast("Could not read that file"); }
+  e.target.value = "";
+});
+
+// ---------- side panel ----------
+const row = (label, input) => el("div", { class: "row" }, el("span", {}, label), input);
+function textIn(obj, key, after) {
+  const i = el("input", { type: "text" }); i.value = obj[key] ?? "";
+  i.addEventListener("input", () => { obj[key] = i.value; save(); after && after(); });
+  return i;
+}
+function numIn(obj, key, min, max, step, after) {
+  const i = el("input", { type: "number", min, max, step }); i.value = obj[key];
+  i.addEventListener("change", () => { obj[key] = clamp(+i.value || 0, min, max); i.value = obj[key]; save(); after && after(); });
+  return i;
+}
+function colorIn(obj, key, after, label) {
+  const chip = el("span", { class: "chip" }), hex = el("span", { class: "hex" });
+  const b = el("button", { type: "button", class: "cpick", "aria-haspopup": "dialog", "aria-expanded": "false" }, chip, hex);
+  const show = v => { chip.style.background = v; hex.textContent = v.toUpperCase(); b.setAttribute("aria-label", (label || "Color") + ", " + v.toUpperCase()); };
+  show(normHex(obj[key]) || "#ffffff");
+  b.addEventListener("click", () => openColorPop(b, label, normHex(obj[key]) || "#ffffff", v => { obj[key] = v; show(v); save(); after && after(); }));
+  return b;
+}
+// ---- color math ----
+function normHex(v) {
+  if (typeof v !== "string") return null;
+  let h = v.trim().replace(/^#/, "").toLowerCase();
+  if (/^[0-9a-f]{3}$/.test(h)) h = h.split("").map(c => c + c).join("");
+  return /^[0-9a-f]{6}$/.test(h) ? "#" + h : null;
+}
+function hexToHsv(hex) {
+  const n = parseInt(hex.slice(1), 16), r = (n >> 16 & 255) / 255, g = (n >> 8 & 255) / 255, b = (n & 255) / 255;
+  const mx = Math.max(r, g, b), d = mx - Math.min(r, g, b);
+  let h = 0;
+  if (d) h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return { h: (h * 60 + 360) % 360, s: mx ? d / mx : 0, v: mx };
+}
+function hsvToHex(h, s, v) {
+  const f = n => { const k = (n + h / 60) % 6; return v - v * s * Math.max(0, Math.min(k, 4 - k, 1)); };
+  return "#" + [f(5), f(3), f(1)].map(x => Math.round(x * 255).toString(16).padStart(2, "0")).join("");
+}
+const COLOR_PRESETS = ["#ffffff", "#c9d3dd", "#121212", "#000000", "#1e8fe8", "#4fd1ff", "#3ddc97", "#ffb547", "#ff5d73", "#b388ff", "#ff8a3d", "#e8d27a", "#7f8c99", "#2b3440", "#0b3d2e", "#5a1020"];
+let colorPop = null;
+function closeColorPop(refocus) {
+  if (!colorPop) return;
+  const { pop, anchor, onDoc } = colorPop; colorPop = null;
+  pop.remove(); document.removeEventListener("pointerdown", onDoc, true);
+  anchor.setAttribute("aria-expanded", "false");
+  if (refocus && anchor.isConnected) anchor.focus();
+}
+function openColorPop(anchor, label, start, onChange) {
+  if (colorPop && colorPop.anchor === anchor) return closeColorPop(true);
+  closeColorPop();
+  let { h, s, v } = hexToHsv(start), cur = start;
+  const knob = el("div", { class: "knob" });
+  const sv = el("div", { class: "sv", tabindex: "0", role: "slider", "aria-label": "Saturation and brightness. Arrow keys adjust, Shift for bigger steps." }, knob);
+  const hue = el("input", { type: "range", class: "hue", min: 0, max: 359, step: 1, "aria-label": "Hue" });
+  const now = el("div", { class: "now" });
+  const hexIn = el("input", { type: "text", class: "hexin", maxlength: 7, spellcheck: "false", "aria-label": "Hex color" });
+  const presets = el("div", { class: "presets", role: "group", "aria-label": "Preset colors" });
+  const line = el("div", { class: "line" }, now, hexIn);
+  if (window.EyeDropper) line.append(el("button", { type: "button", class: "drop", title: "Pick a color from the screen", "aria-label": "Pick a color from the screen",
+    onclick: async () => { try { const r = await new EyeDropper().open(); setHex(r.sRGBHex, true); } catch (e) {} } }, "Pick"));
+  const pop = el("div", { class: "cpop paper", role: "dialog", "aria-label": (label || "Color") + " picker" },
+    el("div", { style: "font-weight:600;font-size:0.95rem" }, label || "Color"), sv, hue, line, presets);
+  const paint = () => {
+    pop.style.setProperty("--hue", hsvToHex(h, 1, 1));
+    knob.style.left = s * 100 + "%"; knob.style.top = (1 - v) * 100 + "%";
+    hue.value = Math.round(h); now.style.background = cur;
+    if (document.activeElement !== hexIn) hexIn.value = cur.toUpperCase();
+    sv.setAttribute("aria-valuetext", `Saturation ${Math.round(s * 100)}%, brightness ${Math.round(v * 100)}%`);
+    for (const pb of presets.children) pb.setAttribute("aria-pressed", pb.dataset.c === cur ? "true" : "false");
+  };
+  const emit = () => { const x = hsvToHex(h, s, v); if (x !== cur) { cur = x; onChange(cur); } paint(); };
+  const setHex = (x, fromOutside) => { const n = normHex(x); if (!n) return; const t = hexToHsv(n); s = t.s; v = t.v; if (t.s && t.v) h = t.h; cur = n; onChange(n); paint(); };
+  for (const c of COLOR_PRESETS) presets.append(el("button", { type: "button", "data-c": c, style: "background:" + c, "aria-label": c.toUpperCase(), onclick: () => setHex(c) }));
+  const fromPointer = e => {
+    const r = sv.getBoundingClientRect();
+    s = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)); v = 1 - Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)); emit();
+  };
+  sv.addEventListener("pointerdown", e => { sv.setPointerCapture(e.pointerId); sv.focus(); fromPointer(e); });
+  sv.addEventListener("pointermove", e => { if (sv.hasPointerCapture(e.pointerId)) fromPointer(e); });
+  sv.addEventListener("keydown", e => {
+    const st = e.shiftKey ? 0.1 : 0.02, k = e.key;
+    if (k === "ArrowLeft") s = Math.max(0, s - st); else if (k === "ArrowRight") s = Math.min(1, s + st);
+    else if (k === "ArrowUp") v = Math.min(1, v + st); else if (k === "ArrowDown") v = Math.max(0, v - st); else return;
+    e.preventDefault(); emit();
+  });
+  hue.addEventListener("input", () => { h = +hue.value; emit(); });
+  hexIn.addEventListener("input", () => { if (normHex(hexIn.value) && hexIn.value.replace("#", "").length === 6) setHex(hexIn.value); });
+  hexIn.addEventListener("change", () => { setHex(hexIn.value); hexIn.value = cur.toUpperCase(); });
+  pop.addEventListener("keydown", e => {
+    if (e.key === "Escape" || (e.key === "Enter" && e.target !== hexIn && e.target.tagName !== "BUTTON")) { e.preventDefault(); closeColorPop(true); }
+    else if (e.key === "Enter" && e.target === hexIn) { setHex(hexIn.value); closeColorPop(true); }
+    e.stopPropagation();   // keep arrow keys etc. away from the editor's widget shortcuts
+  });
+  ($("#ui") || document.body).append(pop);
+  // Place beside the swatch, kept on screen (prefer left of the side panel, else below).
+  const a = anchor.getBoundingClientRect(), pw = pop.offsetWidth, ph = pop.offsetHeight, m = 8;
+  let x = a.left - pw - m, y = a.top - ph / 3;
+  if (x < m) { x = Math.min(window.innerWidth - pw - m, a.left); y = a.bottom + m; }
+  y = Math.max(m, Math.min(window.innerHeight - ph - m, y));
+  pop.style.left = x + "px"; pop.style.top = y + "px";
+  const onDoc = e => { if (!pop.contains(e.target) && !anchor.contains(e.target)) closeColorPop(); };
+  document.addEventListener("pointerdown", onDoc, true);
+  colorPop = { pop, anchor, onDoc };
+  anchor.setAttribute("aria-expanded", "true");
+  paint(); sv.focus();
+}
+function checkIn(obj, key, after) {
+  const c = el("input", { type: "checkbox" }); c.checked = !!obj[key];
+  c.addEventListener("change", () => { obj[key] = c.checked; save(); after && after(); });
+  return c;
+}
+function rangeIn(obj, key, min, max, after) {
+  const r = el("input", { type: "range", min, max, style: "width:160px" }); r.value = obj[key];
+  r.addEventListener("input", () => { obj[key] = +r.value; save(); after && after(); });
+  return r;
+}
+function selectIn(obj, key, options, after) {
+  const s = el("select");
+  for (const [v, t] of options) { const o = el("option", { value: v }, t); if (String(obj[key]) === String(v)) o.selected = true; s.append(o); }
+  s.addEventListener("change", () => { obj[key] = isNaN(+s.value) ? s.value : +s.value; save(); after && after(); });
+  return s;
+}
+function refreshWidget(w) {
+  const rt = runtime[w.id]; if (!rt || !rt.root) return;
+  rt.root.replaceWith(buildWidget(w));
+}
+
+const ICONS = {
+  left: '<path d="M3 2v14M6 5h9v3H6zM6 10h5v3H6z"/>',
+  hcenter: '<path d="M9 2v14M4 5h10v3H4zM6 10h6v3H6z"/>',
+  right: '<path d="M15 2v14M3 5h9v3H3zM7 10h5v3H7z"/>',
+  top: '<path d="M2 3h14M5 6v9h3V6zM10 6v5h3V6z"/>',
+  vcenter: '<path d="M2 9h14M5 4v10h3V4zM10 6v6h3V6z"/>',
+  bottom: '<path d="M2 15h14M5 3v9h3V3zM10 7v5h3V7z"/>'
+};
+function alignSection(p) {
+  const n = selected.size;
+  p.append(el("h4", {}, n > 1 ? "Align to each other" : "Align to screen"));
+  const r = el("div", { class: "icon-row" });
+  const tips = { left: "Align left", hcenter: "Align centers horizontally", right: "Align right", top: "Align top", vcenter: "Align middles vertically", bottom: "Align bottom" };
+  for (const k in ICONS) r.append(el("button", { title: tips[k], "aria-label": tips[k], onclick: () => align(k), html: `<svg viewBox="0 0 18 18">${ICONS[k]}</svg>` }));
+  p.append(r);
+  if (n > 1) {
+    const s = profile.settings;
+    p.append(el("h4", {}, "Spacing"));
+    const gapIn = el("input", { type: "number", min: 0, max: 4000, step: 1, placeholder: "Auto", "aria-label": "Gap between widgets in pixels" });
+    gapIn.value = s.spaceGap ?? ""; gapIn.style.width = "7rem";
+    gapIn.addEventListener("change", () => { s.spaceGap = gapIn.value === "" ? "" : Math.max(0, Math.round(+gapIn.value)); gapIn.value = s.spaceGap; save(); });
+    p.append(row("Gap between, px", gapIn));
+    p.append(el("div", { class: "wide-row" },
+      el("button", { onclick: () => distribute(true, s.spaceGap) }, "Space Evenly ↔"),
+      el("button", { onclick: () => distribute(false, s.spaceGap) }, "Space Evenly ↕")));
+    p.append(el("div", { class: "hint" }, "Enter a gap for exact spacing, starting from the leftmost or top widget. Leave it on Auto to spread 3 or more widgets across their current width or height."));
+  }
+  p.append(el("h4", {}, n > 1 ? "Place group on screen" : "Place on screen"));
+  p.append(el("div", { class: "wide-row" },
+    el("button", { onclick: () => placeOnScreen("center") }, "Snap to Center"),
+    el("button", { onclick: () => placeOnScreen("hcenter") }, "Center Horizontally"),
+    el("button", { onclick: () => placeOnScreen("bottom-center") }, "Bottom Center"),
+    el("button", { onclick: () => placeOnScreen("bottom") }, "Snap to Bottom")));
+  p.append(el("div", { class: "hint" }, `Bottom keeps a ${profile.settings.margin}px safe margin (Settings). Arrow keys nudge 1px, Shift+arrow 10px. Hold Alt while dragging to turn snapping off. Tab hides this panel.`));
+}
+
+function renderPanel() {
+  const p = $("#panel"); if (!p) return;
+  const st = p.scrollTop, view = panelMode + "|" + [...selected].join(",");
+  renderPanelView(p);
+  if (view === p._view) p.scrollTop = st;
+  p._view = view;
+}
+function renderPanelView(p) {
+  closeColorPop();
+  p.innerHTML = "";
+  if (!editing) return;
+  if (panelMode === "widget" && selected.size === 1) return renderWidgetPanel(p);
+  if (panelMode === "multi" && selected.size > 1) return renderMultiPanel(p);
+  if (panelMode === "settings") return renderSettingsPanel(p);
+  if (panelMode === "export") return renderExportPanel(p);
+  return renderHome(p);
+}
+
+function renderHome(p) {
+  p.append(el("h3", {}, "Stay On Target setup"));
+  p.append(el("div", { class: "hint" }, "Add each device once with the round + button (bottom right) or + Device. Setup walks you through it in the middle of the screen, and new widgets line up along the bottom middle."));
+  p.append(el("div", { class: "hint" }, "Drag widgets to place them; they snap to the center lines, the screen edges and each other. Drag a box or Shift+click to select several. Switch Edit Mode off (top bar) or press E when you are done."));
+  const off = offscreenWidgets().length;
+  if (off) p.append(el("div", { class: "hint", style: "color:#ffb547" }, `${off} widget${off > 1 ? "s are" : " is"} outside this window.`),
+    el("div", { class: "actions" }, el("button", { onclick: bringIntoView }, "Bring Into View")));
+  if (!connectedPads().length) p.append(el("div", { class: "hint", style: "color:#ffb547" }, "No controllers seen yet. Move a stick or press a button so the browser detects them."));
+  p.append(el("div", { class: "actions" },
+    el("button", { class: "primary", onclick: startDeviceWizard }, "+ Device"),
+    el("button", { onclick: startButtonWizard }, "+ Button"),
+    el("button", { onclick: () => $("#file-in").click() }, "Import Profile"),
+    el("button", { class: "danger", onclick: resetAll }, "Reset All")));
+  p.append(el("h4", {}, "Line up against the game"));
+  p.append(el("div", { class: "hint" }, "Recommended: load a Star Citizen screenshot as a background so you can place widgets around your HUD. It only shows in edit mode and is hidden as soon as you leave it."));
+  if (availableSamples.length) {
+    const sr = el("div", { class: "actions" });
+    for (const sm of availableSamples) {
+      const on = refImage === SAMPLE_DIR + sm.file;
+      sr.append(el("button", { class: on ? "on" : "", "aria-pressed": on ? "true" : "false", onclick: () => useSample(sm) }, sm.label));
+    }
+    p.append(sr);
+  }
+  p.append(el("div", { class: "actions" },
+    el("button", { onclick: () => $("#ref-in").click() }, "Load My Own Screenshot"),
+    refImage ? el("button", { onclick: clearReference }, "No Background") : null));
+  if (profile.widgets.length) {
+    p.append(el("h4", {}, "On screen"));
+    for (const w of profile.widgets) p.append(el("div", { class: "row" }, el("span", {}, w.label || w.type),
+      el("button", { onclick: () => setSelection([w.id]) }, "Edit")));
+  }
+}
+
+// ---------- setup wizard dialog ----------
+const ADD_ITEMS = [
+  { key: "stick", name: "Stick", short: "Stick", hint: "X and Y", icon: '<circle cx="12" cy="6" r="3"/><path d="M12 9v8M6 20h12M9 17h6"/>' },
+  { key: "pedals", name: "Pedals", short: "Pedals", hint: "Rudder and toe brakes", icon: '<path d="M4 20l2-13h4l-1 13zM15 20l-1-13h4l2 13z"/>' },
+  { key: "button", name: "Button", short: "Button", hint: "Any button or trigger", icon: '<circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="3"/>' },
+  { key: "throttle", name: "Throttle", short: "Throttle", hint: "One forward axis", icon: '<rect x="8.5" y="3" width="7" height="5" rx="1.5"/><path d="M12 8v9M6 20h12M9 17h6"/>' },
+  { key: "axis", name: "Single axis", short: "Axis", hint: "Slider, dial or twist", icon: '<path d="M4 12h16M7 9l-3 3 3 3M17 9l3 3-3 3"/>' },
+  { key: "label", name: "Label", short: "Label", hint: "Text on screen", icon: '<path d="M5 6h14M12 6v13M9 19h6"/>' }
+];
+const devName = d => prettyName(d.id) + (d.nth ? " #" + (d.nth + 1) : "");
+function renderWiz() {
+  const host = $("#wizard"), b = $("#wiz-body");
+  const was = host.classList.contains("open");
+  host.classList.toggle("open", !!wiz);
+  host.classList.toggle("see-through", !!wiz && wiz.stage === "bg");
+  b.innerHTML = "";
+  if (!wiz) { if (was && editing) $("#fab").focus(); return; }
+  const off = wizBg ? 1 : 0, total = 3 + off;
+  const st = (k, suffix) => [k + off, `Step ${k + off} of ${total}` + (suffix ? " · " + suffix : "")];
+  const head = (step, kicker, title, lead) => {
+    const k = el("div", { class: "kicker" });
+    k.append(el("span", {}, kicker));
+    b.append(el("button", { class: "text close", "aria-label": "Close setup", title: "Close (Esc)", onclick: closeWizard }, "✕"));
+    if (step) b.append(stepper(step));
+    b.append(k, el("h2", { id: "wiz-title" }, title), lead ? el("p", { class: "lead" }, lead) : null);
+  };
+  // Clickable step tracker: steps already passed are buttons that jump back to them.
+  const stepper = step => {
+    const names = [...(wizBg ? ["Background"] : []), "Device", wiz.kind === "button" ? "Press" : "Move", "Name"];
+    const jump = { Background: () => { wizBg = true; wiz = { kind: "device", stage: "bg" }; renderWiz(); },
+      Device: startDeviceWizard,
+      Move: () => wizChooseType(wiz.type), Press: startButtonWizard };
+    const ol = el("ol", { class: "wsteps", "aria-label": "Setup steps" });
+    names.forEach((n, i) => {
+      const k = i + 1, label = k + ". " + n;
+      ol.append(el("li", {}, k === step ? el("span", { "aria-current": "step" }, label)
+        : k < step && jump[n] ? el("button", { type: "button", title: "Go back to " + n, onclick: jump[n] }, "✓ " + label)
+        : el("span", {}, label)));
+    });
+    return ol;
+  };
+  const noPad = () => { const n = el("p", { class: "warn", id: "wiz-nopad" },
+    "No controllers seen yet. Move any stick or press a button so your browser can see them."); n.hidden = connectedPads().length > 0; return n; };
+  const actions = (...xs) => b.append(el("div", { class: "actions" }, ...xs));
+
+  if (wiz.stage === "bg") {
+    head(...st(0), "Choose a Background",
+      "Pick the Star Citizen screenshot closest to your screen, so you can place widgets around the in-game HUD instead of on top of it. It only shows while you edit, never on stream.");
+    const g = el("div", { class: "shots", role: "group", "aria-label": "Background screenshots" });
+    const tile = (src, label, on, click) => g.append(el("button", { class: "shot", "aria-pressed": on ? "true" : "false", onclick: click }, el("img", { src, alt: "" }), label));
+    for (const sm of availableSamples) tile(SAMPLE_DIR + sm.file, sm.label, refImage === SAMPLE_DIR + sm.file, () => { useSample(sm); renderWiz(); });
+    if (refImage && refImage.startsWith("data:")) tile(refImage, "Your Screenshot", true, () => {});
+    if (g.children.length) b.append(g);
+    else b.append(el("p", { class: "warn" }, `No sample screenshots found. Put them in a folder called "${SAMPLE_DIR.slice(0, -1)}" next to StayOnTarget.html, or load your own.`));
+    b.append(el("div", { class: "actions", style: "justify-content:flex-start;margin-top:0.6rem" },
+      el("button", { onclick: () => $("#ref-in").click() }, "Load My Own Screenshot"),
+      refImage ? el("button", { onclick: () => { clearReference(); renderWiz(); } }, "No Background") : null));
+    actions(el("button", { class: "primary", "data-autofocus": "", onclick: startDeviceWizard }, "Next: Add a Device"));
+  } else if (wiz.kind === "done") {
+    head(0, "Added", `${wiz.last.label || "Your widget"} is on your overlay`,
+      "It's at the bottom middle of your screen, where most streamers keep their inputs. You can drag it anywhere later.");
+    if (wizAdded.length > 1) { const ul = el("ul", { class: "added", "aria-label": "Added so far" }); for (const n of wizAdded) ul.append(el("li", {}, n)); b.append(ul); }
+    actions(el("button", { onclick: closeWizard }, "Done"),
+      el("button", { onclick: startButtonWizard }, "Add a Button"),
+      el("button", { class: "primary", "data-autofocus": "", onclick: () => { wizBg = false; startDeviceWizard(); } }, "Add More"));
+    b.append(el("p", { class: "tip" }, "Tip: the round + button in the bottom-right corner adds more at any time."));
+  } else if (wiz.kind === "button" && wiz.stage === "press") {
+    head(...st(2, "Button"), "Press the Button You Want to Show", "Any button on any device. Hold it for a moment.");
+    b.append(noPad());
+    actions(el("button", { onclick: startDeviceWizard }, "Back"), el("button", { onclick: closeWizard }, "Cancel"));
+  } else if (wiz.stage === "type") {
+    head(...(wizAdded.length ? [0, "Add Another"] : st(1)), "What Are You Adding?",
+      "Pick one and we'll set it up right here. It appears at the bottom middle of your screen.");
+    const g = el("div", { class: "types" });
+    for (const it of ADD_ITEMS) g.append(el("button", { onclick: () => wizChooseType(it.key) },
+      el("span", { html: `<svg viewBox="0 0 24 24">${it.icon}</svg>`, style: "display:contents" }), it.name, el("small", {}, it.hint)));
+    b.append(g, noPad());
+    actions(el("button", { onclick: () => { closeWizard(); $("#file-in").click(); } }, "Import a Profile Instead"));
+  } else if (wiz.stage === "steps") {
+    const steps = TYPES[wiz.type].steps, cur = steps[wiz.step];
+    head(...st(2, TYPES[wiz.type].name), cur.ask.charAt(0) + cur.ask.slice(1).toLowerCase() + (cur.optional ? " (if you have it)" : ""),
+      (steps.length > 1 ? `Movement ${wiz.step + 1} of ${steps.length}. ` : "") + (wiz.step === 0 ? "Start with everything at rest, then move it all the way and let go." : "Move it all the way and let go."));
+    b.append(el("div", { class: "live", role: "progressbar", "aria-label": "Movement detected" }, el("i", { id: "wiz-live" })));
+    if (steps.length > 1) steps.forEach((s, i) => b.append(el("div", { class: i < wiz.step ? "step done" : i === wiz.step ? "step active" : "step" }, s.ask.charAt(0) + s.ask.slice(1).toLowerCase())));
+    if (wiz.dev) b.append(el("p", { class: "tip" }, "Device: " + devName(wiz.dev)));
+    b.append(noPad());
+    actions(el("button", { onclick: startDeviceWizard }, "Back"),
+      cur.optional ? el("button", { class: "primary", "data-autofocus": "", onclick: wizSkip }, "Skip, I Don't Have This") : null);
+  } else {
+    const devText = wiz.kind === "button" ? `${devName(wiz.dev)}, button ${wiz.button + 1}` : devName(wiz.dev);
+    head(...st(3), "Name It", `Detected ${devText}. The name shows on the widget, for example "Left Stick".`);
+    const name = textIn(wiz, "name"); name.classList.add("name-in"); name.setAttribute("aria-label", "Widget name"); name.dataset.autofocus = "";
+    name.addEventListener("keydown", e => { if (e.key === "Enter") wizFinish(); });
+    b.append(name);
+    actions(el("button", { onclick: wiz.kind === "button" ? startButtonWizard : () => wizChooseType(wiz.type) }, "Start Over"),
+      el("button", { class: "primary", onclick: wizFinish }, "Add to Overlay"));
+  }
+  setTimeout(() => {
+    const f = b.querySelector("[data-autofocus]") || b.querySelector(".types button, .actions button.primary, .actions button");
+    if (f) { f.focus(); if (f.select) f.select(); }
+  }, 0);
+}
+$("#wizard").addEventListener("keydown", e => {
+  if (e.key === "Escape") { e.stopPropagation(); closeWizard(); }
+  if (e.key === "Tab") {   // keep focus inside the dialog
+    const f = [...$("#wizard").querySelectorAll("button, input")];
+    const i = f.indexOf(document.activeElement);
+    if (e.shiftKey && i <= 0) { e.preventDefault(); f[f.length - 1].focus(); }
+    else if (!e.shiftKey && i === f.length - 1) { e.preventDefault(); f[0].focus(); }
+  }
+});
+$("#wizard").addEventListener("pointerdown", e => { if (e.target.id === "wizard" && wiz && wiz.kind === "done") closeWizard(); });
+
+// ---------- round + button with a radial menu ----------
+// Two quarter rings fanning up and left from the button: devices close in, extras further out.
+const FAB_LAYOUT = { stick: [7, 180], pedals: [7, 225], button: [7, 270], throttle: [12.5, 195], axis: [12.5, 225], label: [12.5, 255] };
+(function buildFab() {
+  const m = $("#fab-menu");
+  ADD_ITEMS.forEach((it, i) => {
+    const [r, deg] = FAB_LAYOUT[it.key], a = deg * Math.PI / 180;
+    const btn = el("button", { role: "menuitem", tabindex: "-1", title: it.name, "aria-label": "Add " + it.name.toLowerCase(),
+      style: `--x:${(r * Math.cos(a)).toFixed(2)}rem;--y:${(r * Math.sin(a)).toFixed(2)}rem;--d:${i * 25}ms`,
+      html: `<svg viewBox="0 0 24 24">${it.icon}</svg><span>${it.short}</span>` });
+    btn.addEventListener("click", () => wizChooseType(it.key));
+    m.append(btn);
+  });
+})();
+function openFab() {
+  if (!editing) return;
+  $("#fab-menu").classList.add("open"); $("#fab").setAttribute("aria-expanded", "true");
+  setTimeout(() => $("#fab-menu button").focus(), 0);
+}
+function closeFab(refocus) {
+  if (!$("#fab-menu").classList.contains("open")) return;
+  $("#fab-menu").classList.remove("open"); $("#fab").setAttribute("aria-expanded", "false");
+  if (refocus) $("#fab").focus();
+}
+$("#fab").addEventListener("click", () => $("#fab-menu").classList.contains("open") ? closeFab() : openFab());
+$("#fab-wrap").addEventListener("keydown", e => {
+  if (e.key === "Escape" && $("#fab-menu").classList.contains("open")) { e.preventDefault(); e.stopPropagation(); closeFab(true); return; }
+  const items = [...$("#fab-menu").querySelectorAll("button")], i = items.indexOf(document.activeElement);
+  if (i < 0) return;
+  if (e.key === "ArrowUp" || e.key === "ArrowRight") { e.preventDefault(); items[(i + 1) % items.length].focus(); }
+  if (e.key === "ArrowDown" || e.key === "ArrowLeft") { e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
+  if (e.key === "Tab") closeFab();
+});
+document.addEventListener("pointerdown", e => { if (!e.target.closest("#fab-wrap")) closeFab(); }, true);
+
+// Color themes: Default and AVS as tiles, every ship manufacturer in a dropdown whose rows
+// each show a swatch of that MFD scheme. all = true (Settings) colors every widget and makes
+// the theme the default for new ones.
+function themeSwatch(t) {
+  const c = t.colors;
+  return el("span", { class: "swatch", "aria-hidden": "true", style: `background:${c.background};border-color:${t.border || c.primary}` },
+    el("b", { style: `background:${c.primary}` }), el("i", { style: `background:${c.accent};box-shadow:0 0 5px ${c.accent}` }));
+}
+function applyThemeTo(t, ws, all) {
+  const targets = all ? profile.widgets.filter(w => w.type !== "label") : ws, tc = themeColors(t);
+  for (const w of targets) Object.assign(w, tc);
+  if (all) Object.assign(profile.settings, { accent: tc.accent, text: tc.text, panel: tc.bg, border: tc.border, theme: t.id, ...(tc.bgAlpha != null ? { panelAlpha: tc.bgAlpha } : {}) });
+  save(); rebuildAll(); syncSelectionClasses();
+  window.dispatchEvent(new CustomEvent("stayontarget:theme", { detail: { theme: t.id, colors: { ...t.colors }, widgets: targets.map(w => w.id) } }));
+  toast((t.title || t.name) + " colors applied");
+}
+function themeSection(p, ws, all) {
+  const common = ws.length && ws.every(w => w.theme === ws[0].theme) ? ws[0].theme : "";
+  p.append(el("h4", {}, "Color Theme"));
+  p.append(el("div", { class: "hint" }, all ? "Match your ship's MFDs. Colors every widget, and new widgets use it too."
+    : `Match your ship's MFDs. Colors the selected widget${ws.length > 1 ? "s" : ""}.`));
+  const tiles = el("div", { class: "themes", role: "group", "aria-label": "Featured color themes" });
+  for (const t of FEATURED_THEMES) {
+    const c = t.colors;
+    const prev = el("span", { class: "theme-prev", style: `background:${c.background};border-color:${t.border || hexA(c.primary, 0.3)};color:${c.primary}` },
+      el("span", { class: "sq", style: `border-color:${hexA(c.primary, 0.55)}` }, el("i", { style: `background:${c.accent};box-shadow:0 0 6px ${c.accent}` })),
+      el("span", { class: "col" }, el("b", {}, t.name), el("span", { class: "bar", style: `background:${hexA(c.primary, 0.18)}` }, el("i", { style: `background:${c.accent}` }))));
+    tiles.append(el("button", { class: "theme-tile", "aria-pressed": common === t.id ? "true" : "false", title: t.title || t.name,
+      onclick: () => applyThemeTo(t, ws, all) }, prev, t.title || t.name));
+  }
+  p.append(tiles);
+  p.append(el("div", { class: "row" }, el("span", {}, "Ship manufacturer")));
+  p.append(themeDropdown(common, t => applyThemeTo(t, ws, all)));
+}
+// Accessible custom dropdown (ARIA listbox): a native <select> can't show color blocks.
+function themeDropdown(current, onPick) {
+  const cur = MFG_THEMES.find(t => t.id === current);
+  const wrap = el("div", { class: "tsel" });
+  const btn = el("button", { class: "tsel-btn", "aria-haspopup": "listbox", "aria-expanded": "false", "aria-label": "Ship manufacturer colors" },
+    cur ? themeSwatch(cur) : el("span", { class: "swatch empty", "aria-hidden": "true" }),
+    el("span", { class: "tsel-name" }, cur ? cur.name : "Choose a Manufacturer…"), el("span", { class: "chev", "aria-hidden": "true" }, "▾"));
+  const list = el("ul", { class: "tsel-list", role: "listbox", tabindex: "-1", "aria-label": "Ship manufacturers" });
+  list.hidden = true;
+  const opts = MFG_THEMES.map((t, i) => {
+    const li = el("li", { role: "option", id: "tsel-" + t.id, "aria-selected": t.id === current ? "true" : "false" }, themeSwatch(t), el("span", {}, t.name));
+    li.addEventListener("click", () => pick(i));
+    li.addEventListener("pointermove", () => setActive(i, false));
+    list.append(li); return li;
+  });
+  let active = Math.max(0, MFG_THEMES.findIndex(t => t.id === current));
+  const setActive = (i, scroll = true) => {
+    active = (i + opts.length) % opts.length;
+    opts.forEach((o, k) => o.classList.toggle("active", k === active));
+    list.setAttribute("aria-activedescendant", opts[active].id);
+    if (scroll) opts[active].scrollIntoView({ block: "nearest" });
+  };
+  const outside = e => { if (!wrap.contains(e.target)) close(false); };
+  const open = () => { list.hidden = false; btn.setAttribute("aria-expanded", "true"); setActive(active); list.focus(); document.addEventListener("pointerdown", outside, true); };
+  const close = refocus => { list.hidden = true; btn.setAttribute("aria-expanded", "false"); document.removeEventListener("pointerdown", outside, true); if (refocus) btn.focus(); };
+  const pick = i => { close(false); onPick(MFG_THEMES[i]); };
+  btn.addEventListener("click", () => list.hidden ? open() : close(true));
+  btn.addEventListener("keydown", e => { if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); open(); } });
+  list.addEventListener("keydown", e => {
+    if (e.key === "ArrowDown") { e.preventDefault(); setActive(active + 1); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setActive(active - 1); }
+    else if (e.key === "Home") { e.preventDefault(); setActive(0); }
+    else if (e.key === "End") { e.preventDefault(); setActive(opts.length - 1); }
+    else if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(active); }
+    else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(true); }
+    else if (e.key === "Tab") close(false);
+    else if (/^[a-z]$/i.test(e.key)) {   // type a letter to jump
+      const k = opts.findIndex((o, i) => i > active && MFG_THEMES[i].name[0].toLowerCase() === e.key.toLowerCase());
+      const f = k >= 0 ? k : MFG_THEMES.findIndex(t => t.name[0].toLowerCase() === e.key.toLowerCase());
+      if (f >= 0) setActive(f);
+    }
+  });
+  wrap.append(btn, list);
+  return wrap;
+}
+
+function colorSection(p, ws) {
+  const w0 = ws[0], upd = () => { for (const w of ws) { w.theme = ""; refreshWidget(w); } syncSelectionClasses(); };
+  // Edit all selected widgets together through a proxy of the first one.
+  const proxy = new Proxy({}, { get: (_, k) => w0[k], set: (_, k, v) => { for (const w of ws) w[k] = v; return true; } });
+  p.append(el("h4", {}, "Colors"));
+  p.append(row("Highlight", colorIn(proxy, "accent", upd, "Highlight")));
+  p.append(row("Text", colorIn(proxy, "text", upd, "Text")));
+  p.append(row("Border", colorIn({ get border() { return w0.border || "#ffffff"; }, set border(v) { for (const w of ws) w.border = v; } }, "border", upd, "Border")));
+  p.append(row("Background", colorIn(proxy, "bg", upd, "Background")));
+  p.append(row("Background opacity", rangeIn(proxy, "bgAlpha", 0, 100, upd)));
+  p.append(el("div", { class: "actions" }, el("button", { onclick: () => {
+    const s = profile.settings; Object.assign(s, { accent: w0.accent, text: w0.text, panel: w0.bg, panelAlpha: w0.bgAlpha, border: w0.border || "", theme: w0.theme || "" });
+    for (const o of profile.widgets) if (o.type !== "label") Object.assign(o, { accent: w0.accent, text: w0.text, bg: w0.bg, bgAlpha: w0.bgAlpha, border: w0.border, theme: w0.theme });
+    save(); rebuildAll(); toast("Colors applied to all widgets");
+  } }, "Use These Colors for All Widgets")));
+}
+
+// Padding, corner radius, what to show, and the inner container sizes (same-type selections).
+function layoutSection(p, ws) {
+  const w0 = ws[0], upd = () => { for (const w of ws) refreshWidget(w); syncSelectionClasses(); };
+  const all = (get, set) => new Proxy({}, { get: (_, k) => get(w0, k), set: (_, k, v) => { for (const w of ws) set(w, k, v); return true; } });
+  const slider = (label, obj, key, min, max, unit = " px") => {
+    const out = el("span", { style: "min-width:3.6rem;text-align:right;font-variant-numeric:tabular-nums" }, obj[key] + unit);
+    const r = rangeIn(obj, key, min, max, () => { out.textContent = obj[key] + unit; upd(); });
+    r.style.width = "8.5rem"; r.setAttribute("aria-label", label);
+    p.append(el("div", { class: "row" }, el("span", {}, label), el("span", { style: "display:flex;align-items:center;gap:0.4rem" }, r, out)));
+  };
+  p.append(el("h4", {}, "Layout"));
+  slider("Padding", all((w, k) => w.pad ?? PAD, (w, k, v) => { w.pad = v; }), "v", 0, 48);
+  slider("Corner radius", all((w, k) => w.radius ?? RADIUS, (w, k, v) => { w.radius = v; }), "v", 0, 32);
+  slider("3D depth", all((w, k) => w.depth || 0, (w, k, v) => { w.depth = v; }), "v", 0, 100, "%");
+  const live = ws.filter(w => w.type !== "button" && w.type !== "label");
+  if (live.length) {
+    const flag = key => all(w => w[key] !== false, (w, k, v) => { w[key] = v; });
+    p.append(row("Show name", checkIn(flag("showTitle"), "v", upd)));
+    p.append(row("Show values (%)", checkIn(flag("showValues"), "v", upd)));
+    p.append(row("Show axis labels", checkIn(flag("showAxisLabels"), "v", upd)));
+  }
+  if (ws.every(w => w.type === "button" || w.type === "pedals")) {
+    pctRow(p, "Width scale", ws, w => w.scaleW || 1, (w, v) => { w.scaleW = v; }, 25, 400, upd);
+    pctRow(p, "Height scale", ws, w => w.scaleH || 1, (w, v) => { w.scaleH = v; }, 25, 400, upd);
+  }
+  const type = ws.every(w => w.type === w0.type) ? w0.type : null;
+  const SLIDERS = {
+    stick: [["Stick area (square)", "box", 60, 400]],
+    throttle: [["Bar width", "bw", 8, 80], ["Bar height", "bh", 40, 400]],
+    axis: [["Bar width", "bw", 8, 80], ["Bar height", "bh", 40, 400]],
+    pedals: [["Rudder bar width", "rw", 80, 500], ["Rudder bar height", "rh", 6, 80],
+      ...(ws.some(w => w.axes && (w.axes.bl != null || w.axes.br != null)) ? [["Brake bar width", "bkw", 6, 60], ["Brake bar height", "bkh", 20, 200]] : [])]
+  }[type];
+  if (SLIDERS) {
+    const dims = all((w, k) => dimsOf(w)[k], (w, k, v) => { w.dims = { ...(w.dims || {}), [k]: v }; });
+    for (const [label, key, min, max] of SLIDERS) slider(label, dims, key, min, max);
+  }
+  p.append(el("div", { class: "actions" }, el("button", { onclick: () => {
+    for (const w of ws) { delete w.pad; delete w.radius; delete w.depth; delete w.dims; delete w.showTitle; delete w.showValues; delete w.showAxisLabels; delete w.scaleW; delete w.scaleH; }
+    save(); upd(); renderPanel();
+  } }, "Reset Layout")));
+}
+
+function perspectiveSection(p, ws) {
+  for (const w of ws) w.persp = { ...PERSP_DEFAULT, ...(w.persp || {}) };
+  const w0 = ws[0];
+  const upd = () => { for (const w of ws) applyPerspective(runtime[w.id].root, w); };
+  const proxy = new Proxy({}, { get: (_, k) => w0.persp[k], set: (_, k, v) => { for (const w of ws) w.persp[k] = v; return true; } });
+  p.append(el("h4", {}, "Perspective"));
+  const presets = el("select", { "aria-label": "Perspective preset" });
+  presets.append(el("option", { value: "" }, "Presets…"));
+  for (const n in PERSP_PRESETS) presets.append(el("option", { value: n }, n));
+  presets.addEventListener("change", () => {
+    if (!presets.value) return;
+    for (const w of ws) w.persp = { ...PERSP_PRESETS[presets.value] };
+    save(); upd(); renderPanel();
+  });
+  p.append(row("Preset", presets));
+  const slider = (label, key, min, max, unit) => {
+    const out = el("span", { style: "min-width:3.2rem;text-align:right;font-variant-numeric:tabular-nums" }, proxy[key] + unit);
+    const r = rangeIn(proxy, key, min, max, () => { out.textContent = proxy[key] + unit; upd(); });
+    r.style.width = "8.5rem"; r.setAttribute("aria-label", label);
+    p.append(el("div", { class: "row" }, el("span", {}, label), el("span", { style: "display:flex;align-items:center;gap:0.4rem" }, r, out)));
+  };
+  slider("Tilt (forward/back)", "rx", -70, 70, "°");
+  slider("Turn (left/right)", "ry", -70, 70, "°");
+  slider("Rotate", "rz", -45, 45, "°");
+  slider("Skew horizontal", "sx", -40, 40, "°");
+  slider("Skew vertical", "sy", -40, 40, "°");
+  slider("Depth (lower = stronger)", "d", 300, 3000, "px");
+  p.append(el("div", { class: "actions" }, el("button", { onclick: () => { for (const w of ws) w.persp = { ...PERSP_DEFAULT }; save(); upd(); renderPanel(); } }, "Reset to Flat")));
+  p.append(el("div", { class: "hint" }, "Tilt and turn widgets so they sit on your cockpit's angled screens. Snapping and alignment use the widget's flat footprint."));
+}
+
+// Slider + number box for a percentage, applied to every widget in ws.
+function pctRow(p, label, ws, get, set, MIN, MAX, upd) {
+  const cur = () => Math.round(get(ws[0]) * 100);
+  const r = el("input", { type: "range", min: MIN, max: MAX, step: 1, style: "width:7.5rem" }); r.value = cur();
+  r.setAttribute("aria-label", label);
+  const n = el("input", { type: "number", min: MIN, max: MAX, step: 1, style: "width:5.5rem" }); n.value = cur();
+  n.setAttribute("aria-label", label + " percent");
+  const apply = v => { for (const w of ws) set(w, v / 100); save(); upd(); };
+  r.addEventListener("input", () => { n.value = r.value; apply(+r.value); });
+  const commit = () => { const v = clamp(Math.round(+n.value || cur()), MIN, MAX); n.value = v; r.value = v; apply(v); };
+  n.addEventListener("change", commit);
+  n.addEventListener("keydown", e => { if (e.key === "Enter") commit(); });
+  p.append(el("div", { class: "row" }, el("span", {}, label), el("span", { style: "display:flex;align-items:center;gap:0.4rem" }, r, n, el("span", {}, "%"))));
+}
+const sizeRow = (p, ws, upd) => pctRow(p, "Size", ws, w => w.size || 1, (w, v) => { w.size = v; }, 50, 250, upd);
+
+function renderWidgetPanel(p) {
+  const w = selectedWidgets()[0]; if (!w) return;
+  const names = { stick: "Stick", throttle: "Throttle", pedals: "Pedals", axis: "Single axis", button: "Button", label: "Label" };
+  const upd = () => { refreshWidget(w); syncSelectionClasses(); };
+  p.append(el("h3", {}, names[w.type] || w.type));
+  p.append(row("Name", textIn(w, "label", upd)));
+  sizeRow(p, [w], upd);
+  alignSection(p);
+  layoutSection(p, [w]);
+  perspectiveSection(p, [w]);
+  themeSection(p, [w]);
+  colorSection(p, [w]);
+  if (w.match) {
+    p.append(el("h4", {}, "Device"));
+    p.append(el("div", { class: "hint" }, prettyName(w.match) + (w.nth ? " #" + (w.nth + 1) : "")));
+    if (w.type !== "button") {
+      for (const s of TYPES[w.type].steps) if (w.axes[s.key] != null) {
+        const lbl = { x: "Invert X", y: "Invert Y", t: "Invert throttle", r: "Invert rudder", bl: "Invert left brake", br: "Invert right brake", a: "Invert axis" }[s.key];
+        p.append(row(lbl, checkIn(w.inv, s.key)));
+      }
+    }
+    if (twinsOf(w, connectedPads()) > 1) p.append(el("div", { class: "actions" }, el("button", { onclick: () => swapTwins(w.match) }, "Swap With Identical Device")));
+  }
+  p.append(el("div", { class: "actions" },
+    el("button", { onclick: duplicateSelected }, "Duplicate"),
+    el("button", { class: "danger", onclick: deleteSelected }, "Remove")));
+}
+
+function renderMultiPanel(p) {
+  const ws = selectedWidgets();
+  p.append(el("h3", {}, ws.length + " widgets selected"));
+  p.append(el("div", { class: "hint" }, "Drag any of them to move them together. Shift+click adds or removes one."));
+  sizeRow(p, ws, () => { for (const w of ws) refreshWidget(w); syncSelectionClasses(); });
+  alignSection(p);
+  layoutSection(p, ws);
+  perspectiveSection(p, ws);
+  themeSection(p, ws);
+  colorSection(p, ws);
+  p.append(el("div", { class: "actions" },
+    el("button", { onclick: duplicateSelected }, "Duplicate"),
+    el("button", { class: "danger", onclick: deleteSelected }, "Remove All")));
+}
+
+function renderSettingsPanel(p) {
+  const s = profile.settings;
+  p.append(el("h3", {}, "Settings"));
+  p.append(el("h4", {}, "Layout"));
+  p.append(row("Center lines", checkIn(s, "centerLines", applySettings)));
+  p.append(row("Smart guides", checkIn(s, "smartGuides")));
+  p.append(row("Snap to grid", checkIn(s, "gridSnap", applySettings)));
+  p.append(row("Grid size", selectIn(s, "gridSize", [[8, "8 px"], [16, "16 px"], [24, "24 px"], [32, "32 px"]], applySettings)));
+  p.append(row("Safe margin, px", numIn(s, "margin", 0, 200, 4)));
+  p.append(el("h4", {}, "Size"));
+  const scaleRow = row("Overlay scale", numIn(s, "scale", 0.3, 4, 0.05, rebuildAll));
+  p.append(row("Fit overlay to screen size", checkIn({ get v() { return s.scaleMode === "auto"; }, set v(x) { s.scaleMode = x ? "auto" : "manual"; } }, "v", () => { rebuildAll(); setSelection([], "settings"); })));
+  if (s.scaleMode !== "auto") p.append(scaleRow);
+  p.append(el("div", { class: "hint" }, "On, a layout made at 1080p keeps the same proportions at 1440p or 4K."));
+  p.append(row("Editor text size", selectIn(s, "uiScale", [["auto", "Auto (scales for 4K)"], [1, "100%"], [1.25, "125%"], [1.5, "150%"], [2, "200%"], [2.5, "250%"]], applySettings)));
+  themeSection(p, profile.widgets.filter(w => w.type !== "label"), true);
+  p.append(el("h4", {}, "Background"));
+  p.append(row("Solid background", checkIn({ get v() { return s.background === "solid"; }, set v(x) { s.background = x ? "solid" : "transparent"; } }, "v", applySettings)));
+  p.append(row("Background color", colorIn(s, "bgColor", applySettings, "Background color")));
+  p.append(el("div", { class: "hint" }, "Leave the background transparent for OBS. A solid color is only for tools without transparency."));
+  p.append(el("h4", {}, "Session heatmap"));
+  p.append(el("div", { class: "hint" }, "Shows where each stick, throttle and pedal spent its time this session, e.g. which way you strafe most. Toggle with H, reset with R."));
+  p.append(el("div", { class: "actions" }, el("button", { onclick: toggleHeat }, showHeat ? "Hide Heatmap" : "Show Heatmap"), el("button", { onclick: resetHeat }, "Reset Heatmap")));
+  p.append(el("h4", {}, "About"));
+  p.append(el("div", { class: "hint" }, "Stay On Target is free, open-source software under the MIT License. It uses no third-party libraries, fonts, trackers or online services: everything runs offline from this one file."));
+  p.append(el("div", { class: "hint" }, "This is an unofficial Star Citizen fan project, not affiliated with the Cloud Imperium group of companies. Star Citizen®, Roberts Space Industries® and Cloud Imperium® are trademarks of Cloud Imperium Rights LLC. Manufacturer names are used only to describe fan-made color themes."));
+  p.append(el("h4", {}, "Start Over"));
+  p.append(el("div", { class: "actions" }, el("button", { class: "danger", onclick: () => {
+    if (!confirm("Remove everything from the overlay?")) return;
+    profile = newProfile(); save(); rebuildAll();
+  } }, "Remove All Widgets")));
+}
+
+function renderExportPanel(p) {
+  p.append(el("h3", {}, "Save and share"));
+  p.append(el("div", { class: "hint" }, "Your setup saves automatically. For a backup that survives OBS clearing its cache, download profile.js and put it in the same folder as StayOnTarget.html."));
+  p.append(el("div", { class: "actions" }, el("button", { class: "primary", onclick: () => exportProfile(true) }, "Download profile.js")));
+  p.append(el("h4", {}, "Share with another pilot"));
+  p.append(el("div", { class: "hint" }, "Send StayOnTarget.html plus your profile.js. With the same hardware it works straight away; otherwise they remove the widgets and add their own devices."));
+  p.append(el("div", { class: "actions" }, el("button", { onclick: () => exportProfile(false) }, "Download .json"), el("button", { onclick: () => $("#file-in").click() }, "Import a Profile")));
+}
+
+// ---------- boot ----------
+// OBS exposes window.obsstudio; anywhere else we show a dark preview. Add ?transparent to the
+// URL for other streaming apps that support transparency but don't identify themselves.
+const IN_OBS = !!window.obsstudio || new URLSearchParams(location.search).has("transparent");
+document.body.classList.toggle("preview", !IN_OBS);
+$("#preview-edit").addEventListener("click", () => setEditing(true));
+loadProfile();
+rebuildAll();
+if (new URLSearchParams(location.search).has("edit")) setEditing(true);
+requestAnimationFrame(frame);
+// First run (no saved setup and no profile.js): open the editor with the getting-started dialog.
+window.addEventListener("load", () => { if (firstRun && !window.STAYONTARGET_PROFILE && !window.JOYVIZ_PROFILE) { setEditing(true); openWelcome(); } });
+</script>
+<!-- Optional saved profile; ignored if the file doesn't exist. -->
+<script src="profile.js"></script>
+<script>
+const fileProfile = window.STAYONTARGET_PROFILE || window.JOYVIZ_PROFILE;
+if (fileProfile && (+fileProfile.savedAt || 0) > (+profile.savedAt || 0)) { profile = normalize(fileProfile); rebuildAll(); }
+</script>
+</body>
+</html>
