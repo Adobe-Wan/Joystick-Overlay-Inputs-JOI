@@ -73,6 +73,17 @@ body.preview:not(.editing).has-widgets #preview-chip { display: flex; }
 .label-widget { font-weight: 700; letter-spacing: 0.06em; }
 /* Perspective: one GPU-composited CSS transform per widget, no per-frame cost. */
 .widget.tilted { transform-origin: 50% 50%; will-change: transform; backface-visibility: hidden; }
+/* Projection look: fine scanlines plus a faint beam of the highlight color from the top edge. Painted once. */
+.widget.scan::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: repeating-linear-gradient(180deg, rgba(0,0,0,0) 0 2px, rgba(0,0,0,0.2) 2px 3px), linear-gradient(180deg, var(--beam, transparent), transparent 65%); }
+.looks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem; margin: 0.4rem 0 0.6rem; }
+.look-tile { display: flex; flex-direction: column; align-items: center; gap: 0.4rem; padding: 0.55rem 0.25rem 0.4rem; min-height: 0; font-size: 0.78rem; font-weight: 600; line-height: 1.2; text-align: center; }
+.look-tile[aria-pressed=true] { border-color: var(--ui-accent); box-shadow: inset 0 0 0 1px var(--ui-accent); }
+.look-prev { width: 46px; height: 32px; display: grid; place-items: center; }
+.look-prev i { display: block; width: 40px; height: 26px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.55); background: rgba(255,255,255,0.08); transform-origin: 50% 50%; }
+.look-prev i.holo { border-color: var(--ui-accent); box-shadow: 0 0 6px var(--ui-accent), inset 0 0 6px rgba(79,209,255,0.35);
+  background: repeating-linear-gradient(180deg, rgba(79,209,255,0.12) 0 2px, rgba(79,209,255,0.03) 2px 3px); }
+.look-prev i.visor { background: none; }
 
 /* ---------- edit mode: guides, selection ---------- */
 #grid, #center-lines, #guides { position: absolute; left: 0; top: 0; pointer-events: none; display: none; }
@@ -716,13 +727,46 @@ function mixHex(a, b, t) {
 // 2.5D look: perspective + rotations + skew in a single transform string. The browser
 // composites it on the GPU, so it costs nothing per frame once applied.
 const PERSP_DEFAULT = { rx: 0, ry: 0, rz: 0, sx: 0, sy: 0, d: 900 };
-const PERSP_PRESETS = {
-  "Flat": { rx: 0, ry: 0, rz: 0, sx: 0, sy: 0, d: 900 },
-  "Left HUD Panel": { rx: 0, ry: 28, rz: 0, sx: 0, sy: 0, d: 900 },
-  "Right HUD Panel": { rx: 0, ry: -28, rz: 0, sx: 0, sy: 0, d: 900 },
-  "Lower Console": { rx: 35, ry: 0, rz: 0, sx: 0, sy: 0, d: 900 },
-  "Upper Canopy": { rx: -25, ry: 0, rz: 0, sx: 0, sy: 0, d: 900 }
+// Cockpit looks: where the widget sits (perspective) plus how it is lit (projection). Flat is the default.
+// proj: glow 0-100 (highlight-colored halo on the frame and text), fade 0-100 (how much of the background
+// drops out, so the scene shows through), scan (scanlines). Angles follow Star Citizen cockpits: side
+// screens have their outer edge nearer the camera, consoles lie back toward the dash.
+const PROJ_DEFAULT = { glow: 0, fade: 0, scan: false };
+const LOOK_PRESETS = [
+  { name: "Flat", hint: "Straight on, no effects. The default.", persp: {} },
+  { name: "Hologram", hint: "A projected panel facing the camera: glow, scanlines and a see-through background.", persp: {}, proj: { glow: 55, fade: 45, scan: true } },
+  { name: "Visor HUD", hint: "Just the outline and glowing readouts, like your helmet HUD.", persp: {}, proj: { glow: 70, fade: 100 } },
+  { name: "Left Screen", hint: "An angled MFD to the left of the pilot.", persp: { rx: 4, ry: 30 }, proj: { glow: 20 } },
+  { name: "Right Screen", hint: "An angled MFD to the right of the pilot.", persp: { rx: 4, ry: -30 }, proj: { glow: 20 } },
+  { name: "Dash Console", hint: "Lies back on the console below the canopy.", persp: { rx: 40, d: 800 }, proj: { glow: 20 } },
+  { name: "Low Left", hint: "A side console low on the left, tilted up toward the pilot.", persp: { rx: 30, ry: 24, rz: -3, d: 800 }, proj: { glow: 20 } },
+  { name: "Low Right", hint: "A side console low on the right, tilted up toward the pilot.", persp: { rx: 30, ry: -24, rz: 3, d: 800 }, proj: { glow: 20 } },
+  { name: "Overhead", hint: "A panel above the canopy frame, tipped down toward the pilot.", persp: { rx: -32 }, proj: { glow: 20 } },
+  { name: "Canopy Glass", hint: "Projected onto the canopy in front of you.", persp: { rx: -10, d: 1200 }, proj: { glow: 65, fade: 60, scan: true } },
+  { name: "Left Holo", hint: "A hologram hanging off the left wall of the cockpit.", persp: { ry: 48, d: 700 }, proj: { glow: 60, fade: 50, scan: true } },
+  { name: "Right Holo", hint: "A hologram hanging off the right wall of the cockpit.", persp: { ry: -48, d: 700 }, proj: { glow: 60, fade: 50, scan: true } }
+];
+const lookPersp = l => ({ ...PERSP_DEFAULT, ...l.persp });
+const lookProj = l => ({ ...PROJ_DEFAULT, ...(l.proj || {}) });
+const sameLook = (w, l) => {
+  const p = { ...PERSP_DEFAULT, ...(w.persp || {}) }, q = { ...PROJ_DEFAULT, ...(w.proj || {}) }, lp = lookPersp(l), lq = lookProj(l);
+  return Object.keys(lp).every(k => p[k] === lp[k]) && Object.keys(lq).every(k => q[k] === lq[k]);
 };
+// Glow, fade and scanlines on top of the widget's colors. Runs after styleWidget, so colors stay the theme's.
+function applyProjection(root, w) {
+  const pr = { ...PROJ_DEFAULT, ...(w.proj || {}) };
+  const g = clamp((pr.glow || 0) / 100, 0, 1), fade = clamp((pr.fade || 0) / 100, 0, 1);
+  const accent = w.accent || profile.settings.accent, alpha = (w.bgAlpha ?? profile.settings.panelAlpha) / 100;
+  root.classList.toggle("scan", !!pr.scan);
+  if (pr.scan) root.style.setProperty("--beam", hexA(accent, 0.1));
+  if (fade) root.style.setProperty("--wbg", hexA(w.bg || profile.settings.panel, alpha * (1 - fade)));
+  if (!g) return;
+  root.style.textShadow = `0 0 ${(2 + 6 * g).toFixed(1)}px ${hexA(accent, 0.75 * g)}, 0 1px 2px rgba(0,0,0,0.6)`;
+  if (alpha > 0) {   // a frame to glow; fully transparent widgets keep only the text glow
+    root.style.borderColor = hexA(w.border || accent, 0.55 + 0.4 * g);
+    root.style.boxShadow = `0 0 ${(4 + 16 * g).toFixed(1)}px ${hexA(accent, 0.4 * g)}, inset 0 0 ${(6 + 18 * g).toFixed(1)}px ${hexA(accent, 0.2 * g)}`;
+  }
+}
 function applyPerspective(root, w) {
   const p = w.persp;
   const flat = !p || (!p.rx && !p.ry && !p.rz && !p.sx && !p.sy);
@@ -744,6 +788,7 @@ function buildWidget(w) {
   const root = el("div", { class: "widget", "data-id": w.id });
   root.style.left = w.x + "px"; root.style.top = w.y + "px";
   styleWidget(root, w);
+  applyProjection(root, w);
   applyPerspective(root, w);
   const rt = getRt(w); rt.root = root; rt.spans = {}; rt._key = null;
   const k = (w.size || 1) * SIZE_BASE, D = dimsOf(w);
@@ -1912,34 +1957,42 @@ function layoutSection(p, ws) {
 }
 
 function perspectiveSection(p, ws) {
-  for (const w of ws) w.persp = { ...PERSP_DEFAULT, ...(w.persp || {}) };
+  for (const w of ws) { w.persp = { ...PERSP_DEFAULT, ...(w.persp || {}) }; w.proj = { ...PROJ_DEFAULT, ...(w.proj || {}) }; }
   const w0 = ws[0];
   const upd = () => { for (const w of ws) applyPerspective(runtime[w.id].root, w); };
+  const updProj = () => { for (const w of ws) refreshWidget(w); syncSelectionClasses(); };
   const proxy = new Proxy({}, { get: (_, k) => w0.persp[k], set: (_, k, v) => { for (const w of ws) w.persp[k] = v; return true; } });
-  p.append(el("h4", {}, "Perspective"));
-  const presets = el("select", { "aria-label": "Perspective preset" });
-  presets.append(el("option", { value: "" }, "Presets…"));
-  for (const n in PERSP_PRESETS) presets.append(el("option", { value: n }, n));
-  presets.addEventListener("change", () => {
-    if (!presets.value) return;
-    for (const w of ws) w.persp = { ...PERSP_PRESETS[presets.value] };
-    save(); upd(); renderPanel();
-  });
-  p.append(row("Preset", presets));
-  const slider = (label, key, min, max, unit) => {
-    const out = el("span", { style: "min-width:3.2rem;text-align:right;font-variant-numeric:tabular-nums" }, proxy[key] + unit);
-    const r = rangeIn(proxy, key, min, max, () => { out.textContent = proxy[key] + unit; upd(); });
+  const pproxy = new Proxy({}, { get: (_, k) => w0.proj[k], set: (_, k, v) => { for (const w of ws) w.proj[k] = v; return true; } });
+  p.append(el("h4", {}, "Cockpit Look"));
+  p.append(el("div", { class: "hint" }, "Place the widget on a cockpit screen or project it like a hologram. Fine-tune it below."));
+  // Buttons, not a <select>: native dropdowns don't open in every browser source (OBS's Interact window).
+  const looks = el("div", { class: "looks", role: "group", "aria-label": "Cockpit look presets" });
+  for (const l of LOOK_PRESETS) {
+    const lp = lookPersp(l), lq = lookProj(l);
+    const box = el("i", { class: lq.fade >= 100 ? "holo visor" : lq.scan || lq.glow >= 50 ? "holo" : "",
+      style: `transform:perspective(${Math.round(lp.d * 0.3)}px) rotateX(${lp.rx}deg) rotateY(${lp.ry}deg) rotateZ(${lp.rz}deg)` });
+    looks.append(el("button", { class: "look-tile", title: l.hint, "aria-pressed": ws.every(w => sameLook(w, l)) ? "true" : "false",
+      onclick: () => { for (const w of ws) { w.persp = lookPersp(l); w.proj = lookProj(l); } save(); updProj(); renderPanel(); } },
+      el("span", { class: "look-prev", "aria-hidden": "true" }, box), l.name));
+  }
+  p.append(looks);
+  const slider = (label, obj, key, min, max, unit, after) => {
+    const out = el("span", { style: "min-width:3.2rem;text-align:right;font-variant-numeric:tabular-nums" }, obj[key] + unit);
+    const r = rangeIn(obj, key, min, max, () => { out.textContent = obj[key] + unit; after(); });
     r.style.width = "8.5rem"; r.setAttribute("aria-label", label);
     p.append(el("div", { class: "row" }, el("span", {}, label), el("span", { style: "display:flex;align-items:center;gap:0.4rem" }, r, out)));
   };
-  slider("Tilt (forward/back)", "rx", -70, 70, "°");
-  slider("Turn (left/right)", "ry", -70, 70, "°");
-  slider("Rotate", "rz", -45, 45, "°");
-  slider("Skew horizontal", "sx", -40, 40, "°");
-  slider("Skew vertical", "sy", -40, 40, "°");
-  slider("Depth (lower = stronger)", "d", 300, 3000, "px");
-  p.append(el("div", { class: "actions" }, el("button", { onclick: () => { for (const w of ws) w.persp = { ...PERSP_DEFAULT }; save(); upd(); renderPanel(); } }, "Reset to Flat")));
-  p.append(el("div", { class: "hint" }, "Tilt and turn widgets so they sit on your cockpit's angled screens. Snapping and alignment use the widget's flat footprint."));
+  slider("Tilt (forward/back)", proxy, "rx", -70, 70, "°", upd);
+  slider("Turn (left/right)", proxy, "ry", -70, 70, "°", upd);
+  slider("Rotate", proxy, "rz", -45, 45, "°", upd);
+  slider("Skew horizontal", proxy, "sx", -40, 40, "°", upd);
+  slider("Skew vertical", proxy, "sy", -40, 40, "°", upd);
+  slider("Depth (lower = stronger)", proxy, "d", 300, 3000, "px", upd);
+  slider("Glow", pproxy, "glow", 0, 100, "%", updProj);
+  slider("Background fade", pproxy, "fade", 0, 100, "%", updProj);
+  p.append(row("Scanlines", checkIn(pproxy, "scan", updProj)));
+  p.append(el("div", { class: "actions" }, el("button", { onclick: () => { for (const w of ws) { w.persp = { ...PERSP_DEFAULT }; delete w.proj; } save(); updProj(); renderPanel(); } }, "Reset to Flat")));
+  p.append(el("div", { class: "hint" }, "Snapping and alignment use the widget's flat footprint. Glow uses the highlight color, so it follows your theme."));
 }
 
 // Slider + number box for a percentage, applied to every widget in ws.

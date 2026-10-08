@@ -86,14 +86,15 @@ Match your widgets to your ship's MFDs. Select widgets and look under **Color Th
 
 Most themes are sampled from that manufacturer's in-game power management screen: the stick dot, bars and pressed buttons use the color of a filled power pip, the widget outline uses an empty pip's outline, and the background matches the screen. Crusader, Banu and AopoA are fan picks for now. You can still fine-tune Highlight, Text, Border and Background by hand underneath. Click a color to open the picker: drag in the square for saturation and brightness (or use the arrow keys, Shift for bigger steps), drag the rainbow bar for hue, type a hex code, click a preset, or use **Pick** to grab a color from anywhere on screen (where the browser supports it). Escape or a click outside closes it.
 
-## Perspective (2.5D HUD look)
-Select a widget (or several) and use **Perspective** in the side panel to tilt it onto an angled cockpit screen.
-- **Presets:** Flat, Left HUD Panel, Right HUD Panel, Lower Console, Upper Canopy.
-- **Sliders:** Tilt (forward/back), Turn (left/right), Rotate, Skew horizontal and vertical, and Depth (lower values give a stronger 3D effect).
-- **Reset to Flat** undoes it.
+## Cockpit Look (perspective and projection)
+Select a widget (or several) and use **Cockpit Look** in the side panel to make it sit naturally in your cockpit, either on an angled screen or projected like a hologram. Widgets start Flat; the looks are optional.
+- **Presets** (click a tile): Flat, Hologram, Visor HUD, Left Screen, Right Screen, Dash Console, Low Left, Low Right, Overhead, Canopy Glass, Left Holo, Right Holo. Hover a tile for a short description.
+- **Angle sliders:** Tilt (forward/back), Turn (left/right), Rotate, Skew horizontal and vertical, and Depth (lower values give a stronger 3D effect).
+- **Projection:** Glow (a halo in your highlight color, so it follows the theme), Background fade (lets the scene show through) and Scanlines.
+- **Reset to Flat** undoes all of it.
 - Snapping and alignment use the widget's flat footprint, so the tilted corners can sit slightly outside the guides.
 
-Perspective is a single CSS 3D transform per widget, which the GPU composites. It costs nothing per frame, and flat widgets skip it entirely.
+Perspective is a single CSS 3D transform per widget, which the GPU composites, and the projection effects are painted once. They cost nothing per frame, and flat widgets skip them entirely.
 
 ## Performance in OBS
 - Widgets only redraw when an input actually changes. Hands off the controls means near-zero drawing work.
