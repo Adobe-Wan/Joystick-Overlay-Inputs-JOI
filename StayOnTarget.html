@@ -53,8 +53,14 @@ body.preview:not(.editing).has-widgets #preview-chip { display: flex; }
 }
 .readout b { opacity: 0.7; font-weight: 500; margin-right: 5px; font-family: var(--font); font-size: 11px; letter-spacing: 0.08em; }
 .readout .full { color: var(--accent); }
-/* Each value reserves room for its widest reading ("+100%"), so widgets never change size as inputs move. */
+/* Each value reserves room for its widest reading ("+100%"), so widgets never change size as inputs move.
+   A labeled value hugs its label; a lone one (throttle, axis) centers in that room so "0%" sits under the bar's middle. */
 .readout .val { display: inline-block; min-width: 5ch; text-align: left; }
+.readout > .val { text-align: center; }
+/* Stick: X under the left half of the gate, Y under the right half. The 1.5ch on the left balances the room a
+   short reading leaves on the right, so "X 0%" looks centered under its half. */
+.readout.pair { display: grid; grid-template-columns: 1fr 1fr; justify-items: center; gap: 0 10px; width: max-content; margin-left: auto; margin-right: auto; }
+.readout.pair > span { padding-left: 1.5ch; }
 /* Pedals with axis labels off: L | rudder | R. 0% sits dead center; positive readings grow to the right
    from the "0" position, negative ones to the left, so the number tracks the rudder's direction. */
 .readout.ped-split { display: grid; grid-template-columns: 1fr 9ch 1fr; gap: 6px; }
@@ -449,7 +455,23 @@ body.panel-hidden #fab-wrap { right: 1.5rem; }
 #fab-menu button svg { width: 1.6rem; height: 1.6rem; }
 #fab-menu.open button { opacity: 1; pointer-events: auto; transform: translate(var(--x), var(--y)) scale(1); transition-delay: var(--d); }
 #fab-menu button:hover, #fab-menu button:focus-visible { background: #1b2a3a; border-color: var(--ui-accent); color: var(--ui-accent); }
-@media (prefers-reduced-motion: reduce) { #fab, #fab-menu button { transition: none; } }
+/* Undo / Redo: small secondary buttons above the +, out of the way while its menu is open */
+#undo-row { position: absolute; left: 50%; bottom: calc(100% + 0.75rem); transform: translateX(-50%); display: flex; gap: 0.5rem; transition: opacity 120ms; }
+#fab-menu.open ~ #undo-row { opacity: 0; pointer-events: none; }
+.fab-mini { position: relative; width: 2.75rem; height: 2.75rem; min-height: 0; border-radius: 50%; padding: 0; display: grid; place-items: center;
+  background: #16202b; border: 1px solid #2c3b4b; color: #c9d4df; box-shadow: 0 0.25rem 0.6rem rgba(0,0,0,0.5); }
+.fab-mini:hover:not(:disabled), .fab-mini:focus-visible { background: #1b2a3a; border-color: var(--ui-accent); color: var(--ui-accent); }
+.fab-mini:disabled { opacity: 0.4; cursor: default; }
+.fab-mini svg { width: 1.25rem; height: 1.25rem; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+/* Tooltips: the + shows its tip to the left, the small buttons above. */
+#fab-wrap [data-tip]::after { content: attr(data-tip); position: absolute; z-index: 3; white-space: nowrap; pointer-events: none; opacity: 0;
+  background: #0b1118; border: 1px solid #2c3b4b; color: #e6edf3; font-size: 0.85rem; font-weight: 500; letter-spacing: 0.02em;
+  padding: 0.3rem 0.55rem; border-radius: 0.35rem; box-shadow: 0 0.25rem 0.6rem rgba(0,0,0,0.5); transition: opacity 120ms; }
+#fab-wrap [data-tip]:hover::after, #fab-wrap [data-tip]:focus-visible::after { opacity: 1; transition-delay: 250ms; }
+#fab[data-tip]::after { right: calc(100% + 0.75rem); top: 50%; transform: translateY(-50%); }
+#fab[aria-expanded=true]::after { display: none; }
+.fab-mini[data-tip]::after { left: 50%; bottom: calc(100% + 0.5rem); transform: translateX(-50%); }
+@media (prefers-reduced-motion: reduce) { #fab, #fab-menu button, #undo-row { transition: none; } }
 /* Prominent way back into edit mode when the overlay is empty */
 #enter-edit { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; z-index: 10; pointer-events: none; }
 body:not(.editing):not(.has-widgets) #enter-edit { display: flex; }
@@ -513,7 +535,11 @@ body:not(.editing):not(.has-widgets) #enter-edit { display: flex; }
   <div id="panel" class="paper" role="complementary" aria-label="Editor panel"></div>
   <div id="fab-wrap">
     <div id="fab-menu" role="menu" aria-label="Add to Overlay"></div>
-    <button id="fab" class="primary" aria-haspopup="menu" aria-expanded="false" aria-controls="fab-menu" aria-label="Add to Overlay" title="Add to overlay (A)"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+    <button id="fab" class="primary" aria-haspopup="menu" aria-expanded="false" aria-controls="fab-menu" aria-label="Add to Overlay" aria-keyshortcuts="A" data-tip="Add (A)"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+    <div id="undo-row">
+      <button id="undo-btn" class="fab-mini" aria-label="Undo" aria-keyshortcuts="Control+Z" data-tip="Undo (Ctrl+Z)" disabled><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
+      <button id="redo-btn" class="fab-mini" aria-label="Redo" aria-keyshortcuts="Control+Y" data-tip="Redo (Ctrl+Y)" disabled><svg viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></button>
+    </div>
   </div>
   <input type="file" id="file-in" accept=".json,.js,application/json" hidden>
   <input type="file" id="ref-in" accept="image/*" hidden>
@@ -667,8 +693,49 @@ let firstRun = false;
 let saveTimer = null;
 function save() {
   profile.savedAt = Date.now(); stampLayout();
+  recordHistory(); persist();
+}
+function persist() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => { try { localStorage.setItem(STORE_KEY, JSON.stringify(profile)); } catch (e) {} }, 150);
+}
+// ---------- undo / redo ----------
+// Every save() compares the layout and settings with the last recorded state. Saves that come in a quick burst
+// (a drag, a slider, a held arrow key) collapse into one step, so Undo takes back the whole gesture.
+const HISTORY_MAX = 100, HISTORY_MERGE_MS = 400;
+const hist = { undo: [], redo: [], last: null, at: 0 };
+const snapOf = () => JSON.stringify({ settings: profile.settings, widgets: profile.widgets });
+function resetHistory() { hist.undo.length = hist.redo.length = 0; hist.last = snapOf(); hist.at = 0; syncUndoButtons(); }
+function recordHistory() {
+  const cur = snapOf();
+  if (hist.last == null || cur === hist.last) { hist.last = cur; return; }
+  const now = performance.now();
+  if (now - hist.at > HISTORY_MERGE_MS || !hist.undo.length) {
+    hist.undo.push(hist.last);
+    if (hist.undo.length > HISTORY_MAX) hist.undo.shift();
+  }
+  hist.at = now; hist.last = cur; hist.redo.length = 0;
+  syncUndoButtons();
+}
+function stepHistory(from, to, what) {
+  if (!editing) return;
+  if (!from.length) { toast(`Nothing to ${what}`); return; }
+  to.push(hist.last); hist.last = from.pop(); hist.at = 0;
+  const s = JSON.parse(hist.last);
+  profile.settings = s.settings; profile.widgets = s.widgets; profile.savedAt = Date.now();
+  persist();
+  const ids = [...selected].filter(id => profile.widgets.some(w => w.id === id));
+  rebuildAll();
+  if (panelMode === "home" || panelMode === "widget" || panelMode === "multi") setSelection(ids);
+  else { selected.clear(); ids.forEach(id => selected.add(id)); syncSelectionClasses(); renderPanel(); }
+  syncUndoButtons();
+}
+const undo = () => stepHistory(hist.undo, hist.redo, "undo");
+const redo = () => stepHistory(hist.redo, hist.undo, "redo");
+function syncUndoButtons() {
+  const u = document.getElementById("undo-btn"), r = document.getElementById("redo-btn");
+  if (u) u.disabled = !hist.undo.length;
+  if (r) r.disabled = !hist.redo.length;
 }
 function download(name, text, type) {
   const a = el("a", { href: URL.createObjectURL(new Blob([text], { type })), download: name });
@@ -820,7 +887,10 @@ function addAndPlace(w) {
 const DUMMY_SPAN = document.createElement("span");   // sink for readouts that are switched off
 function makeCanvas(w, h) {
   const c = el("canvas"), dpr = (window.devicePixelRatio || 1) * Math.max(1, overlayScale());
-  c.width = Math.round(w * dpr); c.height = Math.round(h * dpr);
+  // Whole device pixels, and a CSS size that maps onto them exactly: a 112.5px box on a 113px bitmap gets
+  // resampled, which smears the bottom and right edges into a soft double line while the top and left stay crisp.
+  c.width = Math.max(1, Math.round(w * dpr)); c.height = Math.max(1, Math.round(h * dpr));
+  w = c.width / dpr; h = c.height / dpr;
   c.style.width = w + "px"; c.style.height = h + "px";
   c.getContext("2d").setTransform(dpr, 0, 0, dpr, 0, 0);
   c._w = w; c._h = h; return c;
@@ -980,7 +1050,9 @@ function positionWidget(w) {
 
 // Inner container sizes per widget type, before the Size multiplier. Users can override each.
 const DIMS = { stick: { box: 150 }, throttle: { bw: 26, bh: 140 }, axis: { bw: 26, bh: 140 }, pedals: { rw: 200, rh: 22, bkw: 18, bkh: 50 } };
-const dimsOf = w => ({ ...(DIMS[w.type] || {}), ...(w.dims || {}) });
+// A horizontal throttle or axis is drawn like the pedals' rudder bar, so the two come out the same size side by side.
+const DIMS_H = { bw: DIMS.pedals.rh, bh: DIMS.pedals.rw };
+const dimsOf = w => ({ ...(DIMS[w.type] || {}), ...((w.type === "throttle" || w.type === "axis") && w.orient === "h" ? DIMS_H : {}), ...(w.dims || {}) });
 const RADIUS = 8, PAD = 8;
 const SIZE_BASE = 0.75;   // "Size 100%" draws at 75% of the original scale (Alex: the old 75% looked right as the default)
 function buildWidget(w) {
@@ -1012,8 +1084,9 @@ function buildWidget(w) {
     // A projected radar's faint face fill is CSS on the canvas element, painted once and kept out of the canvas
     // pixels, so the Full tier's fringe copies only the rings and ticks, not a tinted disc.
     if (holo.on && w.face === "radar") rt.canvas.style.setProperty("--holo-face", `radial-gradient(circle closest-side, ${hexA(w.bg || profile.settings.panel, 0.25)} 98%, transparent 100%)`);
-    root.append(...[title, rt.canvas, readout(
-      el("span", {}, lab("X"), span("x")), el("span", {}, lab("Y"), span("y")))].filter(Boolean));
+    const ro = readout(el("span", {}, lab("X"), span("x")), el("span", {}, lab("Y"), span("y")));
+    if (ro) { ro.classList.add("pair"); ro.style.minWidth = rt.canvas.style.width; }
+    root.append(...[title, rt.canvas, ro].filter(Boolean));
   } else if (w.type === "throttle" || w.type === "axis") {
     // bw = thickness, bh = length; a horizontal bar just swaps them.
     rt.canvas = w.orient === "h" ? makeCanvas(D.bh * k, D.bw * k) : makeCanvas(D.bw * k, D.bh * k);
@@ -1454,7 +1527,9 @@ function drawStick(w, rt, pad, dt) {
   const rad = Math.min(rt.radius ?? RADIUS, S / 2);
   // Face: today's square gate, or a radar disc inscribed in the same square (rings and rim ticks, like the Gladius).
   const radar = w.face === "radar";
-  const face = () => { if (radar) { g.beginPath(); g.arc(R, R, R - 0.5, 0, Math.PI * 2); } else roundRect(g, 0.5, 0.5, S - 1, S - 1, rad); };
+  // The rim is a whole number of device pixels wide and sits on the pixel grid, so all four sides read the same at any scale.
+  const dp = c.width / S, lw = Math.max(1, Math.round(dp)) / dp, e = lw / 2;
+  const face = () => { if (radar) { g.beginPath(); g.arc(R, R, R - e, 0, Math.PI * 2); } else roundRect(g, e, e, S - lw, S - lw, rad); };
   g.save(); face(); g.clip();
   // Projector: what must darken (face fill, heat cells) goes first with source-over, then everything is light that
   // adds up, so overlapping strokes brighten toward white.
@@ -1485,7 +1560,7 @@ function drawStick(w, rt, pad, dt) {
   }
   g.restore(); light();
   if (holo && radar) { g.strokeStyle = hexA(rt.holoColors.glow, 0.3); g.lineWidth = 3; face(); g.stroke(); }   // rim bloom: the rim is the brightest part
-  g.strokeStyle = hexA(line, holo ? 0.5 : 0.4); g.lineWidth = 1; face(); g.stroke();
+  g.strokeStyle = hexA(line, holo ? 0.5 : 0.4); g.lineWidth = lw; face(); g.stroke();
   if (radar) {   // 36 rim ticks every 10°, the four cardinal ones longer and in the highlight color
     for (let i = 0; i < 36; i++) {
       const a = i * Math.PI / 18, card = i % 9 === 0, len = card ? 7 : 3.5;
@@ -1922,6 +1997,8 @@ document.addEventListener("keydown", e => {
   else if (e.key === "Tab" && !e.target.closest("#ui")) { e.preventDefault(); document.body.classList.toggle("panel-hidden"); }   // inside the panel, Tab moves focus as usual
   else if (k === "a" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); setSelection(profile.widgets.map(w => w.id)); }
   else if (k === "d" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); if (selected.size) duplicateSelected(); }
+  else if ((k === "z" && e.shiftKey || k === "y") && (e.ctrlKey || e.metaKey)) { e.preventDefault(); redo(); }
+  else if (k === "z" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); undo(); }
   else if (e.key.startsWith("Arrow") && selected.size) {
     e.preventDefault();
     const step = e.shiftKey ? 10 : 1;
@@ -2509,6 +2586,8 @@ function closeFab(refocus) {
   if (refocus) $("#fab").focus();
 }
 $("#fab").addEventListener("click", () => $("#fab-menu").classList.contains("open") ? closeFab() : openFab());
+$("#undo-btn").addEventListener("click", undo);
+$("#redo-btn").addEventListener("click", redo);
 $("#fab-wrap").addEventListener("keydown", e => {
   if (e.key === "Escape" && $("#fab-menu").classList.contains("open")) { e.preventDefault(); e.stopPropagation(); closeFab(true); return; }
   const items = [...$("#fab-menu").querySelectorAll("button")], i = items.indexOf(document.activeElement);
@@ -2987,6 +3066,7 @@ document.body.classList.toggle("preview", !IN_OBS);
 $("#preview-edit").addEventListener("click", () => setEditing(true));
 loadProfile();
 rebuildAll();
+resetHistory();
 if (new URLSearchParams(location.search).has("edit")) setEditing(true);
 requestAnimationFrame(frame);
 // First run (no saved setup and no profile.js): open the editor with the getting-started dialog.
@@ -2996,7 +3076,7 @@ window.addEventListener("load", () => { if (firstRun && !window.STAYONTARGET_PRO
 <script src="profile.js"></script>
 <script>
 const fileProfile = window.STAYONTARGET_PROFILE || window.JOYVIZ_PROFILE;
-if (fileProfile && (+fileProfile.savedAt || 0) > (+profile.savedAt || 0)) { profile = normalize(fileProfile); rebuildAll(); }
+if (fileProfile && (+fileProfile.savedAt || 0) > (+profile.savedAt || 0)) { profile = normalize(fileProfile); rebuildAll(); resetHistory(); }
 </script>
 </body>
 </html>
