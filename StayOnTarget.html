@@ -83,8 +83,10 @@ body.preview:not(.editing).has-widgets #preview-chip { display: flex; }
 .widget { z-index: 1; }
 .holo-rig { position: absolute; z-index: 0; pointer-events: none; --holo-i: 1; --holo-b: 0; }
 .holo-rig > * { position: absolute; }
-.holo-cone { background: linear-gradient(var(--holo-dir, 0deg), rgba(var(--holo-rays-rgb), calc(0.18 * var(--holo-i) + var(--holo-b))), rgba(var(--holo-rays-rgb), calc(0.02 * var(--holo-i) + var(--holo-b))));
-  -webkit-mask-image: linear-gradient(var(--holo-mdir, 90deg), transparent, #000 20%, #000 80%, transparent); mask-image: linear-gradient(var(--holo-mdir, 90deg), transparent, #000 20%, #000 80%, transparent); }
+/* The cone is a soft light volume, brightest at the emitter and gone before the widget: a radial mask anchored on the
+   base end feathers every edge, so the rays carry the beam and no hard trapezoid shows. */
+.holo-cone { background: linear-gradient(var(--holo-dir, 0deg), rgba(var(--holo-rays-rgb), calc(0.16 * var(--holo-i) + var(--holo-b))), rgba(var(--holo-rays-rgb), calc(0.03 * var(--holo-i) + 0.5 * var(--holo-b))) 60%, rgba(var(--holo-rays-rgb), 0));
+  -webkit-mask-image: radial-gradient(ellipse 58% 100% at var(--holo-mpos, 50% 100%), #000, rgba(0,0,0,0.45) 40%, transparent 92%); mask-image: radial-gradient(ellipse 58% 100% at var(--holo-mpos, 50% 100%), #000, rgba(0,0,0,0.45) 40%, transparent 92%); }
 .holo-rays { left: 0; top: 0; overflow: visible; }
 .holo-rays stop { stop-color: var(--holo-rays); }
 .holo-rays stop.a { stop-opacity: calc(0.45 * var(--holo-i) + var(--holo-b)); }
@@ -98,9 +100,10 @@ body.preview:not(.editing).has-widgets #preview-chip { display: flex; }
   box-shadow: 0 0 6px rgba(var(--holo-acc-rgb), calc(0.6 * var(--holo-i))), inset 0 0 8px rgba(var(--holo-acc-rgb), calc(0.3 * var(--holo-i))); }
 .holo-base i { position: absolute; display: block; border-radius: 50%; }
 .holo-base .ring { inset: 15%; border: 1px solid rgba(var(--holo-acc-rgb), calc(0.4 * var(--holo-i) + var(--holo-b))); }
-.holo-base .core { left: 37%; right: 37%; top: 50%; height: 2px; margin-top: -1px; background: var(--holo-core); opacity: var(--holo-i);
-  box-shadow: 0 0 6px 1px rgba(var(--holo-acc-rgb), calc(0.8 * var(--holo-i))); }
-.holo-base .slit { left: 50%; top: 50%; width: 2px; height: 8px; margin: -8px 0 0 -1px; border-radius: 1px; background: var(--holo-core); opacity: var(--holo-i); box-shadow: 0 0 4px var(--holo-core); }
+/* The emitter: a tight hot point at the center the rays converge on, with a short slit rising from it. */
+.holo-base .core { left: 50%; top: 50%; width: 6px; height: 4px; margin: -2px 0 0 -3px; background: var(--holo-core); opacity: var(--holo-i);
+  box-shadow: 0 0 3px 1px var(--holo-core), 0 0 10px 3px rgba(var(--holo-acc-rgb), calc(0.7 * var(--holo-i))); }
+.holo-base .slit { left: 50%; top: 50%; width: 2px; height: 7px; margin: -8px 0 0 -1px; border-radius: 1px; background: var(--holo-core); opacity: calc(0.8 * var(--holo-i)); box-shadow: 0 0 4px var(--holo-core); }
 .holo-rig.side-left .slit { width: 8px; height: 2px; margin: -1px 0 0 0; }      /* a side base's emitter points at the widget */
 .holo-rig.side-right .slit { width: 8px; height: 2px; margin: -1px 0 0 -8px; }
 body.editing .holo-rig.selected .holo-base { outline: 1px dashed var(--ui-accent); outline-offset: 2px; }
@@ -108,11 +111,21 @@ body.editing .holo-rig.selected .holo-base { outline: 1px dashed var(--ui-accent
    would clip the frame glow and the selection outline) and carries the per-frame opacity envelope, so the
    .offline rule on the root keeps dimming disconnected widgets. isolation keeps the Full tier's fringe blend inside. */
 .widget.holo { isolation: isolate; contain: layout paint style; }
-.widget.holo .holo-in { -webkit-mask-image: linear-gradient(var(--holo-mask-dir, 180deg), #000 0 60%, rgba(0,0,0,0.45) 100%); mask-image: linear-gradient(var(--holo-mask-dir, 180deg), #000 0 60%, rgba(0,0,0,0.45) 100%); will-change: opacity; }
-/* Scan roll: a 2px band sweeping down the widget, compositor-only. Subtle tier and up. */
-.widget.holo .holo-roll { display: none; position: absolute; inset: 0; pointer-events: none; will-change: transform;
+.widget.holo .holo-in { will-change: opacity; }
+/* The falloff toward the base is on the drawn faces only: readouts and titles stay fully legible, like the Gladius labels. */
+.widget.holo .holo-in > canvas, .widget.holo .holo-in .bars { -webkit-mask-image: linear-gradient(var(--holo-mask-dir, 180deg), #000 0 60%, rgba(0,0,0,0.5) 100%); mask-image: linear-gradient(var(--holo-mask-dir, 180deg), #000 0 60%, rgba(0,0,0,0.5) 100%); }
+.widget.holo.radar .holo-in > canvas { -webkit-mask-image: linear-gradient(var(--holo-mask-dir, 180deg), #000 0 55%, rgba(0,0,0,0.7) 100%); mask-image: linear-gradient(var(--holo-mask-dir, 180deg), #000 0 55%, rgba(0,0,0,0.7) 100%); }
+/* Scan roll: a 2px band sweeping down the widget, compositor-only. Subtle tier and up. The outer element clips it
+   (to the disc on a radar face); the band inside is what moves. */
+.widget.holo .holo-roll { display: none; position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.widget.holo .holo-roll i { position: absolute; inset: 0; display: block; will-change: transform;
   background: linear-gradient(180deg, rgba(var(--holo-core-rgb), calc(0.15 * var(--holo-i) + var(--holo-b))) 0 2px, transparent 2px); animation: holo-roll 8s linear infinite; }
 .widget.holo.live .holo-roll { display: block; }
+/* A projected radar face: scanlines live on the disc itself (the canvas background, clipped round) instead of the
+   widget's rectangle, so nothing square shows around the disc. */
+.widget.holo.radar .holo-in > canvas { border-radius: 50%; }
+.widget.holo.radar .holo-in > canvas { background-image: repeating-linear-gradient(180deg, rgba(0,0,0,0) 0 2px, rgba(0,0,0,0.2) 2px 3px), var(--holo-face, none); }
+.widget.holo.radar.bright .holo-in > canvas { background-image: repeating-linear-gradient(180deg, rgba(0,0,0,0) 0 2px, rgba(var(--holo-acc-rgb), 0.15) 2px 3px), var(--holo-face, none); }
 @keyframes holo-roll { from { transform: translateY(-2px); } to { transform: translateY(100%); } }
 /* Bright footage: dark scanlines vanish over clouds, so they become lines of the highlight color instead. */
 .widget.holo.bright.scan::after { background: repeating-linear-gradient(180deg, rgba(0,0,0,0) 0 2px, rgba(var(--holo-acc-rgb), 0.15) 2px 3px), linear-gradient(180deg, var(--beam, transparent), transparent 65%); }
@@ -132,7 +145,7 @@ body.editing .holo-rig.selected .holo-base { outline: 1px dashed var(--ui-accent
 /* A projected Button's press flashes the base's core for 120 ms. */
 .holo-base .core { transition: transform 120ms, opacity 120ms; }
 .holo-rig.pulse .core { opacity: 1; transform: scale(1.6, 2); }
-@media (prefers-reduced-motion: reduce) { .widget.holo .holo-roll, .holo-dust, .holo-photon { display: none; } .holo-rig.full .holo-base { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .widget.holo .holo-roll i, .holo-dust, .holo-photon { display: none; } .holo-rig.full .holo-base { animation: none; } }
 .looks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem; margin: 0.4rem 0 0.6rem; }
 .look-tile { display: flex; flex-direction: column; align-items: center; gap: 0.4rem; padding: 0.55rem 0.25rem 0.4rem; min-height: 0; font-size: 0.78rem; font-weight: 600; line-height: 1.2; text-align: center; }
 .look-tile[aria-pressed=true] { border-color: var(--ui-accent); box-shadow: inset 0 0 0 1px var(--ui-accent); }
@@ -927,7 +940,7 @@ function buildWidget(w) {
     rt.canvas = makeCanvas(D.box * k, D.box * k);
     // A projected radar's faint face fill is CSS on the canvas element, painted once and kept out of the canvas
     // pixels, so the Full tier's fringe copies only the rings and ticks, not a tinted disc.
-    if (holo.on && w.face === "radar") rt.canvas.style.background = `radial-gradient(circle closest-side, ${hexA(w.bg || profile.settings.panel, 0.25)} 98%, transparent 100%)`;
+    if (holo.on && w.face === "radar") rt.canvas.style.setProperty("--holo-face", `radial-gradient(circle closest-side, ${hexA(w.bg || profile.settings.panel, 0.25)} 98%, transparent 100%)`);
     root.append(...[title, rt.canvas, readout(
       el("span", {}, lab("X"), span("x")), el("span", {}, lab("Y"), span("y")))].filter(Boolean));
   } else if (w.type === "throttle" || w.type === "axis") {
@@ -974,7 +987,12 @@ function buildWidget(w) {
     // Hologram treatment on top of the Cockpit Look: the content moves into a wrapper that fades toward the base,
     // a scan-roll band on top, and a firm border so readouts stay legible over bright footage.
     const inner = el("div", { class: "holo-in" }); inner.append(...root.childNodes);
-    root.append(inner, el("i", { class: "holo-roll" })); rt.inner = inner;
+    const roll = el("i", { class: "holo-roll" }, el("i"));
+    root.append(inner, roll); rt.inner = inner;
+    rt.roll = roll;
+    // A radar disc stands alone, like the Gladius radar: no rectangle of scanlines or beam around it (the disc carries
+    // its own, see .widget.holo.radar), and the roll is clipped to it once attachHolo knows where the disc sits.
+    if (w.type === "stick" && w.face === "radar") { root.classList.add("radar"); root.classList.remove("scan"); }
     root.style.setProperty("--holo-mask-dir", { below: "180deg", above: "0deg", left: "270deg", right: "90deg" }[holo.base.side] || "180deg");
     const tier = holoTier(holo), bright = holo.footage === "bright";
     root.classList.toggle("live", tier !== "static"); root.classList.toggle("bright", bright);
@@ -1007,6 +1025,7 @@ function holoSprite(rt, color) {
 // widget where the browser draws it. Laid out once from the widget's projected corners; moving the widget just
 // moves the rig, and nothing in it changes size per frame.
 const rgbOf = hex => { const n = parseInt((normHex(hex) || "#ffffff").slice(1), 16); return `${n >> 16},${(n >> 8) & 255},${n & 255}`; };
+const holoBaseDiam = len => clamp(0.36 * len, 40, 150);   // the pedestal's width at Base Size 100%, from the widget's width (or height for a side base)
 const holoSquash = deg => clamp(HOLO_SQUASH[0] + HOLO_SQUASH[1] * Math.abs(Math.sin((deg || 0) * Math.PI / 180)), 0, 0.75);
 const holoColorsOf = w => deriveHolo({ accent: w.accent || profile.settings.accent, border: w.border || "", bg: w.bg || profile.settings.panel });
 function setHoloVars(e, d, h) {
@@ -1045,6 +1064,7 @@ function attachHolo(w, rt) {
   rt.W = root.offsetWidth; rt.H = root.offsetHeight;
   // A radar disc takes its rays on the rim, like the Gladius; everything else on the edge facing the base.
   rt.holoDisc = w.type === "stick" && w.face === "radar" && rt.canvas ? { x: rt.canvas.offsetLeft + rt.canvas._w / 2, y: rt.canvas.offsetTop + rt.canvas._h / 2, r: rt.canvas._w / 2 } : null;
+  if (rt.holoDisc) Object.assign(rt.roll.style, { left: (rt.holoDisc.x - rt.holoDisc.r) + "px", top: (rt.holoDisc.y - rt.holoDisc.r) + "px", width: rt.holoDisc.r * 2 + "px", height: rt.holoDisc.r * 2 + "px", borderRadius: "50%" });
   rt.holoPhase = rt.holoPhase ?? Math.random() * 100;   // so widgets never flicker in unison
   const rig = el("div", { class: "holo-rig", "data-for": w.id });
   setHoloVars(rig, rt.holoColors, h);
@@ -1124,12 +1144,15 @@ function layoutHolo(w, rt, idle = HOLO_STILL) {
   const P = (x, y) => projectPt(m, x, y), p = { ...PERSP_DEFAULT, ...(w.persp || {}) };
   const c = rt.holoCorners = [[0, 0], [W, 0], [W, H], [0, H]].map(([x, y]) => P(x, y));
   const vert = side === "below" || side === "above";
-  // Base: about half the widget wide, centered under (over, beside) the facing edge, squashed like the dash it sits on.
-  const diam = clamp(0.55 * (vert ? W : H), 48, 220) * (h.base.size || 100) / 100, sq = holoSquash(vert ? p.rx : p.ry);
+  // Base: a pedestal about a third of the widget wide, centered under (over, beside) the facing edge, squashed like
+  // the dash it sits on. The hologram hovers 0.45 of its projected extent away: a disc lying nearly flat (Dash Radar)
+  // sits closer to its emitter than an upright panel, which is how the Gladius pedestal sits under its radar.
+  const diam = holoBaseDiam(vert ? W : H) * (h.base.size || 100) / 100, sq = holoSquash(vert ? p.rx : p.ry);
   const bw = vert ? diam : diam * sq, bh = vert ? diam * sq : diam;
   const edge = { below: [c[3], c[2]], above: [c[0], c[1]], left: [c[0], c[3]], right: [c[1], c[2]] }[side];
   let bx = (edge[0].x + edge[1].x) / 2, by = (edge[0].y + edge[1].y) / 2;
-  const gap = 0.45 * (vert ? H : W);
+  const extent = vert ? Math.max(...c.map(q => q.y)) - Math.min(...c.map(q => q.y)) : Math.max(...c.map(q => q.x)) - Math.min(...c.map(q => q.x));
+  const gap = 0.45 * extent;
   if (side === "below") by = Math.max(edge[0].y, edge[1].y) + gap;
   else if (side === "above") by = Math.min(edge[0].y, edge[1].y) - gap;
   else if (side === "left") bx = Math.min(edge[0].x, edge[1].x) - gap;
@@ -1157,13 +1180,13 @@ function layoutHolo(w, rt, idle = HOLO_STILL) {
   });
   if (rt.debugDots) rt.debugDots.forEach((e, i) => { e.setAttribute("cx", f(c[i].x + ox)); e.setAttribute("cy", f(c[i].y + oy)); });
   // Cone: a trapezoid from the base's rim to the two ends of the facing edge, clipped on an element sized to its own bounds.
-  const nr = vert ? [{ x: bx - bw * 0.3, y: by }, { x: bx + bw * 0.3, y: by }] : [{ x: bx, y: by - bh * 0.3 }, { x: bx, y: by + bh * 0.3 }];
+  const nr = vert ? [{ x: bx - bw * 0.35, y: by }, { x: bx + bw * 0.35, y: by }] : [{ x: bx, y: by - bh * 0.35 }, { x: bx, y: by + bh * 0.35 }];
   const poly = [edge[0], edge[1], nr[1], nr[0]];
   const cx0 = Math.min(...poly.map(q => q.x)), cy0 = Math.min(...poly.map(q => q.y)), cw = Math.max(...poly.map(q => q.x)) - cx0, ch = Math.max(...poly.map(q => q.y)) - cy0;
   Object.assign(rt.coneEl.style, { left: f(cx0 + ox) + "px", top: f(cy0 + oy) + "px", width: f(cw) + "px", height: f(ch) + "px",
     clipPath: "polygon(" + poly.map(q => `${f(q.x - cx0)}px ${f(q.y - cy0)}px`).join(", ") + ")" });
   rt.coneEl.style.setProperty("--holo-dir", { below: "0deg", above: "180deg", left: "90deg", right: "270deg" }[side]);
-  rt.coneEl.style.setProperty("--holo-mdir", vert ? "90deg" : "180deg");
+  rt.coneEl.style.setProperty("--holo-mpos", { below: "50% 100%", above: "50% 0%", left: "0% 50%", right: "100% 50%" }[side]);
   rt.rig.classList.toggle("side-left", side === "left"); rt.rig.classList.toggle("side-right", side === "right");
 }
 // Ray targets: evenly spaced along the edge facing the base (plus the two far corners at half alpha), or around
@@ -2505,12 +2528,12 @@ function projectorSection(p, ws) {
 // keeps converging when dragged together.
 function projectFromOneBase(ws) {
   const u = unionBox(ws), cx = u.x + u.w / 2, cy = u.y + u.h + clamp(0.45 * u.h, 30, 120);
-  const left = ws.reduce((a, b) => b.x < a.x ? b : a), diam = clamp(0.55 * u.w, 48, 220);
+  const left = ws.reduce((a, b) => b.x < a.x ? b : a), diam = holoBaseDiam(u.w);
   for (const w of ws) {
     const rt = runtime[w.id]; if (!rt || !rt.rig) continue;
     w.holo.base.side = "below"; layoutHolo(w, rt);   // natural base position first, then the offset to the shared one
     w.holo.base.dx = Math.round(cx - (w.x + rt.holoBase0.x)); w.holo.base.dy = Math.round(cy - (w.y + rt.holoBase0.y));
-    w.holo.base.size = Math.round(diam / clamp(0.55 * rt.W, 48, 220) * 100);
+    w.holo.base.size = Math.round(diam / holoBaseDiam(rt.W) * 100);
     if (w === left) delete w.holo.base.hidden; else w.holo.base.hidden = true;
   }
 }
