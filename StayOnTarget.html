@@ -1039,7 +1039,7 @@ const LOOK_PRESETS = [
 // px, size %. rays 0 hides them; rayMode corners: one ray to each corner of the widget, the rest spread around its
 // outline (edge: the older fan along the edge facing the base). footage: bright raises every alpha for planet glare
 // and clouds. falloff: how much the drawn face dims toward the base, 0-100 (null: 50, or 30 on a radar disc).
-// Motion and effects start off (Still, no float, flicker or fringe) so users add them one at a time (Alex, v1.8).
+// Motion and effects start off (Still, no float, flicker or fringe) so users add them one at a time.
 const HOLO_DEFAULT = { on: false, tier: "static", intensity: 70, base: { side: "below", dx: 0, dy: 0, size: 100 },
   rays: 9, rayMode: "corners", falloff: null, cone: true, float: false, flicker: false, fringe: false, footage: "dark" };
 // The base disc lies on the dash, so its squash follows the widget's tilt: a 0.28 dish for an upright widget (the
@@ -1119,7 +1119,7 @@ const DIMS = { stick: { box: 150 }, throttle: { bw: 26, bh: 140 }, axis: { bw: 2
 const DIMS_H = { bw: DIMS.pedals.rh, bh: DIMS.pedals.rw };
 const dimsOf = w => ({ ...(DIMS[w.type] || {}), ...((w.type === "throttle" || w.type === "axis") && w.orient === "h" ? DIMS_H : {}), ...(w.dims || {}) });
 const RADIUS = 8, PAD = 8;
-const SIZE_BASE = 0.75;   // "Size 100%" draws at 75% of the original scale (Alex: the old 75% looked right as the default)
+const SIZE_BASE = 0.75;   // "Size 100%" draws at 75% of the original scale (the old 75% looked right as the default)
 // Content: Fill (w.fill) grows the stick, bar or rudder into a fixed Width / Height box, like Figma's Fill against
 // Hug. buildWidget measures the widget at its normal size, then builds it once more with the inner size grown by the
 // spare room: a stick grows by the smaller spare side so it stays square, a bar or rudder grows along its length.
@@ -1303,7 +1303,7 @@ function attachHolo(w, rt) {
   const grad = svgEl("radialGradient", { id, gradientUnits: "userSpaceOnUse" });
   grad.append(svgEl("stop", { offset: "0", class: "a" }), svgEl("stop", { offset: "1", class: "b" }));
   const defs = svgEl("defs"); defs.append(grad);
-  // No dot where a ray lands: the Gladius beams just fade into the hologram (Alex: the end dots read too heavy).
+  // No dot where a ray lands: the Gladius beams just fade into the hologram (end dots read too heavy).
   const bloom = svgEl("g", { class: "bloom" }), lines = svgEl("g", { class: "rays" });
   rt.rayLines = []; rt.rayBloom = []; rt.rayGrad = grad;
   const n = clamp(Math.round(h.rays), 0, 15), edgeFan = !rt.holoDisc && h.rayMode === "edge";
@@ -3006,7 +3006,7 @@ function boxSizeRows(p, ws, extra) {
 }
 // Flat or Projector for every widget in ws. Projector gives a Stick its radar disc; Flat
 // puts back what Projector changed, so Flat renders exactly as never-on. The background is left alone either way:
-// its opacity and fade stay the user's (Alex: Projector used to force a 60% fade over whatever was set).
+// its opacity and fade stay the user's (Projector used to force a 60% fade over whatever was set).
 function setProjector(ws, on) {
   for (const w of ws) {
     w.holo = holoOf(w);
