@@ -1779,8 +1779,10 @@ function applySettings() {
   $("#heat-btn").classList.toggle("on", showHeat);
   drawGrid();
 }
+// The grid shows only while editing. Outside it the canvas holds no bitmap at all: at 4K a full-window one is 32 MB.
 function drawGrid() {
   const c = $("#grid"), dpr = window.devicePixelRatio || 1, W = window.innerWidth, H = window.innerHeight;
+  if (!editing) { if (c.width || c.height) c.width = c.height = 0; return; }
   c.width = W * dpr; c.height = H * dpr; c.style.width = W + "px"; c.style.height = H + "px";
   const g = c.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
   const s = profile.settings; if (!s.gridSnap) return;
@@ -2402,7 +2404,7 @@ function setEditing(on) {
   document.body.classList.toggle("editing", on);
   $("#edit-switch").checked = on;
   if (!on) { closeWelcome(); closeFab(); if (wiz) closeWizard(); }
-  applyReference();
+  applyReference(); drawGrid();
   setSelection([]); placeResize();
   wake();
 }
