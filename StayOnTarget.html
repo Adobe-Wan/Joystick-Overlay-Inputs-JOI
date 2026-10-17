@@ -307,9 +307,22 @@ input[type=checkbox] { accent-color: var(--ui-accent); width: 1.3rem; height: 1.
 #panel .p-foot { position: sticky; bottom: -1.1rem; z-index: 3; margin: 0.9rem -1.1rem -1.1rem; padding: 0.7rem 1.1rem 1.1rem; background: #121a24;
   border-top: 1px solid rgba(255,255,255,0.08); display: flex; gap: 0.5rem; }
 #panel .p-foot button { flex: 1; }
-#panel .pair-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin: 0.5rem 0; }
-#panel .pair-row label { display: flex; align-items: center; justify-content: space-between; gap: 0.4rem; color: #b6c3d1; }
-#panel .pair-row input[type=number] { width: 5.2rem; min-height: 2rem; padding: 0.2rem 0.5rem; text-align: right; }
+/* Figma-style fields: the label sits inside the box, right next to its value, and X/Y and W/H pair up two to a row. */
+#panel .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin: 0.6rem 0; }
+#panel .fld { display: flex; align-items: center; gap: 0.5rem; min-width: 0; height: 2.25rem; padding: 0 0.6rem; border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 0.35rem; background: rgba(255,255,255,0.03); color: #8a9aab; cursor: text; }
+#panel .fld:hover { border-color: rgba(255,255,255,0.28); }
+#panel .fld:focus-within { border-color: var(--ui-accent); box-shadow: 0 0 0 1px var(--ui-accent); }
+#panel .fld.wide { grid-column: 1 / -1; }
+#panel .fld > .k { flex: none; font-size: 0.85rem; font-weight: 600; letter-spacing: 0.02em; }
+#panel .fld > .u { flex: none; font-size: 0.85rem; }
+#panel .fld input { flex: 1; min-width: 0; width: auto; height: 100%; min-height: 0; margin: 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none;
+  color: var(--text); font: inherit; font-variant-numeric: tabular-nums; outline: none; }
+#panel .fld input::placeholder { color: #6f7f90; }
+/* Color swatches two to a row, each with its name right above it, so a name never drifts away from its color. */
+#panel .cgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem 0.5rem; margin: 0.6rem 0; }
+#panel .cgrid label, #panel .cgrid .ccell { display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; color: #b6c3d1; font-size: 0.9rem; }
+#panel .cgrid .cpick { width: 100%; min-width: 0; }
 #panel h4 { margin: 1.4rem 0 0.6rem; font-size: 0.85rem; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600; }
 #panel .row { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; margin: 0.5rem 0; }
 #panel .row > span { color: #b6c3d1; }
@@ -1107,7 +1120,18 @@ const DIMS_H = { bw: DIMS.pedals.rh, bh: DIMS.pedals.rw };
 const dimsOf = w => ({ ...(DIMS[w.type] || {}), ...((w.type === "throttle" || w.type === "axis") && w.orient === "h" ? DIMS_H : {}), ...(w.dims || {}) });
 const RADIUS = 8, PAD = 8;
 const SIZE_BASE = 0.75;   // "Size 100%" draws at 75% of the original scale (Alex: the old 75% looked right as the default)
-function buildWidget(w) {
+// Content: Fill (w.fill) grows the stick, bar or rudder into a fixed Width / Height box, like Figma's Fill against
+// Hug. buildWidget measures the widget at its normal size, then builds it once more with the inner size grown by the
+// spare room: a stick grows by the smaller spare side so it stays square, a bar or rudder grows along its length.
+const FILL_TYPES = new Set(["stick", "throttle", "axis", "pedals"]);
+function fillGrow(w, D, ex, ey, k, kx, ky) {
+  const ok = v => isFinite(v) && v >= 0.5;
+  if (w.type === "stick") { const d = Math.min(ex, ey); return ok(d) ? { box: D.box + d / k } : null; }
+  if (w.type === "throttle" || w.type === "axis") { const d = w.orient === "h" ? ex : ey; return ok(d) ? { bh: D.bh + d / k } : null; }
+  if (w.type === "pedals") { const d = w.orient === "v" ? ey / ky : ex / kx; return ok(d) ? { rw: D.rw + d / k } : null; }
+  return null;
+}
+function buildWidget(w, grow) {
   const root = el("div", { class: "widget", "data-id": w.id });
   root.style.left = w.x + "px"; root.style.top = w.y + "px";
   styleWidget(root, w);
@@ -1117,7 +1141,7 @@ function buildWidget(w) {
   const rt = getRt(w); rt.root = root; rt.spans = {}; rt._key = null;
   rt.holo = holo.on; rt.sprite = null;
   if (holo.on) { root.classList.add("holo"); setHoloVars(root, rt.holoColors = holoColorsOf(w), holo); }   // the rig itself comes in attachHolo
-  const k = (w.size || 1) * SIZE_BASE, D = dimsOf(w);
+  const k = (w.size || 1) * SIZE_BASE, D = { ...dimsOf(w), ...(grow || {}) };
   // Width / Height scale (buttons and pedals): stretch the box on one axis without changing text size.
   const kx = w.scaleW || 1, ky = w.scaleH || 1;
   // Per-widget layout: padding, corner radius (the stick box uses the same radius), and what to show.
@@ -1178,6 +1202,12 @@ function buildWidget(w) {
     root.classList.add("label-widget");
     root.style.fontSize = 18 * k + "px";
     root.textContent = w.label || "Label";
+  }
+  if (!grow && w.fill && (w.boxW || w.boxH) && FILL_TYPES.has(w.type)) {
+    root.style.visibility = "hidden"; $("#stage").append(root);
+    const nw = root.offsetWidth, nh = root.offsetHeight; root.remove(); root.style.visibility = "";
+    const g = fillGrow(w, D, w.boxW ? w.boxW - nw : Infinity, w.boxH ? w.boxH - nh : Infinity, k, kx, ky);
+    if (g) return buildWidget(w, g);
   }
   // Width / Height in px (typed, or from Match Width / Height): a fixed box with the content centered in it. A
   // minimum, never a clip, so the box can't cut off readouts and still never resizes while inputs move.
@@ -1985,7 +2015,7 @@ document.addEventListener("pointerdown", e => {
 });
 document.addEventListener("pointermove", e => {
   if (sizing) {
-    const z = sizing, w = z.w, root = runtime[w.id].root, gs = profile.settings.gridSize, snap = profile.settings.gridSnap && !e.altKey;
+    const z = sizing, w = z.w, gs = profile.settings.gridSize, snap = profile.settings.gridSnap && !e.altKey;
     const dx = (e.clientX - z.sx) / z.sc, dy = (e.clientY - z.sy) / z.sc;
     const east = z.c.includes("e"), west = z.c.includes("w"), south = z.c.includes("s"), north = z.c.includes("n");
     const horiz = east || west, vert = north || south;
@@ -2006,8 +2036,12 @@ document.addEventListener("pointermove", e => {
       const k = horiz && vert ? Math.max(W / z.b.w, H / z.b.h) : horiz ? W / z.b.w : H / z.b.h;
       W = z.b.w * k; H = z.b.h * k;
     }
-    if (horiz || keep) { w.boxW = Math.max(10, Math.round(W)); root.style.minWidth = w.boxW + "px"; }
-    if (vert || keep) { w.boxH = Math.max(10, Math.round(H)); root.style.minHeight = w.boxH + "px"; }
+    if (horiz || keep) w.boxW = Math.max(10, Math.round(W));
+    if (vert || keep) w.boxH = Math.max(10, Math.round(H));
+    if (w.fill && FILL_TYPES.has(w.type)) refreshWidget(w);   // Fill: the stick or bar grows live with the box
+    const root = runtime[w.id].root;
+    if (w.boxW) root.style.minWidth = w.boxW + "px";
+    if (w.boxH) root.style.minHeight = w.boxH + "px";
     const nb = { w: root.offsetWidth, h: root.offsetHeight };   // what the content allows
     // An edge dragged with Shift grows the other axis evenly about its middle, as Figma does.
     w.x = Math.round(center || (keep && !horiz) ? z.cx - nb.w / 2 : west ? z.right - nb.w : z.b.x);
@@ -2231,6 +2265,9 @@ $("#file-in").addEventListener("change", async e => {
 
 // ---------- side panel ----------
 const row = (label, input) => el("div", { class: "row" }, el("span", {}, label), input);
+// A labeled field box (see .fld): key = the short label inside the box, unit = what follows the value.
+const ccell = (label, btn) => el("div", { class: "ccell" }, el("span", { "aria-hidden": "true" }, label), btn);
+const fld = (key, input, unit, wide) => el("label", { class: "fld" + (wide ? " wide" : "") }, el("span", { class: "k" }, key), input, unit ? el("span", { class: "u" }, unit) : null);
 function textIn(obj, key, after) {
   const i = el("input", { type: "text" }); i.value = obj[key] ?? "";
   i.addEventListener("input", () => { obj[key] = i.value; save(); after && after(); });
@@ -2460,12 +2497,19 @@ function positionSection(p, ws) {
       moveWidgets(ws, axis === "x" ? d : 0, axis === "y" ? d : 0); save(); placeResize(); renderPanel();
     });
     n.addEventListener("keydown", e => { if (e.key === "Enter") n.blur(); });
-    return el("span", { style: "display:flex;align-items:center;gap:0.3rem" }, n, el("span", {}, "px"));
+    return n;
   };
-  p.append(el("div", { class: "pair-row" },
-    el("label", {}, el("span", {}, "X"), posIn("x", ws.length > 1 ? "Group left edge" : "Left edge")),
-    el("label", {}, el("span", {}, "Y"), posIn("y", ws.length > 1 ? "Group top edge" : "Top edge"))));
-  boxSizeRows(p, ws);
+  p.append(el("div", { class: "fields" },
+    fld("X", posIn("x", ws.length > 1 ? "Group left edge" : "Left edge"), "px"),
+    fld("Y", posIn("y", ws.length > 1 ? "Group top edge" : "Top edge"), "px")));
+  boxSizeRows(p, ws, p => {
+  if (ws.every(w => FILL_TYPES.has(w.type))) {
+    const fill = { get v() { return ws[0].fill ? "fill" : "fit"; }, set v(x) { for (const w of ws) { if (x === "fill") w.fill = true; else delete w.fill; } } };
+    choiceRow(p, "Content", fill, "v", [["fit", "Fit", "The stick, bar or rudder keeps its size, centered in the box."],
+      ["fill", "Fill", "The stick, bar or rudder grows to fill the box. Drag a handle or type W and H to size it."]],
+      () => { for (const w of ws) refreshWidget(w); syncSelectionClasses(); placeResize(); }, { aria: "Content sizing" });
+  }
+  });
   sizeRow(p, ws, () => { for (const w of ws) refreshWidget(w); syncSelectionClasses(); });
 }
 // What to show inside the widget.
@@ -2488,9 +2532,9 @@ function arrangeSection(p) {
     const s = profile.settings;
     p.append(el("h5", {}, "Spacing"));
     const gapIn = el("input", { type: "number", min: 0, max: 4000, step: 1, placeholder: "Auto", "aria-label": "Gap between widgets in pixels" });
-    gapIn.value = s.spaceGap ?? ""; gapIn.style.width = "7rem";
+    gapIn.value = s.spaceGap ?? "";
     gapIn.addEventListener("change", () => { s.spaceGap = gapIn.value === "" ? "" : Math.max(0, Math.round(+gapIn.value)); gapIn.value = s.spaceGap; save(); });
-    p.append(row("Gap between, px", gapIn));
+    p.append(el("div", { class: "fields" }, fld("Gap", gapIn, "px")));
     p.append(el("div", { class: "hint small" }, "Leave it on Auto to spread 3 or more widgets evenly across their current width or height."));
     p.append(el("div", { class: "wide-row" },
       el("button", { onclick: () => distribute(true, s.spaceGap) }, "Space Evenly ↔"),
@@ -2807,10 +2851,11 @@ function colorSection(p, ws) {
   // Edit all selected widgets together through a proxy of the first one.
   const proxy = new Proxy({}, { get: (_, k) => w0[k], set: (_, k, v) => { for (const w of ws) w[k] = v; return true; } });
   p = section(p, "Colors", { key: "colors" });
-  p.append(row("Highlight", colorIn(proxy, "accent", upd, "Highlight")));
-  p.append(row("Text", colorIn(proxy, "text", upd, "Text")));
-  p.append(row("Border", colorIn({ get border() { return w0.border || "#ffffff"; }, set border(v) { for (const w of ws) w.border = v; } }, "border", upd, "Border")));
-  p.append(row("Background", colorIn(proxy, "bg", upd, "Background")));
+  p.append(el("div", { class: "cgrid" },
+    ccell("Highlight", colorIn(proxy, "accent", upd, "Highlight")),
+    ccell("Text", colorIn(proxy, "text", upd, "Text")),
+    ccell("Border", colorIn({ get border() { return w0.border || "#ffffff"; }, set border(v) { for (const w of ws) w.border = v; } }, "border", upd, "Border")),
+    ccell("Background", colorIn(proxy, "bg", upd, "Background"))));
   sliderRow(p, "Background opacity", proxy, "bgAlpha", 0, 100, "%", upd);
   const fade = (w0.proj && w0.proj.fade) || 0;
   if (fade) p.append(el("div", { class: "hint small" }, `Cockpit Look fades this by ${fade}% (Background fade), so it shows at ${Math.round((w0.bgAlpha ?? profile.settings.panelAlpha) * (1 - fade / 100))}%.`));
@@ -2858,7 +2903,7 @@ function layoutSection(p, ws) {
     for (const [label, key, min, max] of SLIDERS) slider(label, dims, key, min, max);
   }
   p.append(el("div", { class: "actions" }, el("button", { class: "subtle", onclick: () => {
-    for (const w of ws) { delete w.pad; delete w.radius; delete w.depth; delete w.dims; delete w.showTitle; delete w.showValues; delete w.showAxisLabels; delete w.scaleW; delete w.scaleH; delete w.orient; delete w.boxW; delete w.boxH; }
+    for (const w of ws) { delete w.pad; delete w.radius; delete w.depth; delete w.dims; delete w.showTitle; delete w.showValues; delete w.showAxisLabels; delete w.scaleW; delete w.scaleH; delete w.orient; delete w.boxW; delete w.boxH; delete w.fill; }
     save(); upd(); renderPanel();
   } }, "Reset Layout")));
 }
@@ -2875,7 +2920,7 @@ function perspectiveSection(p, ws) {
   const pproxy = new Proxy({}, { get: (_, k) => w0.proj[k], set: (_, k, v) => { for (const w of ws) w.proj[k] = v; return true; } });
   const current = LOOK_PRESETS.find(l => ws.every(w => sameLook(w, l)));
   const proj = !!holoOf(w0).on;
-  p = section(p, "Cockpit Look", { key: "look", open: false, summary: (proj ? "Projector" : "Flat") + (current ? " · " + current.name : "") });
+  p = section(p, "Cockpit Look", { key: "look", open: false, summary: (proj ? "Projector" : "Flat") + (current && current.name !== (proj ? "Projector" : "Flat") ? " · " + current.name : "") });
   const style = { get v() { return proj ? "projector" : "flat"; }, set v(x) { setProjector(ws, x === "projector"); } };
   choiceRow(p, "Style", style, "v", [["flat", "Flat", "A panel on a cockpit screen or a hologram floating on its own."],
     ["projector", "Projector", "A hologram standing in a beam from a base on the dash, like the Gladius radar."]], () => { save(); updProj(); renderPanel(); }, { aria: "Cockpit Look style" });
@@ -2925,7 +2970,7 @@ function perspectiveSection(p, ws) {
 // Width and Height in px: the widget's box as it sits on screen (its flat footprint). Typing a value fixes it;
 // smaller than the content just fits the content. With several selected, Match makes them all as wide and/or as
 // tall as the largest one.
-function boxSizeRows(p, ws) {
+function boxSizeRows(p, ws, extra) {
   const upd = () => { for (const w of ws) refreshWidget(w); syncSelectionClasses(); save(); renderPanel(); };
   const sizeIn = (dim, key, label) => {
     const vals = ws.map(w => Math.round(boxOf(w)[dim])), same = vals.every(v => v === vals[0]);
@@ -2939,10 +2984,9 @@ function boxSizeRows(p, ws) {
     };
     n.addEventListener("change", commit);
     n.addEventListener("keydown", e => { if (e.key === "Enter") n.blur(); });
-    return el("span", { style: "display:flex;align-items:center;gap:0.3rem" }, n, el("span", {}, "px"));
+    return n;
   };
-  p.append(el("div", { class: "srow" }, el("div", { class: "top" }, el("span", {}, "Width"), sizeIn("w", "boxW", "Width"))));
-  p.append(el("div", { class: "srow" }, el("div", { class: "top" }, el("span", {}, "Height"), sizeIn("h", "boxH", "Height"))));
+  p.append(el("div", { class: "fields" }, fld("W", sizeIn("w", "boxW", "Width"), "px"), fld("H", sizeIn("h", "boxH", "Height"), "px")));
   const fixed = ws.some(w => w.boxW || w.boxH);
   if (ws.length > 1) {
     const match = (mw, mh) => {
@@ -2955,8 +2999,9 @@ function boxSizeRows(p, ws) {
       el("button", { onclick: () => match(false, true), title: "Make every selected widget as tall as the tallest" }, "Match Height"),
       el("button", { onclick: () => match(true, true), title: "Both at once" }, "Match Both")));
   }
+  if (extra) extra(p);
   p.append(el("div", { class: "hint small" }, (ws.length > 1 ? "Match uses the largest selected widget. " : "")
-    + "A box smaller than its content fits the content; use Size to shrink the content itself."));
+    + "A box can't be smaller than its content; Size below scales the content itself."));
   if (fixed) p.append(el("div", { class: "actions" }, el("button", { class: "subtle", onclick: () => { for (const w of ws) { delete w.boxW; delete w.boxH; } upd(); } }, "Fit to Content")));
 }
 // Flat or Projector for every widget in ws. Projector gives a Stick its radar disc; Flat
@@ -3034,18 +3079,10 @@ function projectFromOneBase(ws) {
 }
 
 // Slider plus a number box for a percentage, applied to every widget in ws.
+// A percentage slider for every widget in ws, drawn like every other slider (click the value to type one).
 function pctRow(p, label, ws, get, set, MIN, MAX, upd) {
-  const cur = () => Math.round(get(ws[0]) * 100);
-  const r = el("input", { type: "range", min: MIN, max: MAX, step: 1, style: "width:100%" }); r.value = cur();
-  r.setAttribute("aria-label", label);
-  const n = el("input", { type: "number", min: MIN, max: MAX, step: 1 }); n.value = cur();
-  n.setAttribute("aria-label", label + " percent");
-  const apply = v => { for (const w of ws) set(w, v / 100); save(); upd(); };
-  r.addEventListener("input", () => { n.value = r.value; apply(+r.value); });
-  const commit = () => { const v = clamp(Math.round(+n.value || cur()), MIN, MAX); n.value = v; r.value = v; apply(v); };
-  n.addEventListener("change", commit);
-  n.addEventListener("keydown", e => { if (e.key === "Enter") commit(); });
-  p.append(el("div", { class: "srow" }, el("div", { class: "top" }, el("span", {}, label), el("span", { style: "display:flex;align-items:center;gap:0.3rem" }, n, el("span", {}, "%"))), r));
+  const obj = { get v() { return Math.round(get(ws[0]) * 100); }, set v(x) { for (const w of ws) set(w, x / 100); } };
+  sliderRow(p, label, obj, "v", MIN, MAX, "%", upd);
 }
 const sizeRow = (p, ws, upd) => pctRow(p, "Size", ws, w => w.size || 1, (w, v) => { w.size = v; }, 50, 250, upd);
 
@@ -3054,7 +3091,7 @@ function renderWidgetPanel(p) {
   const names = { stick: "Stick", throttle: "Throttle", pedals: "Pedals", axis: "Single axis", button: "Button", label: "Label" };
   const upd = () => { refreshWidget(w); syncSelectionClasses(); };
   const seen = w.match && padFor(w, connectedPads());
-  panelHead(p, names[w.type] || w.type, w.type !== "label" && w.match && !seen ? "Its device is not connected. See Device below." : "", row("Name", textIn(w, "label", upd)));
+  panelHead(p, names[w.type] || w.type, w.type !== "label" && w.match && !seen ? "Its device is not connected. See Device below." : "", el("div", { class: "fields" }, fld("Name", textIn(w, "label", upd), null, true)));
   positionSection(p, [w]);
   arrangeSection(p);
   layoutSection(p, [w]);
@@ -3139,17 +3176,17 @@ function renderSettingsPanel(p) {
   toggleRow(lay, "Smart guides", s, "smartGuides", undefined, "Snap to the screen center, edges and other widgets.");
   toggleRow(lay, "Snap to grid", s, "gridSnap", applySettings);
   choiceRow(lay, "Grid size", s, "gridSize", [[8, "8 px"], [16, "16 px"], [24, "24 px"], [32, "32 px"]], applySettings);
-  lay.append(row("Safe margin, px", numIn(s, "margin", 0, 200, 4)));
+  lay.append(el("div", { class: "fields" }, fld("Safe margin", numIn(s, "margin", 0, 200, 4), "px", true)));
   const size = section(p, "Size", { key: "s-size" });
   toggleRow(size, "Fit overlay to screen size", { get v() { return s.scaleMode === "auto"; }, set v(x) { s.scaleMode = x ? "auto" : "manual"; } }, "v", () => { rebuildAll(); setSelection([], "settings"); },
     "A layout made at 1080p keeps the same proportions at 1440p or 4K.");
-  if (s.scaleMode !== "auto") size.append(row("Overlay scale", numIn(s, "scale", 0.3, 4, 0.05, rebuildAll)));
+  if (s.scaleMode !== "auto") size.append(el("div", { class: "fields" }, fld("Overlay scale", numIn(s, "scale", 0.3, 4, 0.05, rebuildAll), "×", true)));
   choiceRow(size, "Editor text size", s, "uiScale", [["auto", "Auto", "Grows with the screen, so 4K stays readable."], [1, "100%"], [1.25, "125%"], [1.5, "150%"], [2, "200%"], [2.5, "250%"]], applySettings, { wrap: true });
   themeSection(p, profile.widgets.filter(w => w.type !== "label"), true);
   const bg = section(p, "Background", { key: "s-bg" });
   toggleRow(bg, "Solid background", { get v() { return s.background === "solid"; }, set v(x) { s.background = x ? "solid" : "transparent"; } }, "v", applySettings,
     "Leave it off for OBS. A solid color is only for tools without transparency.");
-  bg.append(row("Background color", colorIn(s, "bgColor", applySettings, "Background color")));
+  bg.append(el("div", { class: "cgrid" }, ccell("Background color", colorIn(s, "bgColor", applySettings, "Background color"))));
   const heat = section(p, "Session Heatmap", { key: "s-heat" });
   heat.append(el("div", { class: "hint small" }, "Shows where each stick, throttle and pedal spent its time this session, e.g. which way you strafe most. Toggle with H, reset with R."));
   heat.append(el("div", { class: "actions" }, el("button", { onclick: toggleHeat }, showHeat ? "Hide Heatmap" : "Show Heatmap"), el("button", { class: "subtle", onclick: resetHeat }, "Reset Heatmap")));
