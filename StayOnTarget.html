@@ -1293,9 +1293,11 @@ function applyPerspective(root, w) {
   root.style.transform = flat ? "" : pre + (live ? " translate(0.00px, 0.00px) " : " ") + post;
   if (live && h.float) { root.style.setProperty("--holo-pre", pre); root.style.setProperty("--holo-post", post); }
 }
-function positionWidget(w) {
+// size: the widget's {w, h} when the caller already knows it (a drag, a batch rebuild), so the handles don't have
+// to measure right after the position write, which would force a layout.
+function positionWidget(w, size) {
   const rt = runtime[w.id]; if (!rt || !rt.root) return;
-  if (selected.size === 1 && selected.has(w.id)) placeResize();
+  if (selected.size === 1 && selected.has(w.id)) placeResize(size);
   rt.root.style.left = w.x + "px"; rt.root.style.top = w.y + "px";
   if (rt.rig) { rt.rig.style.left = (w.x + rt.holoBox.x) + "px"; rt.rig.style.top = (w.y + rt.holoBox.y) + "px"; }   // the rig's insides are relative to the widget
 }
@@ -1483,16 +1485,23 @@ function projectedCorners(w, rt, idle = HOLO_STILL) {
   const m = holoMatrix(w, rt, idle);
   return [[0, 0], [rt.W, 0], [rt.W, rt.H], [0, rt.H]].map(([x, y]) => projectPt(m, x, y));
 }
-// Runs after the root is in the DOM (offsetWidth is 0 before that): measures the widget once, then builds the
-// rig and lays it out. Every rebuild (size, look, theme) comes back through here, so the old rig goes first.
-function attachHolo(w, rt) {
+// What attachHolo reads from the laid-out root, split out so a batch of widgets is measured in one layout before
+// any rig goes in (each inserted rig would force the next read to lay out again).
+function measureHolo(rt) {
+  rt.W = rt.root.offsetWidth; rt.H = rt.root.offsetHeight;
+  rt.canvasAt = rt.canvas ? { x: rt.canvas.offsetLeft, y: rt.canvas.offsetTop } : null;
+}
+// Runs after the root is in the DOM (offsetWidth is 0 before that): measures the widget once (unless the caller
+// just did, see measureHolo), then builds the rig and lays it out. Every rebuild (size, look, theme) comes back
+// through here, so the old rig goes first.
+function attachHolo(w, rt, measured) {
   if (rt.rig) rt.rig.remove();
   rt.rig = null;
   const h = holoOf(w); if (!h.on) return;
   const root = rt.root, id = "hr-" + w.id;
-  rt.W = root.offsetWidth; rt.H = root.offsetHeight;
+  if (!measured) measureHolo(rt);
   // A radar disc takes its rays on the rim, like the Gladius; everything else on the edge facing the base.
-  rt.holoDisc = w.type === "stick" && w.face === "radar" && rt.canvas ? { x: rt.canvas.offsetLeft + rt.canvas._w / 2, y: rt.canvas.offsetTop + rt.canvas._h / 2, r: rt.canvas._w / 2 } : null;
+  rt.holoDisc = w.type === "stick" && w.face === "radar" && rt.canvas ? { x: rt.canvasAt.x + rt.canvas._w / 2, y: rt.canvasAt.y + rt.canvas._h / 2, r: rt.canvas._w / 2 } : null;
   if (rt.holoDisc) Object.assign(rt.roll.style, { left: (rt.holoDisc.x - rt.holoDisc.r) + "px", top: (rt.holoDisc.y - rt.holoDisc.r) + "px", width: rt.holoDisc.r * 2 + "px", height: rt.holoDisc.r * 2 + "px", borderRadius: "50%" });
   const rig = el("div", { class: "holo-rig", "data-for": w.id });
   setHoloVars(rig, rt.holoColors, h);
@@ -1528,7 +1537,7 @@ function attachHolo(w, rt) {
     rt.photons = [0, 1, 2].slice(0, Math.min(3, count)).map(i => { const ph = el("i", { class: "holo-photon" }); rig.append(ph); return ph; });
     if (rt.canvas && h.fringe) {
       const fc = makeCanvas(rt.canvas._w, rt.canvas._h); fc.className = "holo-fringe";
-      fc.style.left = rt.canvas.offsetLeft + "px"; fc.style.top = rt.canvas.offsetTop + "px";
+      fc.style.left = rt.canvasAt.x + "px"; fc.style.top = rt.canvasAt.y + "px";
       rt.inner.append(fc); rt.fringe = fc; rt.fringeTmp = makeCanvas(rt.canvas._w, rt.canvas._h); rt.fringeDx = 0;
     }
   }
@@ -1690,7 +1699,9 @@ function rebuildAll() {
   stage.querySelectorAll(".widget, .holo-rig").forEach(e => e.remove());
   for (const id in runtime) if (!profile.widgets.find(w => w.id === id)) delete runtime[id];
   for (const w of profile.widgets) stage.append(buildWidget(w));
-  for (const w of profile.widgets) attachHolo(w, runtime[w.id]);   // needs the roots attached: it measures them
+  // The rigs need the roots attached: all are measured in one layout, then the rigs go in.
+  for (const w of profile.widgets) if (runtime[w.id].holo) measureHolo(runtime[w.id]);
+  for (const w of profile.widgets) attachHolo(w, runtime[w.id], true);
   syncHoloList();
   adaptLayout();
   renderPanel();
@@ -2169,10 +2180,10 @@ function toggleSelected(id) {
   setSelection([...selected]);
 }
 // The corner handles follow the single selected widget's flat box; hidden otherwise.
-function placeResize() {
+function placeResize(size) {
   const r = $("#resize"), ws = selectedWidgets(), w = ws.length === 1 ? ws[0] : null;
   r.classList.toggle("on", !!w && editing); if (!w) return;
-  const b = boxOf(w);
+  const b = size ? { x: w.x, y: w.y, w: size.w, h: size.h } : boxOf(w);
   Object.assign(r.style, { left: b.x + "px", top: b.y + "px", width: b.w + "px", height: b.h + "px" });
   r.style.setProperty("--rz-k", (1 / overlayScale()).toFixed(3));
   r.dataset.size = `${Math.round(b.w)} × ${Math.round(b.h)}`;
@@ -2189,8 +2200,7 @@ function boxOf(w) {
   const r = runtime[w.id] && runtime[w.id].root;
   return { x: w.x, y: w.y, w: r ? r.offsetWidth : 0, h: r ? r.offsetHeight : 0 };
 }
-function unionBox(ws) {
-  const bs = ws.map(boxOf);
+function unionBox(ws, bs = ws.map(boxOf)) {
   const x = Math.min(...bs.map(b => b.x)), y = Math.min(...bs.map(b => b.y));
   return { x, y, w: Math.max(...bs.map(b => b.x + b.w)) - x, h: Math.max(...bs.map(b => b.y + b.h)) - y };
 }
@@ -2198,7 +2208,8 @@ function moveWidgets(ws, dx, dy) { for (const w of ws) { w.x = Math.round(w.x + 
 
 // Snap a moving box: smart guides first (screen center/edges/safe margin and other
 // widgets' edges and centers), then the grid. Returns the adjusted delta and guide lines.
-function snapMove(box, dx, dy, movingIds, noSnap) {
+// others: the other widgets' boxes, measured once when a drag starts.
+function snapMove(box, dx, dy, movingIds, noSnap, others) {
   const s = profile.settings, C = canvasSize(), m = s.margin;
   let nx = box.x + dx, ny = box.y + dy;
   const guides = [];
@@ -2207,9 +2218,7 @@ function snapMove(box, dx, dy, movingIds, noSnap) {
   if (s.smartGuides) {
     const tol = SNAP_PX / overlayScale();
     const xs = [0, m, C.w / 2, C.w - m, C.w], ys = [0, m, C.h / 2, C.h - m, C.h];
-    for (const o of profile.widgets) {
-      if (movingIds.has(o.id)) continue;
-      const b = boxOf(o);
+    for (const b of others || profile.widgets.filter(o => !movingIds.has(o.id)).map(boxOf)) {
       xs.push(b.x, b.x + b.w / 2, b.x + b.w); ys.push(b.y, b.y + b.h / 2, b.y + b.h);
     }
     const bestFor = (start, size, cands) => {
@@ -2231,12 +2240,16 @@ function snapMove(box, dx, dy, movingIds, noSnap) {
   }
   return { dx: nx - box.x, dy: ny - box.y, guides };
 }
+// At most one vertical and one horizontal guide: the two lines are reused, restyled only when they move.
 function drawGuides(guides) {
-  const g = $("#guides"); g.innerHTML = "";
-  const C = canvasSize(), px = 1 / overlayScale();
-  for (const l of guides) g.append(el("i", { style: l.v
-    ? `left:${l.at}px;top:0;width:${px}px;height:${C.h}px`
-    : `top:${l.at}px;left:0;height:${px}px;width:${C.w}px` }));
+  const g = $("#guides"), C = canvasSize(), px = 1 / overlayScale();
+  while (g.children.length < guides.length) g.append(el("i"));
+  [...g.children].forEach((e, i) => {
+    const l = guides[i], css = !l ? "display:none" : l.v
+      ? `left:${l.at}px;top:0;width:${px}px;height:${C.h}px`
+      : `top:${l.at}px;left:0;height:${px}px;width:${C.w}px`;
+    if (e._css !== css) { e._css = css; e.style.cssText = css; }
+  });
 }
 
 // Align each selected widget to the selection bounds (2+ selected) or to the screen (1 selected).
@@ -2341,8 +2354,10 @@ document.addEventListener("pointerdown", e => {
     if (e.shiftKey || e.ctrlKey || e.metaKey) { toggleSelected(id); if (!selected.has(id)) return; }
     else if (!selected.has(id)) setSelection([id]);
     const ws = selectedWidgets();
-    drag = { start: ws.map(w => ({ w, x: w.x, y: w.y })), box: unionBox(ws), ids: new Set(ws.map(w => w.id)),
-      sx: e.clientX, sy: e.clientY, sc: overlayScale(), moved: false };
+    // Sizes can't change during a move: measure everything once here, so pointermove never forces a layout.
+    const ids = new Set(ws.map(w => w.id)), bs = ws.map(boxOf);
+    drag = { start: ws.map(w => ({ w, x: w.x, y: w.y })), box: unionBox(ws, bs), ids, size: bs.length === 1 ? bs[0] : null,
+      others: profile.widgets.filter(o => !ids.has(o.id)).map(boxOf), sx: e.clientX, sy: e.clientY, sc: overlayScale(), moved: false };
     wEl.setPointerCapture(e.pointerId);
     return;
   }
@@ -2388,8 +2403,8 @@ document.addEventListener("pointermove", e => {
     const rdx = (e.clientX - drag.sx) / drag.sc, rdy = (e.clientY - drag.sy) / drag.sc;
     if (!drag.moved && Math.hypot(rdx, rdy) < 2) return;
     drag.moved = true;
-    const r = snapMove(drag.box, rdx, rdy, drag.ids, e.altKey);
-    for (const s of drag.start) { s.w.x = Math.round(s.x + r.dx); s.w.y = Math.round(s.y + r.dy); positionWidget(s.w); }
+    const r = snapMove(drag.box, rdx, rdy, drag.ids, e.altKey, drag.others);
+    for (const s of drag.start) { s.w.x = Math.round(s.x + r.dx); s.w.y = Math.round(s.y + r.dy); positionWidget(s.w, drag.size); }
     drawGuides(r.guides);
     return;
   }
@@ -2727,12 +2742,13 @@ function openColorPop(anchor, label, start, onChange) {
 // MUI-style switch, the same markup as the Edit Mode switch in the toolbar.
 function switchIn(obj, key, after, label) {
   const c = el("input", { type: "checkbox", "aria-label": label || key }); c.checked = !!obj[key];
-  c.addEventListener("change", () => { obj[key] = c.checked; save(); after && after(); });
+  c.addEventListener("change", () => { obj[key] = c.checked; after && after(); save(); });
   return el("label", { class: "switch" }, c, el("span", { class: "track" }, el("span", { class: "thumb" })));
 }
 function rangeIn(obj, key, min, max, after) {
   const r = el("input", { type: "range", min, max, style: "width:160px" }); r.value = obj[key];
-  r.addEventListener("input", () => { obj[key] = +r.value; save(); after && after(); });
+  // Saved after `after`, which may move the widget (refreshKeepingCenters), so the save records where it ends up.
+  r.addEventListener("input", () => { obj[key] = +r.value; after && after(); save(); });
   return r;
 }
 // A row of pressable tiles for a small choice. Same reason as the look presets: native <select>s don't open
@@ -2740,7 +2756,7 @@ function rangeIn(obj, key, min, max, after) {
 function tilesIn(obj, key, options, after, label) {
   const g = el("div", { class: "tiles", role: "group", "aria-label": label });
   const paint = () => { for (const b of g.children) b.setAttribute("aria-pressed", String(obj[key]) === b.dataset.v ? "true" : "false"); };
-  for (const [v, t, hint] of options) g.append(el("button", { type: "button", "data-v": v, title: hint || "", onclick: () => { obj[key] = v; save(); paint(); after && after(); } }, t));
+  for (const [v, t, hint] of options) g.append(el("button", { type: "button", "data-v": v, title: hint || "", onclick: () => { obj[key] = v; paint(); after && after(); save(); } }, t));
   paint(); return g;
 }
 // Collapsible panel sections. Which ones are open is remembered per browser (never in the profile) and falls back
@@ -2802,15 +2818,23 @@ function choiceRow(p, label, obj, key, options, after, { wrap, aria } = {}) {
   p.append(el("div", { class: "crow" }, el("span", {}, label), g, hint));
   return g;
 }
+// Rebuilds widgets in place: every new root goes in, then all are measured in one layout, then the rigs go in.
+function refreshWidgets(ws) {
+  const list = ws.map(w => [w, runtime[w.id]]).filter(([, rt]) => rt && rt.root);
+  for (const [w, rt] of list) rt.root.replaceWith(buildWidget(w));
+  for (const [, rt] of list) if (rt.holo) measureHolo(rt);
+  for (const [w, rt] of list) attachHolo(w, rt, true);
+  syncHoloList(); wake();
+}
 function refreshWidget(w) {
-  const rt = runtime[w.id]; if (!rt || !rt.root) return;
-  rt.root.replaceWith(buildWidget(w)); attachHolo(w, rt); syncHoloList();
+  refreshWidgets([w]);
   if (selected.has(w.id)) placeResize();
-  wake();
 }
 // Panel controls that change a widget's size rebuild it around its center, so widgets lined up by their centers
 // stay lined up. The center is remembered across the steps of one slider drag, so rounding never makes it creep.
 const centerAnchors = new WeakMap();
+// Reads and writes don't interleave: the anchors are measured in one layout, the rebuilt boxes in another, then the
+// positions are written. The caller saves, after this has moved the widgets.
 function refreshKeepingCenters(ws) {
   const anchors = ws.map(w => {
     const a = centerAnchors.get(w);
@@ -2818,14 +2842,14 @@ function refreshKeepingCenters(ws) {
     const b = boxOf(w);
     return { cx: b.x + b.w / 2, cy: b.y + b.h / 2 };
   });
+  refreshWidgets(ws);
+  const bs = ws.map(boxOf);
   ws.forEach((w, i) => {
-    refreshWidget(w);
-    const b = boxOf(w), a = anchors[i];
-    if (b.w || b.h) { w.x = Math.round(a.cx - b.w / 2); w.y = Math.round(a.cy - b.h / 2); positionWidget(w); }
+    const b = bs[i], a = anchors[i];
+    if (b.w || b.h) { w.x = b.x = Math.round(a.cx - b.w / 2); w.y = b.y = Math.round(a.cy - b.h / 2); positionWidget(w, b); }
     centerAnchors.set(w, { cx: a.cx, cy: a.cy, x: w.x, y: w.y });
   });
-  syncPositionFields(ws);
-  save();
+  syncPositionFields(ws, bs);
 }
 
 const ICONS = {
@@ -2858,9 +2882,9 @@ function panelFoot(p, removeLabel) {
 }
 // Position and Size: where the widget (or the group's box) sits and how big it is, Figma's frame section.
 // Keeps the X / Y boxes in the side panel current when a widget moves without the panel being rebuilt.
-function syncPositionFields(ws) {
+function syncPositionFields(ws, bs) {
   if (!ws.length) return;
-  const ub = unionBox(ws);
+  const ub = unionBox(ws, bs);
   for (const n of document.querySelectorAll("#ui input[data-pos]")) if (document.activeElement !== n) n.value = Math.round(ub[n.dataset.pos]);
 }
 function positionSection(p, ws) {
@@ -3283,7 +3307,7 @@ function layoutSection(p, ws) {
   }
   p.append(el("div", { class: "actions" }, el("button", { class: "subtle", onclick: () => {
     for (const w of ws) { delete w.pad; delete w.radius; delete w.depth; delete w.dims; delete w.showTitle; delete w.showValues; delete w.showAxisLabels; delete w.scaleW; delete w.scaleH; delete w.orient; delete w.boxW; delete w.boxH; delete w.fill; }
-    save(); upd(); renderPanel();
+    upd(); save(); renderPanel();
   } }, "Reset Layout")));
 }
 
