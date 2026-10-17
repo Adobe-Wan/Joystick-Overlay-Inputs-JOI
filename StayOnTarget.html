@@ -2963,8 +2963,9 @@ function renderPanel() {
   if (view === p._view) p.scrollTop = st;
   p._view = view;
 }
+let devTimer = 0;   // Check Devices' live refresh
 function renderPanelView(p) {
-  closeColorPop();
+  closeColorPop(); clearInterval(devTimer); devTimer = 0;
   p.innerHTML = "";
   if (!editing) return;
   if (panelMode === "widget" && selected.size === 1) return renderWidgetPanel(p);
@@ -3541,11 +3542,25 @@ function renderDevicesPanel(p) {
   const body = el("div", { id: "dev-body", "aria-live": "polite" });
   p.append(body, el("div", { class: "actions" }, el("button", { onclick: () => setSelection([]) }, "Back")));
   fillDevices(body);
+  devTimer = setInterval(() => fillDevices(body), 200);   // only while this panel is open: renderPanelView clears it
 }
+// Rebuilds the list only when what it says changes (a device comes or goes, a widget finds its device); otherwise
+// each tick just moves the activity meters and the pressed highlight.
 function fillDevices(body) {
   const pads = connectedPads(), raw = navigator.getGamepads ? [...navigator.getGamepads()] : [];
   const slots = Math.max(raw.length, pads.length);
   const used = w => profile.widgets.filter(x => x.match && devKey(x.match) === w.key && (x.nth || 0) === w.nth).map(x => x.label || x.type);
+  const missing = profile.widgets.filter(w => w.match && !padFor(w, pads));
+  const key = slots + "|" + pads.map(d => d.pad.index + d.id + d.nth + "," + d.pad.axes.length + "," + d.pad.buttons.length).join("|") + "|" + missing.map(w => w.id).join();
+  if (body._key === key) {
+    pads.forEach((d, i) => {
+      const r = body._rows[i], act = Math.round(Math.max(0, ...d.pad.axes.map(a => Math.abs(a))) * 100) + "%";
+      r.row.classList.toggle("hot", d.pad.buttons.some(b => b.pressed));
+      if (r.meter.style.width !== act) r.meter.style.width = act;
+    });
+    return;
+  }
+  body._key = key; body._rows = [];
   const frag = document.createDocumentFragment();
   frag.append(el("h4", {}, `Seen by the browser (${pads.length}${slots ? " of " + slots + " slots" : ""})`));
   if (!pads.length) frag.append(el("div", { class: "hint", style: "color:#ffb547" }, "Nothing yet. Browsers hide controllers until you press a button or move an axis fully after the page opens."));
@@ -3553,12 +3568,12 @@ function fillDevices(body) {
     const act = Math.max(0, ...d.pad.axes.map(a => Math.abs(a))), pressed = d.pad.buttons.some(b => b.pressed);
     const meter = el("span", { class: "dev-meter", "aria-hidden": "true" }, el("i", { style: `width:${Math.round(act * 100)}%` }));
     const by = used(d);
-    frag.append(el("div", { class: "dev-row" + (pressed ? " hot" : "") },
+    const row = el("div", { class: "dev-row" + (pressed ? " hot" : "") },
       el("b", {}, prettyName(d.id) + (pads.filter(x => x.key === d.key).length > 1 ? ` #${d.nth + 1}` : "")),
       el("small", {}, `Slot ${d.pad.index + 1} · ${d.pad.axes.length} axes · ${d.pad.buttons.length} buttons` + (by.length ? " · used by " + by.join(", ") : " · not used yet")),
-      meter));
+      meter);
+    frag.append(row); body._rows.push({ row, meter: meter.firstChild });
   }
-  const missing = profile.widgets.filter(w => w.match && !padFor(w, pads));
   if (missing.length) {
     frag.append(el("h4", {}, "Waiting for"));
     for (const w of missing) frag.append(el("div", { class: "dev-row missing" }, el("b", {}, w.label || w.type),
@@ -3569,7 +3584,6 @@ function fillDevices(body) {
   frag.append(el("div", { class: "hint" }, "Still missing? Close other browser tabs or apps that read controllers, unplug the device and plug it back in, then refresh. Windows lists every controller under Win+R, joy.cpl."));
   body.replaceChildren(frag);
 }
-setInterval(() => { if (editing && panelMode === "devices") { const b = $("#dev-body"); if (b) fillDevices(b); } }, 200);
 
 function renderSettingsPanel(p) {
   const s = profile.settings;
