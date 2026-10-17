@@ -1274,8 +1274,12 @@ function layoutHolo(w, rt, idle = HOLO_STILL) {
 function rayTargets(w, rt, m) {
   const h = holoOf(w), side = h.base.side, W = rt.W, H = rt.H, P = (x, y) => projectPt(m, x, y);
   const n = clamp(Math.round(h.rays), 0, 15), d = rt.holoDisc, vert = side === "below" || side === "above", pts = [];
+  // A ray aimed at a corner lands on the rounded corner's arc (its 45° point), not the square corner outside it.
+  const ins = Math.min(rt.radius || 0, W / 2, H / 2) * (1 - Math.SQRT1_2);
+  const C = (x, y) => P(x === 0 ? ins : x === W ? W - ins : x, y === 0 ? ins : y === H ? H - ins : y);
+  const atCorner = (x, y) => (x === 0 || x === W) && (y === 0 || y === H) ? C(x, y) : P(x, y);
   if (n && !d && h.rayMode !== "edge") {
-    pts.push(...[[0, 0], [W, 0], [W, H], [0, H]].map(([x, y]) => P(x, y)));
+    pts.push(...[[0, 0], [W, 0], [W, H], [0, H]].map(([x, y]) => C(x, y)));
     const extra = Math.max(0, n - 4);
     if (!extra) return pts;
     const E = { above: [[0, 0], [W, 0]], right: [[W, 0], [W, H]], below: [[0, H], [W, H]], left: [[0, 0], [0, H]] };
@@ -1291,9 +1295,9 @@ function rayTargets(w, rt, m) {
   const a0 = { below: Math.PI / 2, above: -Math.PI / 2, left: Math.PI, right: 0 }[side];
   for (let i = 0; i < n; i++) {
     if (d) { const a = a0 + i * 2 * Math.PI / n; pts.push(P(d.x + Math.cos(a) * d.r, d.y + Math.sin(a) * d.r)); }
-    else { const t = n === 1 ? 0.5 : i / (n - 1); pts.push(vert ? P(W * t, side === "below" ? H : 0) : P(side === "left" ? 0 : W, H * t)); }
+    else { const t = n === 1 ? 0.5 : i / (n - 1); pts.push(vert ? atCorner(W * t, side === "below" ? H : 0) : atCorner(side === "left" ? 0 : W, H * t)); }
   }
-  if (n && !d) pts.push(...({ below: [[0, 0], [W, 0]], above: [[0, H], [W, H]], left: [[W, 0], [W, H]], right: [[0, 0], [0, H]] }[side]).map(([x, y]) => P(x, y)));
+  if (n && !d) pts.push(...({ below: [[0, 0], [W, 0]], above: [[0, H], [W, H]], left: [[W, 0], [W, H]], right: [[0, 0], [0, H]] }[side]).map(([x, y]) => C(x, y)));
   return pts;
 }
 // The cheap per-tick path for the idle float: only the ray ends and their ticks move (the base end stays put).
