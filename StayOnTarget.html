@@ -2455,6 +2455,25 @@ function refreshWidget(w) {
   rt.root.replaceWith(buildWidget(w)); attachHolo(w, rt); syncHoloList();
   if (selected.has(w.id)) placeResize();
 }
+// Panel controls that change a widget's size rebuild it around its center, so widgets lined up by their centers
+// stay lined up. The center is remembered across the steps of one slider drag, so rounding never makes it creep.
+const centerAnchors = new WeakMap();
+function refreshKeepingCenters(ws) {
+  const anchors = ws.map(w => {
+    const a = centerAnchors.get(w);
+    if (a && a.x === w.x && a.y === w.y) return a;
+    const b = boxOf(w);
+    return { cx: b.x + b.w / 2, cy: b.y + b.h / 2 };
+  });
+  ws.forEach((w, i) => {
+    refreshWidget(w);
+    const b = boxOf(w), a = anchors[i];
+    if (b.w || b.h) { w.x = Math.round(a.cx - b.w / 2); w.y = Math.round(a.cy - b.h / 2); positionWidget(w); }
+    centerAnchors.set(w, { cx: a.cx, cy: a.cy, x: w.x, y: w.y });
+  });
+  syncPositionFields(ws);
+  save();
+}
 
 const ICONS = {
   left: '<path d="M3 2v14M6 5h9v3H6zM6 10h5v3H6z"/>',
@@ -2485,13 +2504,19 @@ function panelFoot(p, removeLabel) {
     el("button", { class: "danger", onclick: deleteSelected, title: "Remove (Delete)" }, removeLabel)));
 }
 // Position and Size: where the widget (or the group's box) sits and how big it is, Figma's frame section.
+// Keeps the X / Y boxes in the side panel current when a widget moves without the panel being rebuilt.
+function syncPositionFields(ws) {
+  if (!ws.length) return;
+  const ub = unionBox(ws);
+  for (const n of document.querySelectorAll("#ui input[data-pos]")) if (document.activeElement !== n) n.value = Math.round(ub[n.dataset.pos]);
+}
 function positionSection(p, ws) {
   p = section(p, "Position and Size", { key: "pos" });
-  const ub = unionBox(ws);
   const posIn = (axis, label) => {
-    const n = el("input", { type: "number", min: -4000, max: 8000, step: 1, "aria-label": label + " in pixels" });
-    n.value = Math.round(ub[axis]);
+    const n = el("input", { type: "number", min: -4000, max: 8000, step: 1, "data-pos": axis, "aria-label": label + " in pixels" });
+    n.value = Math.round(unionBox(ws)[axis]);
     n.addEventListener("change", () => {
+      const ub = unionBox(ws);
       if (n.value === "" || isNaN(+n.value)) { n.value = Math.round(ub[axis]); return; }
       const d = Math.round(+n.value) - Math.round(ub[axis]);
       moveWidgets(ws, axis === "x" ? d : 0, axis === "y" ? d : 0); save(); placeResize(); renderPanel();
@@ -2507,16 +2532,16 @@ function positionSection(p, ws) {
     const fill = { get v() { return ws[0].fill ? "fill" : "fit"; }, set v(x) { for (const w of ws) { if (x === "fill") w.fill = true; else delete w.fill; } } };
     choiceRow(p, "Content", fill, "v", [["fit", "Fit", "The stick, bar or rudder keeps its size, centered in the box."],
       ["fill", "Fill", "The stick, bar or rudder grows to fill the box. Drag a handle or type W and H to size it."]],
-      () => { for (const w of ws) refreshWidget(w); syncSelectionClasses(); placeResize(); }, { aria: "Content sizing" });
+      () => { refreshKeepingCenters(ws); syncSelectionClasses(); placeResize(); }, { aria: "Content sizing" });
   }
   });
-  sizeRow(p, ws, () => { for (const w of ws) refreshWidget(w); syncSelectionClasses(); });
+  sizeRow(p, ws, () => { refreshKeepingCenters(ws); syncSelectionClasses(); });
 }
 // What to show inside the widget.
 function showSection(p, ws) {
   const live = ws.filter(w => w.type !== "button" && w.type !== "label");
   if (!live.length) return;
-  const upd = () => { for (const w of ws) refreshWidget(w); syncSelectionClasses(); };
+  const upd = () => { refreshKeepingCenters(ws); syncSelectionClasses(); };
   const flag = key => new Proxy({}, { get: () => ws[0][key] !== false, set: (_, k, v) => { for (const w of ws) w[key] = v; return true; } });
   p = section(p, "Show", { key: "show" });
   toggleRow(p, "Name", flag("showTitle"), "v", upd);
@@ -2868,7 +2893,7 @@ function colorSection(p, ws) {
 
 // Padding, corner radius, what to show, and the inner container sizes (same-type selections).
 function layoutSection(p, ws) {
-  const w0 = ws[0], upd = () => { for (const w of ws) refreshWidget(w); syncSelectionClasses(); };
+  const w0 = ws[0], upd = () => { refreshKeepingCenters(ws); syncSelectionClasses(); };
   const all = (get, set) => new Proxy({}, { get: (_, k) => get(w0, k), set: (_, k, v) => { for (const w of ws) set(w, k, v); return true; } });
   const slider = (label, obj, key, min, max, unit = " px", hint) => sliderRow(p, label, obj, key, min, max, unit, upd, { hint });
   p = section(p, "Layout", { key: "layout" });
@@ -2971,7 +2996,7 @@ function perspectiveSection(p, ws) {
 // smaller than the content just fits the content. With several selected, Match makes them all as wide and/or as
 // tall as the largest one.
 function boxSizeRows(p, ws, extra) {
-  const upd = () => { for (const w of ws) refreshWidget(w); syncSelectionClasses(); save(); renderPanel(); };
+  const upd = () => { refreshKeepingCenters(ws); syncSelectionClasses(); save(); renderPanel(); };
   const sizeIn = (dim, key, label) => {
     const vals = ws.map(w => Math.round(boxOf(w)[dim])), same = vals.every(v => v === vals[0]);
     const n = el("input", { type: "number", min: 10, max: 4000, step: 1, placeholder: same ? "" : "Mixed", "aria-label": label + " in pixels" });
