@@ -116,7 +116,23 @@ body.editing .holo-rig.selected .holo-base { outline: 1px dashed var(--ui-accent
 @keyframes holo-roll { from { transform: translateY(-2px); } to { transform: translateY(100%); } }
 /* Bright footage: dark scanlines vanish over clouds, so they become lines of the highlight color instead. */
 .widget.holo.bright.scan::after { background: repeating-linear-gradient(180deg, rgba(0,0,0,0) 0 2px, rgba(var(--holo-acc-rgb), 0.15) 2px 3px), linear-gradient(180deg, var(--beam, transparent), transparent 65%); }
-@media (prefers-reduced-motion: reduce) { .widget.holo .holo-roll { display: none; } }
+/* Full tier: the fringe canvas sits over the main canvas and screen-blends inside the widget's own stacking context;
+   it is shown only while a dropout splits the colors. */
+.widget.holo .holo-fringe { display: none; position: absolute; pointer-events: none; mix-blend-mode: screen; }
+/* Full tier in the rig: the base breathes, dust drifts up the cone and photons ride the rays. All transform/opacity. */
+.holo-rig.full .holo-base { animation: holo-breathe 3s ease-in-out infinite; transform-origin: 50% 50%; will-change: transform, opacity; }
+@keyframes holo-breathe { 0%, 100% { transform: scale(1, 1); opacity: 0.85; } 50% { transform: scale(1, 1.03); opacity: 1; } }
+.holo-dust { display: none; position: absolute; left: 0; right: 0; top: -64px; bottom: 0; background-repeat: repeat; opacity: calc(0.07 * var(--holo-i)); animation: holo-dust 6s linear infinite; will-change: transform; }
+.holo-rig.full .holo-dust { display: block; }
+@keyframes holo-dust { from { transform: translateY(0); } to { transform: translateY(64px); } }
+.holo-photon { display: none; left: -1px; top: -1px; width: 2px; height: 2px; border-radius: 50%; background: var(--holo-core); box-shadow: 0 0 3px var(--holo-core); will-change: transform, opacity;
+  animation: holo-photon var(--dur, 3s) linear infinite; animation-delay: var(--delay, 0s); }
+.holo-rig.full .holo-photon { display: block; }
+@keyframes holo-photon { 0% { transform: translate(var(--x0), var(--y0)); opacity: 0; } 15% { opacity: 1; } 85% { opacity: 0.6; } 100% { transform: translate(var(--x1), var(--y1)); opacity: 0; } }
+/* A projected Button's press flashes the base's core for 120 ms. */
+.holo-base .core { transition: transform 120ms, opacity 120ms; }
+.holo-rig.pulse .core { opacity: 1; transform: scale(1.6, 2); }
+@media (prefers-reduced-motion: reduce) { .widget.holo .holo-roll, .holo-dust, .holo-photon { display: none; } .holo-rig.full .holo-base { animation: none; } }
 .looks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem; margin: 0.4rem 0 0.6rem; }
 .look-tile { display: flex; flex-direction: column; align-items: center; gap: 0.4rem; padding: 0.55rem 0.25rem 0.4rem; min-height: 0; font-size: 0.78rem; font-weight: 600; line-height: 1.2; text-align: center; }
 .look-tile[aria-pressed=true] { border-color: var(--ui-accent); box-shadow: inset 0 0 0 1px var(--ui-accent); }
@@ -909,6 +925,9 @@ function buildWidget(w) {
   if (!showVals) rt.spans = new Proxy({}, { get: () => DUMMY_SPAN });   // values still computed, never shown
   if (w.type === "stick") {
     rt.canvas = makeCanvas(D.box * k, D.box * k);
+    // A projected radar's faint face fill is CSS on the canvas element, painted once and kept out of the canvas
+    // pixels, so the Full tier's fringe copies only the rings and ticks, not a tinted disc.
+    if (holo.on && w.face === "radar") rt.canvas.style.background = `radial-gradient(circle closest-side, ${hexA(w.bg || profile.settings.panel, 0.25)} 98%, transparent 100%)`;
     root.append(...[title, rt.canvas, readout(
       el("span", {}, lab("X"), span("x")), el("span", {}, lab("Y"), span("y")))].filter(Boolean));
   } else if (w.type === "throttle" || w.type === "axis") {
@@ -1043,15 +1062,60 @@ function attachHolo(w, rt) {
   }
   svg.append(defs, bloom, lines, ticks);
   if (HOLO_DEBUG) { const g = svgEl("g", { class: "debug" }); rt.debugDots = [0, 1, 2, 3].map(() => { const c = svgEl("circle", { r: 3 }); g.append(c); return c; }); svg.append(g); }
-  const cone = el("div", { class: "holo-cone" });
+  const cone = el("div", { class: "holo-cone" }, el("i", { class: "holo-dust" }));
   const base = el("div", { class: "holo-base" }, el("i", { class: "ring" }), el("i", { class: "core" }), el("i", { class: "slit" }));
   if (!h.cone) cone.style.display = "none";
   if (h.base.hidden) base.style.display = "none";   // Project From One Base: one disc for the group
   rig.append(cone, svg, base);
   if (selected.has(w.id)) rig.classList.add("selected");
-  Object.assign(rt, { rig, coneEl: cone, baseEl: base, raySvg: svg });
+  Object.assign(rt, { rig, coneEl: cone, baseEl: base, raySvg: svg, fringe: null, photons: [] });
+  // Full tier: dust in the cone, 2-3 photons riding the rays, and a fringe canvas over the main canvas for dropouts.
+  if (holoTier(h) === "full") {
+    rig.classList.add("full");
+    cone.firstChild.style.backgroundImage = `url(${noiseTile()})`;
+    rt.photons = [0, 1, 2].slice(0, Math.min(3, count)).map(i => { const ph = el("i", { class: "holo-photon" }); rig.append(ph); return ph; });
+    if (rt.canvas && h.fringe) {
+      const fc = makeCanvas(rt.canvas._w, rt.canvas._h); fc.className = "holo-fringe";
+      fc.style.left = rt.canvas.offsetLeft + "px"; fc.style.top = rt.canvas.offsetTop + "px";
+      rt.inner.append(fc); rt.fringe = fc; rt.fringeTmp = makeCanvas(rt.canvas._w, rt.canvas._h); rt.fringeDx = 0;
+    }
+  }
   root.before(rig);
   layoutHolo(w, rt);
+}
+// 64x64 noise tile for the cone's dust, drawn once per session and reused as a data URL.
+let noiseURL = null;
+function noiseTile() {
+  if (noiseURL) return noiseURL;
+  const c = el("canvas"); c.width = c.height = 64;
+  const g = c.getContext("2d"), img = g.createImageData(64, 64), d = img.data;
+  for (let i = 0; i < d.length; i += 4) { const on = Math.random() < 0.12; d[i] = d[i + 1] = d[i + 2] = 255; d[i + 3] = on ? 90 + Math.random() * 165 : 0; }
+  g.putImageData(img, 0, 0);
+  return noiseURL = c.toDataURL();
+}
+// Full tier, during a dropout: two copies of the main canvas, shifted ±dx and tinted with the fringe colors, on the
+// screen-blended fringe canvas. Cleared and hidden the moment dx is 0 again, so it costs nothing between dropouts.
+function holoFringe(w, rt, dx) {
+  if (dx === rt.fringeDx && !(dx && rt.dirty)) return;
+  rt.fringeDx = dx;
+  const fc = rt.fringe, g = fc.getContext("2d"), W = fc._w, H = fc._h;
+  g.clearRect(0, 0, W, H);
+  if (!dx) { fc.style.display = "none"; return; }
+  const src = rt.canvas, tmp = rt.fringeTmp, tg = tmp.getContext("2d"), col = rt.holoColors;
+  tg.globalCompositeOperation = "source-over"; tg.clearRect(0, 0, W, H); tg.drawImage(src, 0, 0, W, H);
+  tg.globalCompositeOperation = "source-in"; tg.fillStyle = hexA(col.fringeB, 0.35); tg.fillRect(0, 0, W, H);
+  g.globalCompositeOperation = "source-over"; g.drawImage(src, -dx, 0, W, H);
+  g.globalCompositeOperation = "source-in"; g.fillStyle = hexA(col.fringeA, 0.35); g.fillRect(0, 0, W, H);
+  g.globalCompositeOperation = "source-over"; g.drawImage(tmp, dx, 0, W, H);
+  fc.style.display = "block";
+}
+// Full tier: on an input-driven redraw during a dropout, one horizontal strip of the frame just drawn slips sideways.
+// Never more than two per dropout, and never a redraw of its own.
+function tearStrip(c, rt) {
+  if (!(rt.tear > 0 && rt.dropOn)) return;
+  rt.tear--;
+  const g = c.getContext("2d"), k = c.width / c._w, h = 6 + Math.random() * 8, y = Math.random() * (c._h - h), dx = (4 + Math.random() * 4) * (Math.random() < 0.5 ? -1 : 1);
+  g.drawImage(c, 0, y * k, c.width, h * k, dx, y, c._w, h);
 }
 // Lays the rig out from the cached size and the projected corners: a few style and attribute writes and no layout
 // reads, so a Base Offset scrub or the idle-float tick can call it directly.
@@ -1086,6 +1150,11 @@ function layoutHolo(w, rt, idle = HOLO_STILL) {
   for (const [k, v] of [["cx", bx + ox], ["cy", by + oy], ["fx", bx + ox], ["fy", by + oy], ["r", far]]) rt.rayGrad.setAttribute(k, f(v));
   for (const e of [...rt.rayLines, ...rt.rayBloom]) { e.setAttribute("x1", f(bx + ox)); e.setAttribute("y1", f(by + oy)); }
   aimRays(w, rt, pts);
+  // Photons travel the rest position of the first, middle and last ray; each one's keyframes read these variables.
+  rt.photons.forEach((ph, i) => {
+    const q = pts[[0, Math.floor((rt.rayLines.length - 1) / 2), rt.rayLines.length - 1][i]] || pts[0]; if (!q) return;
+    for (const [k, v] of [["--x0", f(bx + ox) + "px"], ["--y0", f(by + oy) + "px"], ["--x1", f(q.x + ox) + "px"], ["--y1", f(q.y + oy) + "px"], ["--dur", (2.5 + i * 0.6).toFixed(1) + "s"], ["--delay", (-i * 1.3).toFixed(1) + "s"]]) ph.style.setProperty(k, v);
+  });
   if (rt.debugDots) rt.debugDots.forEach((e, i) => { e.setAttribute("cx", f(c[i].x + ox)); e.setAttribute("cy", f(c[i].y + oy)); });
   // Cone: a trapezoid from the base's rim to the two ends of the facing edge, clipped on an element sized to its own bounds.
   const nr = vert ? [{ x: bx - bw * 0.3, y: by }, { x: bx + bw * 0.3, y: by }] : [{ x: bx, y: by - bh * 0.3 }, { x: bx, y: by + bh * 0.3 }];
@@ -1257,7 +1326,6 @@ function drawStick(w, rt, pad, dt) {
   // Projector: what must darken (face fill, heat cells) goes first with source-over, then everything is light that
   // adds up, so overlapping strokes brighten toward white.
   const holo = rt.holo, light = () => { if (holo) g.globalCompositeOperation = "lighter"; };
-  if (holo && radar) { g.fillStyle = hexA(w.bg || profile.settings.panel, 0.25); g.fillRect(0, 0, S, S); }
   if (showHeat) {
     let mx = 0; for (const v of rt.heat2) mx = Math.max(mx, v);
     const cell = S / HEAT;
@@ -1305,6 +1373,7 @@ function drawStick(w, rt, pad, dt) {
     g.drawImage(holoSprite(rt, rt.holoColors.glow), px - 20, py - 20, 40, 40);
     g.fillStyle = accent; g.beginPath(); g.arc(px, py, 6.5, 0, Math.PI * 2); g.fill();
     g.globalCompositeOperation = "source-over";
+    tearStrip(c, rt);
   } else {
     g.fillStyle = accent; g.shadowColor = accent; g.shadowBlur = 12;
     g.beginPath(); g.arc(px, py, 6.5, 0, Math.PI * 2); g.fill(); g.shadowBlur = 0;
@@ -1344,6 +1413,7 @@ function drawBar(c, v, accent, { vertical, zero, rt, key, dt, live, skip, ink = 
   if (holo) { const s = Math.max(24, T * 2.4); g.drawImage(holoSprite(rt, glow), clamp(t * L, 1, L - 1) - s / 2, T / 2 - s / 2, s, s); }   // glow under the tip
   g.fillStyle = ink; g.fillRect(clamp(t * L, 1, L - 1) - 1, 0, 2, T);
   g.restore();   // also puts the composite mode back
+  if (holo) tearStrip(c, rt);
 }
 function drawWidget(w, rt, pad, dt) {
   const accent = w.accent || profile.settings.accent, ink = w.text || profile.settings.text, live = !!pad;
@@ -1369,7 +1439,10 @@ function drawWidget(w, rt, pad, dt) {
   }
   if (w.type === "button") {
     const b = pad && pad.buttons[w.button], on = !!(b && (b.pressed || b.value > 0.5));
-    if (rt._on !== on) { rt._on = on; rt.root.classList.toggle("on", on); }
+    if (rt._on !== on) {
+      rt._on = on; rt.root.classList.toggle("on", on);
+      if (on && rt.rig) { rt.rig.classList.add("pulse"); clearTimeout(rt.pulseT); rt.pulseT = setTimeout(() => rt.rig.classList.remove("pulse"), 120); }   // the projector's core flashes with the press
+    }
   }
 }
 
@@ -1422,8 +1495,8 @@ function holoTick(now) {
     if (h.flicker) {
       if (rt.dropNext == null) rt.dropNext = t + dropGap(full);
       if (t >= rt.dropNext) {
-        if (!rt.dropEnd) { rt.dropEnd = t + 0.05 + Math.random() * 0.08; rt.dropDepth = full ? 0.2 + Math.random() * 0.3 : 0.2; rt.tear = full ? 1 + Math.round(Math.random()) : 0; }
-        if (t < rt.dropEnd) { e *= 1 - rt.dropDepth * Math.min(1, k); dy = 1; dx = full ? 1 + Math.round(Math.random() * 0.6) : 0; }
+        if (!rt.dropEnd) { rt.dropEnd = t + 0.05 + Math.random() * 0.08; rt.dropDepth = full ? 0.2 + Math.random() * 0.3 : 0.2; rt.tear = full ? 1 + Math.round(Math.random()) : 0; rt.dropDx = full ? 1 + Math.round(Math.random() * 0.6) : 0; }
+        if (t < rt.dropEnd) { e *= 1 - rt.dropDepth * Math.min(1, k); dy = 1; dx = rt.dropDx; }
         else { rt.dropEnd = 0; rt.tear = 0; rt.dropNext = t + dropGap(full); }
       }
     }
