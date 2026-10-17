@@ -1,0 +1,19 @@
+{
+  "name": "stay-on-target",
+  "private": true,
+  "description": "Tests and lint for StayOnTarget.html, the single-file OBS joystick overlay.",
+  "license": "SEE LICENSE IN LICENSE",
+  "scripts": {
+    "test": "playwright test --grep-invert @soak",
+    "test:soak": "playwright test --grep @soak",
+    "test:update-snapshots": "playwright test --grep-invert @soak --update-snapshots visual.spec.js",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@playwright/test": "1.56.1",
+    "eslint": "^9.39.5",
+    "eslint-plugin-html": "^8.2.1",
+    "globals": "^17.13.0"
+  }
+}

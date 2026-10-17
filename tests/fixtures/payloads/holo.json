@@ -1,0 +1,1 @@
+{"savedAt": 1, "widgets": [{"id": "t", "type": "stick", "label": "s", "axes": {"x": 0, "y": 1}, "holo": {"on": true, "tier": "full", "intensity": 1000000000.0, "base": {"side": "__proto__", "size": 1000000000.0}}, "persp": {"rx": 1000000000.0}, "depth": 1000000000.0}]}
