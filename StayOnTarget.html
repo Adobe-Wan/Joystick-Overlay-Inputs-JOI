@@ -1081,9 +1081,33 @@ function readAxis(pad, w, key) {
 }
 const pct = (v, zero) => zero ? Math.round((v + 1) * 50) : Math.round(v * 100);
 function fmt(v, zero) { const p = pct(v, zero); return (!zero && p > 0 ? "+" : "") + p + "%"; }
+// Readouts: every changed digit relayouts and repaints the text, so a moving input updates its numbers at most every
+// TEXT_MS (60 Hz digits can't be read on stream anyway) while its canvas keeps the full frame rate. setText only
+// queues the value; frame() writes the queue, so the last value always lands once the input stops. Each span keeps
+// what it shows, and the DOM is touched only when the text or its class actually changes.
+const TEXT_MS = 66;
+const textQueue = [];
+let textAt = -Infinity;
 function setText(span, v, zero) {
-  const t = fmt(v, zero); if (span.textContent !== t) span.textContent = t;
-  span.classList.toggle("full", Math.abs(zero ? (v + 1) / 2 : v) >= 0.98);
+  if (span === DUMMY_SPAN) return;
+  span._v = v; span._z = zero;
+  if (!span._due) { span._due = true; textQueue.push(span); }
+}
+function writeText(span) {
+  span._due = false;
+  const v = span._v, zero = span._z, t = fmt(v, zero), full = Math.abs(zero ? (v + 1) / 2 : v) >= 0.98;
+  if (span._t !== t) { span._t = t; span.textContent = t; }
+  if (span._full !== full) { span._full = full; span.classList.toggle("full", full); }
+  if (span._sign) {   // the rudder's split readout grows away from its "0" (see .ped-split)
+    const p = pct(v), s = p > 0 ? 1 : p < 0 ? -1 : 0;
+    if (span._s !== s) { span._s = s; span.classList.toggle("pos", s > 0); span.classList.toggle("neg", s < 0); }
+  }
+}
+function flushText(now) {
+  if (!textQueue.length || now - textAt < TEXT_MS) return;
+  textAt = now;
+  for (const s of textQueue) writeText(s);
+  textQueue.length = 0;
 }
 function styleWidget(root, w) {
   root.style.setProperty("--accent", w.accent || profile.settings.accent);
@@ -1293,7 +1317,7 @@ function buildWidget(w, grow) {
     } else parts.push(rt.canvas);
     const ro = readout(
       w.axes.bl != null ? el("span", { class: "bl" }, lab("L"), span("bl")) : null,
-      el("span", { class: "rud" }, lab("RUD"), span("r")),
+      el("span", { class: "rud" }, lab("RUD"), Object.assign(span("r"), { _sign: true })),
       w.axes.br != null ? el("span", { class: "br" }, lab("R"), span("br")) : null);
     if (ro && !showAx) ro.classList.add("ped-split");
     parts.push(ro);
@@ -1832,7 +1856,7 @@ function drawWidget(w, rt, pad, dt) {
   if (w.type === "pedals") {
     const r = readAxis(pad, w, "r");
     drawBar(rt.canvas, r, accent, { vertical: w.orient === "v", zero: false, rt, key: "r", dt, live, skip: !rt.dirty, ink, holo, glow });
-    if (rt.dirty) { const sp = rt.spans.r, p = pct(r); setText(sp, r); sp.classList.toggle("pos", p > 0); sp.classList.toggle("neg", p < 0); }
+    if (rt.dirty) setText(rt.spans.r, r);
     for (const [key, c] of [["bl", rt.brakeL], ["br", rt.brakeR]]) {
       if (w.axes[key] == null || !c) continue;
       const v = readAxis(pad, w, key);
@@ -1884,6 +1908,7 @@ function frame(now) {
       drawWidget(w, rt, pad, dt);
     } catch (err) { drawFailed(rt, w, err); }   // one broken widget leaves the others drawing
   }
+  flushText(now);
   if (holoAnim.length) holoTick(now);
   holoPerf(now, dt);
 }
