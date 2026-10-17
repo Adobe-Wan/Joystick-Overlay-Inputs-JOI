@@ -65,23 +65,32 @@ Sample screenshots live in the `Background Images for Edit Mode` folder next to 
 Drop a new one into the folder and it appears in the editor on the next load. Keep the folder with the HTML when you share the app.
 
 ## Widget layout
-Select a widget (or several). **Size** sits at the top of the side panel: drag the slider or type an exact percentage (50 to 250%) in the box next to it. With several widgets selected, the value you type applies to all of them.
+Select a widget (or several). The side panel runs like Figma's: what you selected and the align icons stay pinned at the top, **Duplicate** and **Remove** stay pinned at the bottom, and the sections in between go from where the widget sits, to its box, to how it looks:
 
-Buttons and pedals also get **Width scale** and **Height scale** (25 to 400%, slider or typed), which stretch the box on one axis without changing the text size. A very narrow button cuts off its label. **Reset Layout** puts both back to 100%.
+**Position and Size**, **Arrange**, **Layout**, **Show**, **Color Theme**, **Colors**, **Cockpit Look**, **Projector**, then **Device** for a single widget.
 
-Then use **Layout**:
-- **Width** and **Height** in pixels: type a value, or drag one of the four corner handles on the selected widget (the opposite corner stays put, the dragged edge snaps to the grid, Alt turns snapping off). The content stays centered in the box. A box can't go smaller than its content, so use **Size** to shrink the content itself. **Fit to Content** clears it.
+With several widgets selected, every change applies to all of them. The first time setup finishes with two or more widgets, a tip points this out (once per browser).
+
+**Position and Size**
+- **X** and **Y** in pixels: the widget's top-left corner, or the group's.
+- **Width** and **Height** in pixels: type a value, or drag a handle on the selected widget. Each corner has a handle, and each edge can be grabbed anywhere along its length. The opposite side stays put and the dragged edge snaps to the grid. **Shift** keeps the proportions, **Ctrl** resizes from the center, and **Alt** turns snapping off. Resizing never changes the padding: the box grows and the content stays centered in it. A box can't go smaller than its content, so use **Size** to shrink the content itself. **Fit to Content** clears it.
 - **Match Width**, **Match Height** and **Match Both** (several widgets selected) make every selected widget as wide and/or as tall as the largest one.
+- **Content** (sticks, throttles, single axes, pedals): **Fit** (default) keeps the stick, bar or rudder at its size, centered in the box. **Fill** grows it to fill the box as you resize: a stick stays square and grows to the shorter side, a bar or rudder grows along its length.
+- **Size** (50 to 250%) scales the whole widget, content included: drag the slider or type a percentage.
+
+**Layout**
 - **Padding** and **Corner radius**. The stick's inner box uses the same corner radius as the widget, so the corners match.
-- **Show name**, **Show values (%)** and **Show axis labels** switch those parts on or off. On pedals with axis labels off, the rudder value is anchored to the widget's center: 0% sits dead center, right rudder grows the number to the right and left rudder grows it to the left, with the brake values under their bars.
 - **3D depth** (0 to 100%) gives the panel a beveled, raised edge, sinks the stick gate into the panel, and turns the stick's ball into a lit sphere with a shadow. It's drawn once with CSS shadows and gradients, so it adds no per-frame cost in OBS.
-- **Bar direction:** throttles and single axes can be **Vertical** (default) or **Horizontal**. On pedals, **Rudder bar** stands the rudder upright between the brakes or lays it flat (default).
-- **Inner sizes:** stick area for sticks (always a square 4×4 gate before any perspective), bar thickness and length for throttles and single axes, and rudder and brake bar sizes for pedals. These are in pixels before the **Size** slider, which still scales the whole widget.
+- **Bar direction:** throttles and single axes can be **Vertical** (default) or **Horizontal**. A horizontal bar starts at the same size as the pedals' rudder bar. On pedals, **Rudder bar** stands the rudder upright between the brakes or lays it flat (default).
+- **Width scale** and **Height scale** (buttons and pedals, 25 to 400%) stretch the box on one axis without changing the text size. A very narrow button cuts off its label.
+- **Inner sizes:** stick area for sticks (always a square 4×4 gate before any perspective), bar thickness and length for throttles and single axes, and rudder and brake bar sizes for pedals. These are in pixels before **Size**, which still scales the whole widget.
 - **Reset Layout** puts them back to the defaults.
+
+**Show** switches the **Name**, **Values** (%) and **Axis labels** on or off. On pedals with axis labels off, the rudder value is anchored to the widget's center: 0% sits dead center, right rudder grows the number to the right and left rudder grows it to the left, with the brake values under their bars.
 
 Every slider's value is clickable: click it, type a number and press Enter (Escape keeps the old one).
 
-**Arrange in Grid** (under **Arrange**, several widgets selected) lines them up in rows and columns from the group's top-left corner. **Columns: Auto** keeps the rows your widgets already roughly sit in, so a loose layout tidies up the way it looks; 1 to 6 sets the columns, filled in reading order. Each column is as wide as its widest widget and every widget is centered in its cell, using the **Gap between** value (Auto uses the grid size). Match the sizes first for perfectly even cells. It runs once on click, so it costs nothing while you stream.
+**Arrange in Grid** (under **Arrange** > **Rows and Columns**, several widgets selected) lines them up in rows and columns from the group's top-left corner. **Columns: Auto** keeps the rows your widgets already roughly sit in, so a loose layout tidies up the way it looks; 1 to 6 sets the columns, filled in reading order. Each column is as wide as its widest widget and every widget is centered in its cell, using the **Gap between** value (Auto uses the grid size). Match the sizes first for perfectly even cells. It runs once on click, so it costs nothing while you stream.
 
 Widgets keep a fixed size while you fly. The % values reserve room for their widest reading, so moving a stick never resizes anything.
 
@@ -133,6 +142,7 @@ Every color in the effect comes from the widget's theme, so switching the theme 
 | Delete | Remove the selected widgets |
 | Arrows / Shift+arrows | Nudge 1px / 10px |
 | Ctrl+A / Ctrl+D | Select all / duplicate |
+| Ctrl+Z / Ctrl+Y | Undo / redo (also Ctrl+Shift+Z; the small buttons above the + do the same) |
 | Tab | Hide / show the side panel |
 | Alt (while dragging) | Turn snapping off |
 
