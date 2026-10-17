@@ -746,6 +746,37 @@ const LOOK_PRESETS = [
   { name: "Left Holo", hint: "A hologram hanging off the left wall of the cockpit.", persp: { ry: 48, d: 700 }, proj: { glow: 60, fade: 50, scan: true } },
   { name: "Right Holo", hint: "A hologram hanging off the right wall of the cockpit.", persp: { ry: -48, d: 700 }, proj: { glow: 60, fade: 50, scan: true } }
 ];
+// Projector look: the widget is a hologram emitted from a base on the dash, like the Gladius radar. Off by
+// default; a widget without `holo` renders exactly as before. tier: static (painted once) | subtle (slow float,
+// rare dropout) | full (dynamic fringe, tears, photons, dust). base.side: below|above|left|right, dx/dy in widget
+// px, size %. rays 0 hides them. footage: bright raises every alpha for planet glare and clouds.
+const HOLO_DEFAULT = { on: false, tier: "subtle", intensity: 70, base: { side: "below", dx: 0, dy: 0, size: 100 },
+  rays: 9, cone: true, float: true, flicker: true, fringe: true, footage: "dark" };
+// The base disc lies on the dash, so its squash follows the widget's tilt: cos(rx) clamped to this range. The floor
+// keeps an upright widget's base a strongly foreshortened dish; the ceiling stops a flat-lying one becoming a circle.
+const HOLO_SQUASH = [0.28, 0.75];
+const holoOf = w => ({ ...HOLO_DEFAULT, ...(w.holo || {}), base: { ...HOLO_DEFAULT.base, ...((w.holo || {}).base || {}) } });
+// Every projector color comes from the widget's theme, so the hologram reads as that manufacturer's light.
+// core = the accent pushed toward white (hot center, rim ticks, slit); glow = halos; rays = the beam. Near-white
+// accents (RSI, Esperia, Default) would give a colorless projector: they borrow the border's hue when it has one
+// (Esperia's pink), else a cool white. HSV saturation is the chroma test; HSL inflates it for near-whites.
+// The border must also be bright enough to project: RSI's dark #4A4D63 would make a grey hologram.
+function deriveHolo({ accent, border, bg }) {
+  const hsv = h => hexToHsv(normHex(h) || "#ffffff");
+  const low = hsv(accent).s < 0.12, bd = border ? hsv(border) : null;
+  const src = !low ? accent : bd && bd.s >= 0.25 && bd.v >= 0.5 ? border : "#dcebff";
+  const { h, s, v } = hsv(src), b = hsv(bg);
+  const n = parseInt(normHex(src).slice(1), 16);
+  return {
+    core: hsvToHex(h, s * 0.45, Math.min(v + 0.35, 0.98)),
+    glow: hsvToHex(h, s, Math.min(v + 0.1, 1)),
+    rays: hsvToHex(h, s, Math.min(v + 0.05, 1)),
+    pedestal: hsvToHex(b.h, b.s, Math.min(b.v, 0.25)),   // always dark hardware, whatever the custom color
+    fringeA: low ? "#ff2a5a" : hsvToHex((h + 210) % 360, 0.9, 0.95),
+    fringeB: low ? "#2ad7ff" : hsvToHex((h + 150) % 360, 0.9, 0.95),
+    accRgb: `${n >> 16},${(n >> 8) & 255},${n & 255}`
+  };
+}
 const lookPersp = l => ({ ...PERSP_DEFAULT, ...l.persp });
 const lookProj = l => ({ ...PROJ_DEFAULT, ...(l.proj || {}) });
 const sameLook = (w, l) => {
