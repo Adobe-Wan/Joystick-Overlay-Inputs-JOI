@@ -53,8 +53,14 @@ body.preview:not(.editing).has-widgets #preview-chip { display: flex; }
 }
 .readout b { opacity: 0.7; font-weight: 500; margin-right: 5px; font-family: var(--font); font-size: 11px; letter-spacing: 0.08em; }
 .readout .full { color: var(--accent); }
-/* Each value reserves room for its widest reading ("+100%"), so widgets never change size as inputs move. */
+/* Each value reserves room for its widest reading ("+100%"), so widgets never change size as inputs move.
+   A labeled value hugs its label; a lone one (throttle, axis) centers in that room so "0%" sits under the bar's middle. */
 .readout .val { display: inline-block; min-width: 5ch; text-align: left; }
+.readout > .val { text-align: center; }
+/* Stick: X under the left half of the gate, Y under the right half. The 1.5ch on the left balances the room a
+   short reading leaves on the right, so "X 0%" looks centered under its half. */
+.readout.pair { display: grid; grid-template-columns: 1fr 1fr; justify-items: center; gap: 0 10px; width: max-content; margin-left: auto; margin-right: auto; }
+.readout.pair > span { padding-left: 1.5ch; }
 /* Pedals with axis labels off: L | rudder | R. 0% sits dead center; positive readings grow to the right
    from the "0" position, negative ones to the left, so the number tracks the rudder's direction. */
 .readout.ped-split { display: grid; grid-template-columns: 1fr 9ch 1fr; gap: 6px; }
@@ -191,8 +197,14 @@ body.editing.show-center #center-lines { display: block; }
    (--rz-k) so they stay the same size on screen at 1080p and 4K. */
 #resize { position: absolute; display: none; pointer-events: none; z-index: 6; --rz-k: 1; }
 body.editing #resize.on { display: block; }
-#resize i { position: absolute; width: calc(10px * var(--rz-k)); height: calc(10px * var(--rz-k)); margin: calc(-5px * var(--rz-k)) 0 0 calc(-5px * var(--rz-k));
+#resize i { position: absolute; z-index: 2; width: calc(10px * var(--rz-k)); height: calc(10px * var(--rz-k)); margin: calc(-5px * var(--rz-k)) 0 0 calc(-5px * var(--rz-k));
   background: #fff; border: calc(1.5px * var(--rz-k)) solid var(--ui-accent); border-radius: calc(2px * var(--rz-k)); pointer-events: auto; box-sizing: border-box; }
+/* Edges: an invisible strip along each side you can grab anywhere, like Figma; the corner squares sit on top. */
+#resize i.edge { z-index: 1; background: none; border: 0; border-radius: 0; margin: 0; }
+#resize i[data-c=n], #resize i[data-c=s] { left: 0; width: 100%; height: calc(8px * var(--rz-k)); cursor: ns-resize; }
+#resize i[data-c=e], #resize i[data-c=w] { top: 0; height: 100%; width: calc(8px * var(--rz-k)); cursor: ew-resize; }
+#resize i[data-c=n] { top: calc(-4px * var(--rz-k)); } #resize i[data-c=s] { top: calc(100% - 4px * var(--rz-k)); }
+#resize i[data-c=w] { left: calc(-4px * var(--rz-k)); } #resize i[data-c=e] { left: calc(100% - 4px * var(--rz-k)); }
 #resize i[data-c=nw] { left: 0; top: 0; cursor: nwse-resize; } #resize i[data-c=ne] { left: 100%; top: 0; cursor: nesw-resize; }
 #resize i[data-c=se] { left: 100%; top: 100%; cursor: nwse-resize; } #resize i[data-c=sw] { left: 0; top: 100%; cursor: nesw-resize; }
 #resize::after { content: attr(data-size); position: absolute; left: 50%; top: 100%; transform: translate(-50%, calc(10px * var(--rz-k))) scale(var(--rz-k)); transform-origin: 50% 0;
@@ -286,6 +298,31 @@ input[type=checkbox] { accent-color: var(--ui-accent); width: 1.3rem; height: 1.
   font-size: 1rem;
 }
 #panel h3 { margin: 0.2rem 0 0.8rem; font-size: 1.3rem; font-weight: 600; }
+/* Widget and group panels: a sticky head (title, name, align icons) and foot (Duplicate, Remove), as Figma keeps
+   its alignment row and actions in reach. Negative margins reach the panel's padding so nothing shows through. */
+#panel .p-head { position: sticky; top: -1.1rem; z-index: 3; margin: -1.1rem -1.1rem 0; padding: 1.1rem 1.1rem 0.7rem; background: #121a24;
+  border-bottom: 1px solid rgba(255,255,255,0.08); }
+#panel .p-head h3 { margin-bottom: 0.4rem; }
+#panel .p-head .row { margin: 0.4rem 0 0.6rem; }
+#panel .p-foot { position: sticky; bottom: -1.1rem; z-index: 3; margin: 0.9rem -1.1rem -1.1rem; padding: 0.7rem 1.1rem 1.1rem; background: #121a24;
+  border-top: 1px solid rgba(255,255,255,0.08); display: flex; gap: 0.5rem; }
+#panel .p-foot button { flex: 1; }
+/* Figma-style fields: the label sits inside the box, right next to its value, and X/Y and W/H pair up two to a row. */
+#panel .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin: 0.6rem 0; }
+#panel .fld { display: flex; align-items: center; gap: 0.5rem; min-width: 0; height: 2.25rem; padding: 0 0.6rem; border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 0.35rem; background: rgba(255,255,255,0.03); color: #8a9aab; cursor: text; }
+#panel .fld:hover { border-color: rgba(255,255,255,0.28); }
+#panel .fld:focus-within { border-color: var(--ui-accent); box-shadow: 0 0 0 1px var(--ui-accent); }
+#panel .fld.wide { grid-column: 1 / -1; }
+#panel .fld > .k { flex: none; font-size: 0.85rem; font-weight: 600; letter-spacing: 0.02em; }
+#panel .fld > .u { flex: none; font-size: 0.85rem; }
+#panel .fld input { flex: 1; min-width: 0; width: auto; height: 100%; min-height: 0; margin: 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none;
+  color: var(--text); font: inherit; font-variant-numeric: tabular-nums; outline: none; }
+#panel .fld input::placeholder { color: #6f7f90; }
+/* Color swatches two to a row, each with its name right above it, so a name never drifts away from its color. */
+#panel .cgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem 0.5rem; margin: 0.6rem 0; }
+#panel .cgrid label, #panel .cgrid .ccell { display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; color: #b6c3d1; font-size: 0.9rem; }
+#panel .cgrid .cpick { width: 100%; min-width: 0; }
 #panel h4 { margin: 1.4rem 0 0.6rem; font-size: 0.85rem; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600; }
 #panel .row { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; margin: 0.5rem 0; }
 #panel .row > span { color: #b6c3d1; }
@@ -375,6 +412,16 @@ button.subtle:hover { border-color: rgba(255,255,255,0.3); color: var(--text); b
 /* First-run dialog */
 #welcome { position: fixed; inset: 0; z-index: 50; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.55); }
 #welcome.open { display: flex; }
+/* One-time tips: a card beside the side panel pointing at it, never blocking the stage. */
+#coach { position: fixed; right: 24.25rem; top: 5rem; z-index: 45; width: min(22rem, calc(100vw - 26rem)); padding: 1.1rem 1.2rem; display: none; line-height: 1.5; }
+body.panel-hidden #coach { right: 1.5rem; }
+#coach.open { display: block; }
+#coach::after { content: ""; position: absolute; right: -0.45rem; top: 1.6rem; width: 0.8rem; height: 0.8rem; background: #121a24;
+  border-top: 1px solid rgba(255,255,255,0.12); border-right: 1px solid rgba(255,255,255,0.12); transform: rotate(45deg); }
+body.panel-hidden #coach::after { display: none; }
+#coach h2 { margin: 0 0 0.4rem; font-size: 1.15rem; font-weight: 600; }
+#coach p { margin: 0 0 0.5rem; color: #b6c3d1; }
+#coach .foot { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.8rem; }
 #confirm { position: fixed; inset: 0; z-index: 60; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); color-scheme: dark; }
 #confirm.open { display: flex; }
 #confirm .dialog { width: min(30rem, calc(100vw - 2rem)); padding: 1.6rem 1.8rem; font-size: 1.07rem; line-height: 1.55; }
@@ -449,7 +496,23 @@ body.panel-hidden #fab-wrap { right: 1.5rem; }
 #fab-menu button svg { width: 1.6rem; height: 1.6rem; }
 #fab-menu.open button { opacity: 1; pointer-events: auto; transform: translate(var(--x), var(--y)) scale(1); transition-delay: var(--d); }
 #fab-menu button:hover, #fab-menu button:focus-visible { background: #1b2a3a; border-color: var(--ui-accent); color: var(--ui-accent); }
-@media (prefers-reduced-motion: reduce) { #fab, #fab-menu button { transition: none; } }
+/* Undo / Redo: small secondary buttons above the +, out of the way while its menu is open */
+#undo-row { position: absolute; left: 50%; bottom: calc(100% + 0.75rem); transform: translateX(-50%); display: flex; gap: 0.5rem; transition: opacity 120ms; }
+#fab-menu.open ~ #undo-row { opacity: 0; pointer-events: none; }
+.fab-mini { position: relative; width: 2.75rem; height: 2.75rem; min-height: 0; border-radius: 50%; padding: 0; display: grid; place-items: center;
+  background: #16202b; border: 1px solid #2c3b4b; color: #c9d4df; box-shadow: 0 0.25rem 0.6rem rgba(0,0,0,0.5); }
+.fab-mini:hover:not(:disabled), .fab-mini:focus-visible { background: #1b2a3a; border-color: var(--ui-accent); color: var(--ui-accent); }
+.fab-mini:disabled { opacity: 0.4; cursor: default; }
+.fab-mini svg { width: 1.25rem; height: 1.25rem; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+/* Tooltips: the + shows its tip to the left, the small buttons above. */
+#fab-wrap [data-tip]::after { content: attr(data-tip); position: absolute; z-index: 3; white-space: nowrap; pointer-events: none; opacity: 0;
+  background: #0b1118; border: 1px solid #2c3b4b; color: #e6edf3; font-size: 0.85rem; font-weight: 500; letter-spacing: 0.02em;
+  padding: 0.3rem 0.55rem; border-radius: 0.35rem; box-shadow: 0 0.25rem 0.6rem rgba(0,0,0,0.5); transition: opacity 120ms; }
+#fab-wrap [data-tip]:hover::after, #fab-wrap [data-tip]:focus-visible::after { opacity: 1; transition-delay: 250ms; }
+#fab[data-tip]::after { right: calc(100% + 0.75rem); top: 50%; transform: translateY(-50%); }
+#fab[aria-expanded=true]::after { display: none; }
+.fab-mini[data-tip]::after { left: 50%; bottom: calc(100% + 0.5rem); transform: translateX(-50%); }
+@media (prefers-reduced-motion: reduce) { #fab, #fab-menu button, #undo-row { transition: none; } }
 /* Prominent way back into edit mode when the overlay is empty */
 #enter-edit { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; z-index: 10; pointer-events: none; }
 body:not(.editing):not(.has-widgets) #enter-edit { display: flex; }
@@ -463,7 +526,7 @@ body:not(.editing):not(.has-widgets) #enter-edit { display: flex; }
 <div id="stage">
   <div id="center-lines"><i class="v"></i><i class="h"></i></div>
   <div id="guides"></div>
-  <div id="resize" aria-hidden="true"><i data-c="nw"></i><i data-c="ne"></i><i data-c="se"></i><i data-c="sw"></i></div>
+  <div id="resize" aria-hidden="true"><i class="edge" data-c="n"></i><i class="edge" data-c="e"></i><i class="edge" data-c="s"></i><i class="edge" data-c="w"></i><i data-c="nw"></i><i data-c="ne"></i><i data-c="se"></i><i data-c="sw"></i></div>
 </div>
 <div id="marquee"></div>
 <div id="enter-edit"><div class="card paper" role="region" aria-label="Stay On Target">
@@ -487,6 +550,12 @@ body:not(.editing):not(.has-widgets) #enter-edit { display: flex; }
       <span style="display:flex;gap:0.5rem;flex-wrap:wrap"><button data-welcome="close">Explore on My Own</button><button class="primary" data-welcome="device">Get Started</button></span>
     </div>
   </div>
+</div>
+<div id="coach" class="paper" role="dialog" aria-labelledby="coach-title">
+  <h2 id="coach-title">Edit Widgets Together</h2>
+  <p>Drag a box around several widgets, or Shift+click them, and the side panel edits all of them at once.</p>
+  <p>Use it to match sizes, line them up in rows and columns, or give the whole set one color theme and Cockpit Look.</p>
+  <div class="foot"><button data-coach="ok">Got It</button><button class="primary" data-coach="show">Show Me</button></div>
 </div>
 <div id="confirm" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-body">
   <div class="dialog paper">
@@ -513,7 +582,11 @@ body:not(.editing):not(.has-widgets) #enter-edit { display: flex; }
   <div id="panel" class="paper" role="complementary" aria-label="Editor panel"></div>
   <div id="fab-wrap">
     <div id="fab-menu" role="menu" aria-label="Add to Overlay"></div>
-    <button id="fab" class="primary" aria-haspopup="menu" aria-expanded="false" aria-controls="fab-menu" aria-label="Add to Overlay" title="Add to overlay (A)"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+    <button id="fab" class="primary" aria-haspopup="menu" aria-expanded="false" aria-controls="fab-menu" aria-label="Add to Overlay" aria-keyshortcuts="A" data-tip="Add (A)"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+    <div id="undo-row">
+      <button id="undo-btn" class="fab-mini" aria-label="Undo" aria-keyshortcuts="Control+Z" data-tip="Undo (Ctrl+Z)" disabled><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
+      <button id="redo-btn" class="fab-mini" aria-label="Redo" aria-keyshortcuts="Control+Y" data-tip="Redo (Ctrl+Y)" disabled><svg viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></button>
+    </div>
   </div>
   <input type="file" id="file-in" accept=".json,.js,application/json" hidden>
   <input type="file" id="ref-in" accept="image/*" hidden>
@@ -667,8 +740,49 @@ let firstRun = false;
 let saveTimer = null;
 function save() {
   profile.savedAt = Date.now(); stampLayout();
+  recordHistory(); persist();
+}
+function persist() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => { try { localStorage.setItem(STORE_KEY, JSON.stringify(profile)); } catch (e) {} }, 150);
+}
+// ---------- undo / redo ----------
+// Every save() compares the layout and settings with the last recorded state. Saves that come in a quick burst
+// (a drag, a slider, a held arrow key) collapse into one step, so Undo takes back the whole gesture.
+const HISTORY_MAX = 100, HISTORY_MERGE_MS = 400;
+const hist = { undo: [], redo: [], last: null, at: 0 };
+const snapOf = () => JSON.stringify({ settings: profile.settings, widgets: profile.widgets });
+function resetHistory() { hist.undo.length = hist.redo.length = 0; hist.last = snapOf(); hist.at = 0; syncUndoButtons(); }
+function recordHistory() {
+  const cur = snapOf();
+  if (hist.last == null || cur === hist.last) { hist.last = cur; return; }
+  const now = performance.now();
+  if (now - hist.at > HISTORY_MERGE_MS || !hist.undo.length) {
+    hist.undo.push(hist.last);
+    if (hist.undo.length > HISTORY_MAX) hist.undo.shift();
+  }
+  hist.at = now; hist.last = cur; hist.redo.length = 0;
+  syncUndoButtons();
+}
+function stepHistory(from, to, what) {
+  if (!editing) return;
+  if (!from.length) { toast(`Nothing to ${what}`); return; }
+  to.push(hist.last); hist.last = from.pop(); hist.at = 0;
+  const s = JSON.parse(hist.last);
+  profile.settings = s.settings; profile.widgets = s.widgets; profile.savedAt = Date.now();
+  persist();
+  const ids = [...selected].filter(id => profile.widgets.some(w => w.id === id));
+  rebuildAll();
+  if (panelMode === "home" || panelMode === "widget" || panelMode === "multi") setSelection(ids);
+  else { selected.clear(); ids.forEach(id => selected.add(id)); syncSelectionClasses(); renderPanel(); }
+  syncUndoButtons();
+}
+const undo = () => stepHistory(hist.undo, hist.redo, "undo");
+const redo = () => stepHistory(hist.redo, hist.undo, "redo");
+function syncUndoButtons() {
+  const u = document.getElementById("undo-btn"), r = document.getElementById("redo-btn");
+  if (u) u.disabled = !hist.undo.length;
+  if (r) r.disabled = !hist.redo.length;
 }
 function download(name, text, type) {
   const a = el("a", { href: URL.createObjectURL(new Blob([text], { type })), download: name });
@@ -716,7 +830,25 @@ let wizBg = false;   // this run started with the background step (first setup)
 function startSetup() { closeFab(); closeWelcome(); wizBg = true; wiz = { kind: "device", stage: "bg" }; renderWiz(); }
 function startDeviceWizard() { closeFab(); closeWelcome(); if (!wiz) wizBg = false; wiz = { kind: "device", stage: "type" }; renderWiz(); }
 function startButtonWizard() { closeFab(); closeWelcome(); wiz = { kind: "button", stage: "press", base: snapshotAll() }; renderWiz(); }
-function closeWizard() { wiz = null; wizAdded = []; wizBg = false; renderWiz(); }
+function closeWizard() {
+  const finished = wiz && wiz.kind === "done";
+  wiz = null; wizAdded = []; wizBg = false; renderWiz();
+  if (finished) maybeTip("groups");
+}
+// ---------- one-time tips ----------
+// Shown once per browser. "groups": after setup ends with two or more widgets, point at editing them together.
+const TIPS_KEY = "stayontarget.tips";
+let tipsSeen = {}; try { tipsSeen = JSON.parse(localStorage.getItem(TIPS_KEY) || "{}") || {}; } catch (e) {}
+function maybeTip(id) {
+  if (tipsSeen[id] || !editing) return;
+  if (id === "groups" && profile.widgets.filter(w => w.type !== "label").length < 2) return;
+  $("#coach").classList.add("open");
+  setTimeout(() => $("#coach [data-coach=show]").focus(), 0);
+}
+function closeTip(id) {
+  $("#coach").classList.remove("open");
+  tipsSeen[id] = true; try { localStorage.setItem(TIPS_KEY, JSON.stringify(tipsSeen)); } catch (e) {}
+}
 const cancelWizard = closeWizard;
 function wizChooseType(t) {
   closeFab(); closeWelcome();
@@ -820,7 +952,10 @@ function addAndPlace(w) {
 const DUMMY_SPAN = document.createElement("span");   // sink for readouts that are switched off
 function makeCanvas(w, h) {
   const c = el("canvas"), dpr = (window.devicePixelRatio || 1) * Math.max(1, overlayScale());
-  c.width = Math.round(w * dpr); c.height = Math.round(h * dpr);
+  // Whole device pixels, and a CSS size that maps onto them exactly: a 112.5px box on a 113px bitmap gets
+  // resampled, which smears the bottom and right edges into a soft double line while the top and left stay crisp.
+  c.width = Math.max(1, Math.round(w * dpr)); c.height = Math.max(1, Math.round(h * dpr));
+  w = c.width / dpr; h = c.height / dpr;
   c.style.width = w + "px"; c.style.height = h + "px";
   c.getContext("2d").setTransform(dpr, 0, 0, dpr, 0, 0);
   c._w = w; c._h = h; return c;
@@ -980,10 +1115,23 @@ function positionWidget(w) {
 
 // Inner container sizes per widget type, before the Size multiplier. Users can override each.
 const DIMS = { stick: { box: 150 }, throttle: { bw: 26, bh: 140 }, axis: { bw: 26, bh: 140 }, pedals: { rw: 200, rh: 22, bkw: 18, bkh: 50 } };
-const dimsOf = w => ({ ...(DIMS[w.type] || {}), ...(w.dims || {}) });
+// A horizontal throttle or axis is drawn like the pedals' rudder bar, so the two come out the same size side by side.
+const DIMS_H = { bw: DIMS.pedals.rh, bh: DIMS.pedals.rw };
+const dimsOf = w => ({ ...(DIMS[w.type] || {}), ...((w.type === "throttle" || w.type === "axis") && w.orient === "h" ? DIMS_H : {}), ...(w.dims || {}) });
 const RADIUS = 8, PAD = 8;
 const SIZE_BASE = 0.75;   // "Size 100%" draws at 75% of the original scale (Alex: the old 75% looked right as the default)
-function buildWidget(w) {
+// Content: Fill (w.fill) grows the stick, bar or rudder into a fixed Width / Height box, like Figma's Fill against
+// Hug. buildWidget measures the widget at its normal size, then builds it once more with the inner size grown by the
+// spare room: a stick grows by the smaller spare side so it stays square, a bar or rudder grows along its length.
+const FILL_TYPES = new Set(["stick", "throttle", "axis", "pedals"]);
+function fillGrow(w, D, ex, ey, k, kx, ky) {
+  const ok = v => isFinite(v) && v >= 0.5;
+  if (w.type === "stick") { const d = Math.min(ex, ey); return ok(d) ? { box: D.box + d / k } : null; }
+  if (w.type === "throttle" || w.type === "axis") { const d = w.orient === "h" ? ex : ey; return ok(d) ? { bh: D.bh + d / k } : null; }
+  if (w.type === "pedals") { const d = w.orient === "v" ? ey / ky : ex / kx; return ok(d) ? { rw: D.rw + d / k } : null; }
+  return null;
+}
+function buildWidget(w, grow) {
   const root = el("div", { class: "widget", "data-id": w.id });
   root.style.left = w.x + "px"; root.style.top = w.y + "px";
   styleWidget(root, w);
@@ -993,7 +1141,7 @@ function buildWidget(w) {
   const rt = getRt(w); rt.root = root; rt.spans = {}; rt._key = null;
   rt.holo = holo.on; rt.sprite = null;
   if (holo.on) { root.classList.add("holo"); setHoloVars(root, rt.holoColors = holoColorsOf(w), holo); }   // the rig itself comes in attachHolo
-  const k = (w.size || 1) * SIZE_BASE, D = dimsOf(w);
+  const k = (w.size || 1) * SIZE_BASE, D = { ...dimsOf(w), ...(grow || {}) };
   // Width / Height scale (buttons and pedals): stretch the box on one axis without changing text size.
   const kx = w.scaleW || 1, ky = w.scaleH || 1;
   // Per-widget layout: padding, corner radius (the stick box uses the same radius), and what to show.
@@ -1012,8 +1160,9 @@ function buildWidget(w) {
     // A projected radar's faint face fill is CSS on the canvas element, painted once and kept out of the canvas
     // pixels, so the Full tier's fringe copies only the rings and ticks, not a tinted disc.
     if (holo.on && w.face === "radar") rt.canvas.style.setProperty("--holo-face", `radial-gradient(circle closest-side, ${hexA(w.bg || profile.settings.panel, 0.25)} 98%, transparent 100%)`);
-    root.append(...[title, rt.canvas, readout(
-      el("span", {}, lab("X"), span("x")), el("span", {}, lab("Y"), span("y")))].filter(Boolean));
+    const ro = readout(el("span", {}, lab("X"), span("x")), el("span", {}, lab("Y"), span("y")));
+    if (ro) { ro.classList.add("pair"); ro.style.minWidth = rt.canvas.style.width; }
+    root.append(...[title, rt.canvas, ro].filter(Boolean));
   } else if (w.type === "throttle" || w.type === "axis") {
     // bw = thickness, bh = length; a horizontal bar just swaps them.
     rt.canvas = w.orient === "h" ? makeCanvas(D.bh * k, D.bw * k) : makeCanvas(D.bw * k, D.bh * k);
@@ -1053,6 +1202,12 @@ function buildWidget(w) {
     root.classList.add("label-widget");
     root.style.fontSize = 18 * k + "px";
     root.textContent = w.label || "Label";
+  }
+  if (!grow && w.fill && (w.boxW || w.boxH) && FILL_TYPES.has(w.type)) {
+    root.style.visibility = "hidden"; $("#stage").append(root);
+    const nw = root.offsetWidth, nh = root.offsetHeight; root.remove(); root.style.visibility = "";
+    const g = fillGrow(w, D, w.boxW ? w.boxW - nw : Infinity, w.boxH ? w.boxH - nh : Infinity, k, kx, ky);
+    if (g) return buildWidget(w, g);
   }
   // Width / Height in px (typed, or from Match Width / Height): a fixed box with the content centered in it. A
   // minimum, never a clip, so the box can't cut off readouts and still never resizes while inputs move.
@@ -1454,7 +1609,9 @@ function drawStick(w, rt, pad, dt) {
   const rad = Math.min(rt.radius ?? RADIUS, S / 2);
   // Face: today's square gate, or a radar disc inscribed in the same square (rings and rim ticks, like the Gladius).
   const radar = w.face === "radar";
-  const face = () => { if (radar) { g.beginPath(); g.arc(R, R, R - 0.5, 0, Math.PI * 2); } else roundRect(g, 0.5, 0.5, S - 1, S - 1, rad); };
+  // The rim is a whole number of device pixels wide and sits on the pixel grid, so all four sides read the same at any scale.
+  const dp = c.width / S, lw = Math.max(1, Math.round(dp)) / dp, e = lw / 2;
+  const face = () => { if (radar) { g.beginPath(); g.arc(R, R, R - e, 0, Math.PI * 2); } else roundRect(g, e, e, S - lw, S - lw, rad); };
   g.save(); face(); g.clip();
   // Projector: what must darken (face fill, heat cells) goes first with source-over, then everything is light that
   // adds up, so overlapping strokes brighten toward white.
@@ -1485,7 +1642,7 @@ function drawStick(w, rt, pad, dt) {
   }
   g.restore(); light();
   if (holo && radar) { g.strokeStyle = hexA(rt.holoColors.glow, 0.3); g.lineWidth = 3; face(); g.stroke(); }   // rim bloom: the rim is the brightest part
-  g.strokeStyle = hexA(line, holo ? 0.5 : 0.4); g.lineWidth = 1; face(); g.stroke();
+  g.strokeStyle = hexA(line, holo ? 0.5 : 0.4); g.lineWidth = lw; face(); g.stroke();
   if (radar) {   // 36 rim ticks every 10°, the four cardinal ones longer and in the highlight color
     for (let i = 0; i < 36; i++) {
       const a = i * Math.PI / 18, card = i % 9 === 0, len = card ? 7 : 3.5;
@@ -1832,13 +1989,13 @@ function placeOnScreen(where) {
 let drag = null, marquee = null, sizing = null;
 document.addEventListener("pointerdown", e => {
   if (!editing || e.button !== 0) return;
-  if (e.target.closest("#ui, #welcome, #wizard, #enter-edit")) return;
-  // A corner handle: resize. The opposite corner stays put; the box can't go smaller than the content.
+  if (e.target.closest("#ui, #welcome, #wizard, #enter-edit, #coach")) return;
+  // A corner or edge handle: resize. The opposite side stays put; the box can't go smaller than the content.
   const hd = e.target.closest("#resize i");
   if (hd) {
     const w = selectedWidgets()[0]; if (!w) return;
     const b = boxOf(w), rt = runtime[w.id];
-    sizing = { w, c: hd.dataset.c, b, sx: e.clientX, sy: e.clientY, sc: overlayScale(), right: b.x + b.w, bottom: b.y + b.h };
+    sizing = { w, c: hd.dataset.c, b, sx: e.clientX, sy: e.clientY, sc: overlayScale(), right: b.x + b.w, bottom: b.y + b.h, cx: b.x + b.w / 2, cy: b.y + b.h / 2 };
     Object.assign(rt.root.style, { boxSizing: "border-box", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center" });
     $("#resize").classList.add("busy"); hd.setPointerCapture(e.pointerId);
     return;
@@ -1858,16 +2015,37 @@ document.addEventListener("pointerdown", e => {
 });
 document.addEventListener("pointermove", e => {
   if (sizing) {
-    const z = sizing, w = z.w, root = runtime[w.id].root, gs = profile.settings.gridSize, snap = profile.settings.gridSnap && !e.altKey;
-    const dx = (e.clientX - z.sx) / z.sc, dy = (e.clientY - z.sy) / z.sc, east = z.c[1] === "e", south = z.c[0] === "s";
+    const z = sizing, w = z.w, gs = profile.settings.gridSize, snap = profile.settings.gridSnap && !e.altKey;
+    const dx = (e.clientX - z.sx) / z.sc, dy = (e.clientY - z.sy) / z.sc;
+    const east = z.c.includes("e"), west = z.c.includes("w"), south = z.c.includes("s"), north = z.c.includes("n");
+    const horiz = east || west, vert = north || south;
+    // Figma's modifiers, with Ctrl standing in for Alt (Alt already turns snapping off here): Shift keeps the
+    // proportions, Ctrl resizes from the center. Padding never changes: the box grows around centered content.
+    const keep = e.shiftKey, center = e.ctrlKey || e.metaKey;
+    let W = z.b.w, H = z.b.h;
     // The dragged edge lands on the grid when grid snap is on (Alt turns it off, as for moving).
-    let ex = east ? z.b.x + z.b.w + dx : z.b.x + dx, ey = south ? z.b.y + z.b.h + dy : z.b.y + dy;
-    if (snap) { ex = Math.round(ex / gs) * gs; ey = Math.round(ey / gs) * gs; }
-    w.boxW = Math.max(10, Math.round(east ? ex - z.b.x : z.right - ex)); w.boxH = Math.max(10, Math.round(south ? ey - z.b.y : z.bottom - ey));
-    root.style.minWidth = w.boxW + "px"; root.style.minHeight = w.boxH + "px";
+    if (horiz) {
+      let ex = east ? z.right + dx : z.b.x + dx; if (snap && !center) ex = Math.round(ex / gs) * gs;
+      W = east ? ex - z.b.x : z.right - ex; if (center) W = z.b.w + 2 * (W - z.b.w);
+    }
+    if (vert) {
+      let ey = south ? z.bottom + dy : z.b.y + dy; if (snap && !center) ey = Math.round(ey / gs) * gs;
+      H = south ? ey - z.b.y : z.bottom - ey; if (center) H = z.b.h + 2 * (H - z.b.h);
+    }
+    if (keep) {
+      const k = horiz && vert ? Math.max(W / z.b.w, H / z.b.h) : horiz ? W / z.b.w : H / z.b.h;
+      W = z.b.w * k; H = z.b.h * k;
+    }
+    if (horiz || keep) w.boxW = Math.max(10, Math.round(W));
+    if (vert || keep) w.boxH = Math.max(10, Math.round(H));
+    if (w.fill && FILL_TYPES.has(w.type)) refreshWidget(w);   // Fill: the stick or bar grows live with the box
+    const root = runtime[w.id].root;
+    if (w.boxW) root.style.minWidth = w.boxW + "px";
+    if (w.boxH) root.style.minHeight = w.boxH + "px";
     const nb = { w: root.offsetWidth, h: root.offsetHeight };   // what the content allows
-    if (!east) w.x = Math.round(z.right - nb.w);
-    if (!south) w.y = Math.round(z.bottom - nb.h);
+    // An edge dragged with Shift grows the other axis evenly about its middle, as Figma does.
+    w.x = Math.round(center || (keep && !horiz) ? z.cx - nb.w / 2 : west ? z.right - nb.w : z.b.x);
+    w.y = Math.round(center || (keep && !vert) ? z.cy - nb.h / 2 : north ? z.bottom - nb.h : z.b.y);
     positionWidget(w); placeResize();
     return;
   }
@@ -1893,7 +2071,7 @@ document.addEventListener("pointerup", () => {
     w.boxW = Math.round(b.w); w.boxH = Math.round(b.h);   // keep what it actually came to, not a size below the content
     refreshWidget(w); syncSelectionClasses(); save(); renderPanel(); return;
   }
-  if (drag) { if (drag.moved) save(); drag = null; drawGuides([]); return; }
+  if (drag) { if (drag.moved) { save(); renderPanel(); } drag = null; drawGuides([]); return; }
   if (marquee) {
     const r = marquee.rect;
     $("#marquee").style.display = "none";
@@ -1922,15 +2100,17 @@ document.addEventListener("keydown", e => {
   else if (e.key === "Tab" && !e.target.closest("#ui")) { e.preventDefault(); document.body.classList.toggle("panel-hidden"); }   // inside the panel, Tab moves focus as usual
   else if (k === "a" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); setSelection(profile.widgets.map(w => w.id)); }
   else if (k === "d" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); if (selected.size) duplicateSelected(); }
+  else if ((k === "z" && e.shiftKey || k === "y") && (e.ctrlKey || e.metaKey)) { e.preventDefault(); redo(); }
+  else if (k === "z" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); undo(); }
   else if (e.key.startsWith("Arrow") && selected.size) {
     e.preventDefault();
     const step = e.shiftKey ? 10 : 1;
     const dx = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0;
     const dy = e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0;
-    moveWidgets(selectedWidgets(), dx, dy); save();
+    moveWidgets(selectedWidgets(), dx, dy); save(); renderPanel();
   }
 });
-document.addEventListener("dblclick", e => { if (!editing && !e.target.closest("#ui, #welcome, #wizard, #enter-edit")) setEditing(true); });
+document.addEventListener("dblclick", e => { if (!editing && !e.target.closest("#ui, #welcome, #wizard, #enter-edit, #coach")) setEditing(true); });
 
 // ---------- edit mode ----------
 function setEditing(on) {
@@ -2085,6 +2265,9 @@ $("#file-in").addEventListener("change", async e => {
 
 // ---------- side panel ----------
 const row = (label, input) => el("div", { class: "row" }, el("span", {}, label), input);
+// A labeled field box (see .fld): key = the short label inside the box, unit = what follows the value.
+const ccell = (label, btn) => el("div", { class: "ccell" }, el("span", { "aria-hidden": "true" }, label), btn);
+const fld = (key, input, unit, wide) => el("label", { class: "fld" + (wide ? " wide" : "") }, el("span", { class: "k" }, key), input, unit ? el("span", { class: "u" }, unit) : null);
 function textIn(obj, key, after) {
   const i = el("input", { type: "text" }); i.value = obj[key] ?? "";
   i.addEventListener("input", () => { obj[key] = i.value; save(); after && after(); });
@@ -2281,30 +2464,86 @@ const ICONS = {
   vcenter: '<path d="M2 9h14M5 4v10h3V4zM10 6v6h3V6z"/>',
   bottom: '<path d="M2 15h14M5 3v9h3V3zM10 7v5h3V7z"/>'
 };
-function alignSection(p) {
+// The align icons, first thing under the panel's title as in Figma: to the screen for one widget, to each other for several.
+function alignRow(p) {
   const n = selected.size;
-  p = section(p, "Arrange", { key: "arrange", open: false });
-  p.append(el("h5", {}, n > 1 ? "Align to Each Other" : "Align to Screen"));
-  const r = el("div", { class: "icon-row", role: "group", "aria-label": "Align" });
   const tips = { left: "Align left", hcenter: "Align centers horizontally", right: "Align right", top: "Align top", vcenter: "Align middles vertically", bottom: "Align bottom" };
-  for (const k in ICONS) r.append(el("button", { title: tips[k], "aria-label": tips[k], onclick: () => align(k), html: `<svg viewBox="0 0 18 18">${ICONS[k]}</svg>` }));
+  const r = el("div", { class: "icon-row", role: "group", "aria-label": n > 1 ? "Align to each other" : "Align to screen" });
+  for (const k in ICONS) r.append(el("button", { title: tips[k] + (n > 1 ? "" : " of the screen"), "aria-label": tips[k], onclick: () => align(k), html: `<svg viewBox="0 0 18 18">${ICONS[k]}</svg>` }));
   p.append(r);
+}
+// Sticky top of a widget or group panel: what is selected, its name, and the align icons, so they stay in reach
+// while the sections scroll under them.
+function panelHead(p, title, sub, nameRow) {
+  const h = el("div", { class: "p-head" }, el("h3", {}, title), sub ? el("div", { class: "hint small" }, sub) : null, nameRow || null);
+  alignRow(h); p.append(h);
+}
+// Sticky foot: Duplicate and Remove always in reach instead of at the end of a long scroll.
+function panelFoot(p, removeLabel) {
+  p.append(el("div", { class: "p-foot" },
+    el("button", { onclick: duplicateSelected, title: "Duplicate (Ctrl+D)" }, "Duplicate"),
+    el("button", { class: "danger", onclick: deleteSelected, title: "Remove (Delete)" }, removeLabel)));
+}
+// Position and Size: where the widget (or the group's box) sits and how big it is, Figma's frame section.
+function positionSection(p, ws) {
+  p = section(p, "Position and Size", { key: "pos" });
+  const ub = unionBox(ws);
+  const posIn = (axis, label) => {
+    const n = el("input", { type: "number", min: -4000, max: 8000, step: 1, "aria-label": label + " in pixels" });
+    n.value = Math.round(ub[axis]);
+    n.addEventListener("change", () => {
+      if (n.value === "" || isNaN(+n.value)) { n.value = Math.round(ub[axis]); return; }
+      const d = Math.round(+n.value) - Math.round(ub[axis]);
+      moveWidgets(ws, axis === "x" ? d : 0, axis === "y" ? d : 0); save(); placeResize(); renderPanel();
+    });
+    n.addEventListener("keydown", e => { if (e.key === "Enter") n.blur(); });
+    return n;
+  };
+  p.append(el("div", { class: "fields" },
+    fld("X", posIn("x", ws.length > 1 ? "Group left edge" : "Left edge"), "px"),
+    fld("Y", posIn("y", ws.length > 1 ? "Group top edge" : "Top edge"), "px")));
+  boxSizeRows(p, ws, p => {
+  if (ws.every(w => FILL_TYPES.has(w.type))) {
+    const fill = { get v() { return ws[0].fill ? "fill" : "fit"; }, set v(x) { for (const w of ws) { if (x === "fill") w.fill = true; else delete w.fill; } } };
+    choiceRow(p, "Content", fill, "v", [["fit", "Fit", "The stick, bar or rudder keeps its size, centered in the box."],
+      ["fill", "Fill", "The stick, bar or rudder grows to fill the box. Drag a handle or type W and H to size it."]],
+      () => { for (const w of ws) refreshWidget(w); syncSelectionClasses(); placeResize(); }, { aria: "Content sizing" });
+  }
+  });
+  sizeRow(p, ws, () => { for (const w of ws) refreshWidget(w); syncSelectionClasses(); });
+}
+// What to show inside the widget.
+function showSection(p, ws) {
+  const live = ws.filter(w => w.type !== "button" && w.type !== "label");
+  if (!live.length) return;
+  const upd = () => { for (const w of ws) refreshWidget(w); syncSelectionClasses(); };
+  const flag = key => new Proxy({}, { get: () => ws[0][key] !== false, set: (_, k, v) => { for (const w of ws) w[key] = v; return true; } });
+  p = section(p, "Show", { key: "show" });
+  toggleRow(p, "Name", flag("showTitle"), "v", upd);
+  toggleRow(p, "Values", flag("showValues"), "v", upd, "The percentage readouts under the widget.");
+  toggleRow(p, "Axis labels", flag("showAxisLabels"), "v", upd);
+}
+// Arrange: spacing and rows and columns for a group (Figma keeps Tidy Up with its align tools), and placing
+// on the screen. Open by default for a group, where it does the most.
+function arrangeSection(p) {
+  const n = selected.size;
+  p = section(p, "Arrange", { key: n > 1 ? "arrange-multi" : "arrange", open: n > 1 });
   if (n > 1) {
     const s = profile.settings;
     p.append(el("h5", {}, "Spacing"));
     const gapIn = el("input", { type: "number", min: 0, max: 4000, step: 1, placeholder: "Auto", "aria-label": "Gap between widgets in pixels" });
-    gapIn.value = s.spaceGap ?? ""; gapIn.style.width = "7rem";
+    gapIn.value = s.spaceGap ?? "";
     gapIn.addEventListener("change", () => { s.spaceGap = gapIn.value === "" ? "" : Math.max(0, Math.round(+gapIn.value)); gapIn.value = s.spaceGap; save(); });
-    p.append(row("Gap between, px", gapIn));
+    p.append(el("div", { class: "fields" }, fld("Gap", gapIn, "px")));
     p.append(el("div", { class: "hint small" }, "Leave it on Auto to spread 3 or more widgets evenly across their current width or height."));
     p.append(el("div", { class: "wide-row" },
       el("button", { onclick: () => distribute(true, s.spaceGap) }, "Space Evenly ↔"),
       el("button", { onclick: () => distribute(false, s.spaceGap) }, "Space Evenly ↕")));
-    p.append(el("h5", {}, "Grid"));
+    p.append(el("h5", {}, "Rows and Columns"));
     const colsObj = { get v() { return String(s.gridCols || 0); }, set v(x) { s.gridCols = +x; } };
     choiceRow(p, "Columns", colsObj, "v", [["0", "Auto", "Keeps the rows your widgets already roughly sit in."], ...[1, 2, 3, 4, 5, 6].map(n => [String(n), String(n), `${n} per row, in reading order.`])], null, { aria: "Grid columns" });
     p.append(el("div", { class: "actions" }, el("button", { onclick: () => arrangeGrid(s.gridCols || 0, s.spaceGap), title: "Line the selected widgets up in rows and columns" }, "Arrange in Grid")));
-    p.append(el("div", { class: "hint small" }, "Uses the gap above (Auto: the grid size). Match Width or Height in Layout first for even cells."));
+    p.append(el("div", { class: "hint small" }, "Uses the gap above (Auto: the grid size). Match Width or Height in Position and Size first for even cells."));
   }
   p.append(el("h5", {}, n > 1 ? "Place Group on Screen" : "Place on Screen"));
   p.append(el("div", { class: "wide-row" },
@@ -2509,6 +2748,14 @@ function closeFab(refocus) {
   if (refocus) $("#fab").focus();
 }
 $("#fab").addEventListener("click", () => $("#fab-menu").classList.contains("open") ? closeFab() : openFab());
+$("#undo-btn").addEventListener("click", undo);
+$("#coach").addEventListener("click", e => {
+  const b = e.target.closest("[data-coach]"); if (!b) return;
+  closeTip("groups");
+  if (b.dataset.coach === "show") { document.body.classList.remove("panel-hidden"); setSelection(profile.widgets.map(w => w.id)); }
+});
+$("#coach").addEventListener("keydown", e => { if (e.key === "Escape") { e.stopPropagation(); closeTip("groups"); } });
+$("#redo-btn").addEventListener("click", redo);
 $("#fab-wrap").addEventListener("keydown", e => {
   if (e.key === "Escape" && $("#fab-menu").classList.contains("open")) { e.preventDefault(); e.stopPropagation(); closeFab(true); return; }
   const items = [...$("#fab-menu").querySelectorAll("button")], i = items.indexOf(document.activeElement);
@@ -2604,10 +2851,11 @@ function colorSection(p, ws) {
   // Edit all selected widgets together through a proxy of the first one.
   const proxy = new Proxy({}, { get: (_, k) => w0[k], set: (_, k, v) => { for (const w of ws) w[k] = v; return true; } });
   p = section(p, "Colors", { key: "colors" });
-  p.append(row("Highlight", colorIn(proxy, "accent", upd, "Highlight")));
-  p.append(row("Text", colorIn(proxy, "text", upd, "Text")));
-  p.append(row("Border", colorIn({ get border() { return w0.border || "#ffffff"; }, set border(v) { for (const w of ws) w.border = v; } }, "border", upd, "Border")));
-  p.append(row("Background", colorIn(proxy, "bg", upd, "Background")));
+  p.append(el("div", { class: "cgrid" },
+    ccell("Highlight", colorIn(proxy, "accent", upd, "Highlight")),
+    ccell("Text", colorIn(proxy, "text", upd, "Text")),
+    ccell("Border", colorIn({ get border() { return w0.border || "#ffffff"; }, set border(v) { for (const w of ws) w.border = v; } }, "border", upd, "Border")),
+    ccell("Background", colorIn(proxy, "bg", upd, "Background"))));
   sliderRow(p, "Background opacity", proxy, "bgAlpha", 0, 100, "%", upd);
   const fade = (w0.proj && w0.proj.fade) || 0;
   if (fade) p.append(el("div", { class: "hint small" }, `Cockpit Look fades this by ${fade}% (Background fade), so it shows at ${Math.round((w0.bgAlpha ?? profile.settings.panelAlpha) * (1 - fade / 100))}%.`));
@@ -2624,7 +2872,6 @@ function layoutSection(p, ws) {
   const all = (get, set) => new Proxy({}, { get: (_, k) => get(w0, k), set: (_, k, v) => { for (const w of ws) set(w, k, v); return true; } });
   const slider = (label, obj, key, min, max, unit = " px", hint) => sliderRow(p, label, obj, key, min, max, unit, upd, { hint });
   p = section(p, "Layout", { key: "layout" });
-  boxSizeRows(p, ws);
   const sticks = ws.every(w => w.type === "stick");
   if (sticks) {
     // The radar face is what the Gladius projects, but it works on its own too, so it lives with the other layout choices.
@@ -2634,13 +2881,6 @@ function layoutSection(p, ws) {
   slider("Padding", all((w, k) => w.pad ?? PAD, (w, k, v) => { w.pad = v; }), "v", 0, 48);
   slider("Corner radius", all((w, k) => w.radius ?? RADIUS, (w, k, v) => { w.radius = v; }), "v", 0, 32);
   slider("3D depth", all((w, k) => w.depth || 0, (w, k, v) => { w.depth = v; }), "v", 0, 100, "%", ws.some(w => holoOf(w).on) ? "Off while Projector is on: a hologram has no bezel." : null);
-  const live = ws.filter(w => w.type !== "button" && w.type !== "label");
-  if (live.length) {
-    const flag = key => all(w => w[key] !== false, (w, k, v) => { w[key] = v; });
-    toggleRow(p, "Show name", flag("showTitle"), "v", upd);
-    toggleRow(p, "Show values", flag("showValues"), "v", upd, "The percentage readouts under the widget.");
-    toggleRow(p, "Show axis labels", flag("showAxisLabels"), "v", upd);
-  }
   if (ws.every(w => w.type === "throttle" || w.type === "axis" || w.type === "pedals")) {
     const def = w => w.orient || (w.type === "pedals" ? "h" : "v");
     const o = all(w => def(w), (w, k, v) => { w.orient = v; });
@@ -2663,7 +2903,7 @@ function layoutSection(p, ws) {
     for (const [label, key, min, max] of SLIDERS) slider(label, dims, key, min, max);
   }
   p.append(el("div", { class: "actions" }, el("button", { class: "subtle", onclick: () => {
-    for (const w of ws) { delete w.pad; delete w.radius; delete w.depth; delete w.dims; delete w.showTitle; delete w.showValues; delete w.showAxisLabels; delete w.scaleW; delete w.scaleH; delete w.orient; delete w.boxW; delete w.boxH; }
+    for (const w of ws) { delete w.pad; delete w.radius; delete w.depth; delete w.dims; delete w.showTitle; delete w.showValues; delete w.showAxisLabels; delete w.scaleW; delete w.scaleH; delete w.orient; delete w.boxW; delete w.boxH; delete w.fill; }
     save(); upd(); renderPanel();
   } }, "Reset Layout")));
 }
@@ -2680,7 +2920,7 @@ function perspectiveSection(p, ws) {
   const pproxy = new Proxy({}, { get: (_, k) => w0.proj[k], set: (_, k, v) => { for (const w of ws) w.proj[k] = v; return true; } });
   const current = LOOK_PRESETS.find(l => ws.every(w => sameLook(w, l)));
   const proj = !!holoOf(w0).on;
-  p = section(p, "Cockpit Look", { key: "look", open: false, summary: (proj ? "Projector" : "Flat") + (current ? " · " + current.name : "") });
+  p = section(p, "Cockpit Look", { key: "look", open: false, summary: (proj ? "Projector" : "Flat") + (current && current.name !== (proj ? "Projector" : "Flat") ? " · " + current.name : "") });
   const style = { get v() { return proj ? "projector" : "flat"; }, set v(x) { setProjector(ws, x === "projector"); } };
   choiceRow(p, "Style", style, "v", [["flat", "Flat", "A panel on a cockpit screen or a hologram floating on its own."],
     ["projector", "Projector", "A hologram standing in a beam from a base on the dash, like the Gladius radar."]], () => { save(); updProj(); renderPanel(); }, { aria: "Cockpit Look style" });
@@ -2730,7 +2970,7 @@ function perspectiveSection(p, ws) {
 // Width and Height in px: the widget's box as it sits on screen (its flat footprint). Typing a value fixes it;
 // smaller than the content just fits the content. With several selected, Match makes them all as wide and/or as
 // tall as the largest one.
-function boxSizeRows(p, ws) {
+function boxSizeRows(p, ws, extra) {
   const upd = () => { for (const w of ws) refreshWidget(w); syncSelectionClasses(); save(); renderPanel(); };
   const sizeIn = (dim, key, label) => {
     const vals = ws.map(w => Math.round(boxOf(w)[dim])), same = vals.every(v => v === vals[0]);
@@ -2744,10 +2984,9 @@ function boxSizeRows(p, ws) {
     };
     n.addEventListener("change", commit);
     n.addEventListener("keydown", e => { if (e.key === "Enter") n.blur(); });
-    return el("span", { style: "display:flex;align-items:center;gap:0.3rem" }, n, el("span", {}, "px"));
+    return n;
   };
-  p.append(el("div", { class: "srow" }, el("div", { class: "top" }, el("span", {}, "Width"), sizeIn("w", "boxW", "Width"))));
-  p.append(el("div", { class: "srow" }, el("div", { class: "top" }, el("span", {}, "Height"), sizeIn("h", "boxH", "Height"))));
+  p.append(el("div", { class: "fields" }, fld("W", sizeIn("w", "boxW", "Width"), "px"), fld("H", sizeIn("h", "boxH", "Height"), "px")));
   const fixed = ws.some(w => w.boxW || w.boxH);
   if (ws.length > 1) {
     const match = (mw, mh) => {
@@ -2760,8 +2999,9 @@ function boxSizeRows(p, ws) {
       el("button", { onclick: () => match(false, true), title: "Make every selected widget as tall as the tallest" }, "Match Height"),
       el("button", { onclick: () => match(true, true), title: "Both at once" }, "Match Both")));
   }
+  if (extra) extra(p);
   p.append(el("div", { class: "hint small" }, (ws.length > 1 ? "Match uses the largest selected widget. " : "")
-    + "A box smaller than its content fits the content; use Size to shrink the content itself."));
+    + "A box can't be smaller than its content; Size below scales the content itself."));
   if (fixed) p.append(el("div", { class: "actions" }, el("button", { class: "subtle", onclick: () => { for (const w of ws) { delete w.boxW; delete w.boxH; } upd(); } }, "Fit to Content")));
 }
 // Flat or Projector for every widget in ws. Projector gives a Stick its radar disc; Flat
@@ -2839,18 +3079,10 @@ function projectFromOneBase(ws) {
 }
 
 // Slider plus a number box for a percentage, applied to every widget in ws.
+// A percentage slider for every widget in ws, drawn like every other slider (click the value to type one).
 function pctRow(p, label, ws, get, set, MIN, MAX, upd) {
-  const cur = () => Math.round(get(ws[0]) * 100);
-  const r = el("input", { type: "range", min: MIN, max: MAX, step: 1, style: "width:100%" }); r.value = cur();
-  r.setAttribute("aria-label", label);
-  const n = el("input", { type: "number", min: MIN, max: MAX, step: 1 }); n.value = cur();
-  n.setAttribute("aria-label", label + " percent");
-  const apply = v => { for (const w of ws) set(w, v / 100); save(); upd(); };
-  r.addEventListener("input", () => { n.value = r.value; apply(+r.value); });
-  const commit = () => { const v = clamp(Math.round(+n.value || cur()), MIN, MAX); n.value = v; r.value = v; apply(v); };
-  n.addEventListener("change", commit);
-  n.addEventListener("keydown", e => { if (e.key === "Enter") commit(); });
-  p.append(el("div", { class: "srow" }, el("div", { class: "top" }, el("span", {}, label), el("span", { style: "display:flex;align-items:center;gap:0.3rem" }, n, el("span", {}, "%"))), r));
+  const obj = { get v() { return Math.round(get(ws[0]) * 100); }, set v(x) { for (const w of ws) set(w, x / 100); } };
+  sliderRow(p, label, obj, "v", MIN, MAX, "%", upd);
 }
 const sizeRow = (p, ws, upd) => pctRow(p, "Size", ws, w => w.size || 1, (w, v) => { w.size = v; }, 50, 250, upd);
 
@@ -2858,17 +3090,17 @@ function renderWidgetPanel(p) {
   const w = selectedWidgets()[0]; if (!w) return;
   const names = { stick: "Stick", throttle: "Throttle", pedals: "Pedals", axis: "Single axis", button: "Button", label: "Label" };
   const upd = () => { refreshWidget(w); syncSelectionClasses(); };
-  p.append(el("h3", {}, names[w.type] || w.type));
-  p.append(row("Name", textIn(w, "label", upd)));
-  sizeRow(p, [w], upd);
-  alignSection(p);
+  const seen = w.match && padFor(w, connectedPads());
+  panelHead(p, names[w.type] || w.type, w.type !== "label" && w.match && !seen ? "Its device is not connected. See Device below." : "", el("div", { class: "fields" }, fld("Name", textIn(w, "label", upd), null, true)));
+  positionSection(p, [w]);
+  arrangeSection(p);
   layoutSection(p, [w]);
-  perspectiveSection(p, [w]);
-  projectorSection(p, [w]);
+  showSection(p, [w]);
   themeSection(p, [w]);
   colorSection(p, [w]);
+  perspectiveSection(p, [w]);
+  projectorSection(p, [w]);
   if (w.type !== "label") {
-    const seen = w.match && padFor(w, connectedPads());
     const name = w.match ? prettyName(w.match) + (w.nth ? " #" + (w.nth + 1) : "") : "";
     const d = section(p, "Device", { key: "device", summary: name ? name + (seen ? "" : " (not connected)") : "None yet" });
     d.append(el("div", { class: "hint small" }, name ? name + (seen ? " is connected." : " is not connected.") : "No device yet."));
@@ -2881,25 +3113,21 @@ function renderWidgetPanel(p) {
       }
     }
   }
-  p.append(el("div", { class: "actions" },
-    el("button", { onclick: duplicateSelected }, "Duplicate"),
-    el("button", { class: "danger", onclick: deleteSelected }, "Remove")));
+  panelFoot(p, "Remove");
 }
 
 function renderMultiPanel(p) {
   const ws = selectedWidgets();
-  p.append(el("h3", {}, ws.length + " widgets selected"));
-  p.append(el("div", { class: "hint" }, "Drag any of them to move them together. Shift+click adds or removes one."));
-  sizeRow(p, ws, () => { for (const w of ws) refreshWidget(w); syncSelectionClasses(); });
-  alignSection(p);
+  panelHead(p, ws.length + " widgets selected", "Every change here applies to all of them. Drag any one to move the group; Shift+click adds or removes one.");
+  positionSection(p, ws);
+  arrangeSection(p);
   layoutSection(p, ws);
-  perspectiveSection(p, ws);
-  projectorSection(p, ws);
+  showSection(p, ws);
   themeSection(p, ws);
   colorSection(p, ws);
-  p.append(el("div", { class: "actions" },
-    el("button", { onclick: duplicateSelected }, "Duplicate"),
-    el("button", { class: "danger", onclick: deleteSelected }, "Remove All")));
+  perspectiveSection(p, ws);
+  projectorSection(p, ws);
+  panelFoot(p, "Remove All");
 }
 
 // Device check: every controller slot the browser exposes, live, plus which widgets are still waiting.
@@ -2948,17 +3176,17 @@ function renderSettingsPanel(p) {
   toggleRow(lay, "Smart guides", s, "smartGuides", undefined, "Snap to the screen center, edges and other widgets.");
   toggleRow(lay, "Snap to grid", s, "gridSnap", applySettings);
   choiceRow(lay, "Grid size", s, "gridSize", [[8, "8 px"], [16, "16 px"], [24, "24 px"], [32, "32 px"]], applySettings);
-  lay.append(row("Safe margin, px", numIn(s, "margin", 0, 200, 4)));
+  lay.append(el("div", { class: "fields" }, fld("Safe margin", numIn(s, "margin", 0, 200, 4), "px", true)));
   const size = section(p, "Size", { key: "s-size" });
   toggleRow(size, "Fit overlay to screen size", { get v() { return s.scaleMode === "auto"; }, set v(x) { s.scaleMode = x ? "auto" : "manual"; } }, "v", () => { rebuildAll(); setSelection([], "settings"); },
     "A layout made at 1080p keeps the same proportions at 1440p or 4K.");
-  if (s.scaleMode !== "auto") size.append(row("Overlay scale", numIn(s, "scale", 0.3, 4, 0.05, rebuildAll)));
+  if (s.scaleMode !== "auto") size.append(el("div", { class: "fields" }, fld("Overlay scale", numIn(s, "scale", 0.3, 4, 0.05, rebuildAll), "×", true)));
   choiceRow(size, "Editor text size", s, "uiScale", [["auto", "Auto", "Grows with the screen, so 4K stays readable."], [1, "100%"], [1.25, "125%"], [1.5, "150%"], [2, "200%"], [2.5, "250%"]], applySettings, { wrap: true });
   themeSection(p, profile.widgets.filter(w => w.type !== "label"), true);
   const bg = section(p, "Background", { key: "s-bg" });
   toggleRow(bg, "Solid background", { get v() { return s.background === "solid"; }, set v(x) { s.background = x ? "solid" : "transparent"; } }, "v", applySettings,
     "Leave it off for OBS. A solid color is only for tools without transparency.");
-  bg.append(row("Background color", colorIn(s, "bgColor", applySettings, "Background color")));
+  bg.append(el("div", { class: "cgrid" }, ccell("Background color", colorIn(s, "bgColor", applySettings, "Background color"))));
   const heat = section(p, "Session Heatmap", { key: "s-heat" });
   heat.append(el("div", { class: "hint small" }, "Shows where each stick, throttle and pedal spent its time this session, e.g. which way you strafe most. Toggle with H, reset with R."));
   heat.append(el("div", { class: "actions" }, el("button", { onclick: toggleHeat }, showHeat ? "Hide Heatmap" : "Show Heatmap"), el("button", { class: "subtle", onclick: resetHeat }, "Reset Heatmap")));
@@ -2987,6 +3215,7 @@ document.body.classList.toggle("preview", !IN_OBS);
 $("#preview-edit").addEventListener("click", () => setEditing(true));
 loadProfile();
 rebuildAll();
+resetHistory();
 if (new URLSearchParams(location.search).has("edit")) setEditing(true);
 requestAnimationFrame(frame);
 // First run (no saved setup and no profile.js): open the editor with the getting-started dialog.
@@ -2996,7 +3225,7 @@ window.addEventListener("load", () => { if (firstRun && !window.STAYONTARGET_PRO
 <script src="profile.js"></script>
 <script>
 const fileProfile = window.STAYONTARGET_PROFILE || window.JOYVIZ_PROFILE;
-if (fileProfile && (+fileProfile.savedAt || 0) > (+profile.savedAt || 0)) { profile = normalize(fileProfile); rebuildAll(); }
+if (fileProfile && (+fileProfile.savedAt || 0) > (+profile.savedAt || 0)) { profile = normalize(fileProfile); rebuildAll(); resetHistory(); }
 </script>
 </body>
 </html>
