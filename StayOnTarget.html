@@ -76,6 +76,34 @@ body.preview:not(.editing).has-widgets #preview-chip { display: flex; }
 /* Projection look: fine scanlines plus a faint beam of the highlight color from the top edge. Painted once. */
 .widget.scan::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
   background: repeating-linear-gradient(180deg, rgba(0,0,0,0) 0 2px, rgba(0,0,0,0.2) 2px 3px), linear-gradient(180deg, var(--beam, transparent), transparent 65%); }
+/* Projector look: the widget is a hologram emitted from a base on the dash. Each projected widget has one rig
+   (base disc, light cone, ray fan) under it, all static CSS and SVG painted once from the widget's projected corners.
+   Colors are the --holo-* custom properties derived from the widget's theme; --holo-i scales every alpha with
+   Intensity and --holo-b adds to each for bright footage. Widgets sit above every rig whatever the DOM order. */
+.widget { z-index: 1; }
+.holo-rig { position: absolute; z-index: 0; pointer-events: none; --holo-i: 1; --holo-b: 0; }
+.holo-rig > * { position: absolute; }
+.holo-cone { background: linear-gradient(var(--holo-dir, 0deg), rgba(var(--holo-rays-rgb), calc(0.3 * var(--holo-i) + var(--holo-b))), rgba(var(--holo-rays-rgb), calc(0.06 * var(--holo-i) + var(--holo-b))));
+  -webkit-mask-image: linear-gradient(var(--holo-mdir, 90deg), transparent, #000 20%, #000 80%, transparent); mask-image: linear-gradient(var(--holo-mdir, 90deg), transparent, #000 20%, #000 80%, transparent); }
+.holo-rays { left: 0; top: 0; overflow: visible; }
+.holo-rays stop { stop-color: var(--holo-rays); }
+.holo-rays stop.a { stop-opacity: calc(0.55 * var(--holo-i) + var(--holo-b)); }
+.holo-rays stop.b { stop-opacity: calc(0.08 * var(--holo-i) + var(--holo-b)); }
+.holo-rays line { fill: none; stroke-linecap: round; }
+.holo-rays .rays line { stroke-width: 1; }
+.holo-rays .bloom line { stroke-width: 3; opacity: 0.18; }
+.holo-rays .ticks circle { fill: var(--holo-core); opacity: calc(0.9 * var(--holo-i) + var(--holo-b)); }
+.holo-rays .debug circle { fill: none; stroke: var(--guide); stroke-width: 1; }
+.holo-base { border-radius: 50%; background: rgba(var(--holo-ped-rgb), 0.55); border: 1px solid rgba(var(--holo-acc-rgb), calc(0.9 * var(--holo-i) + var(--holo-b)));
+  box-shadow: 0 0 6px rgba(var(--holo-acc-rgb), calc(0.6 * var(--holo-i))), inset 0 0 8px rgba(var(--holo-acc-rgb), calc(0.3 * var(--holo-i))); }
+.holo-base i { position: absolute; display: block; border-radius: 50%; }
+.holo-base .ring { inset: 15%; border: 1px solid rgba(var(--holo-acc-rgb), calc(0.4 * var(--holo-i) + var(--holo-b))); }
+.holo-base .core { left: 37%; right: 37%; top: 50%; height: 2px; margin-top: -1px; background: var(--holo-core); opacity: var(--holo-i);
+  box-shadow: 0 0 6px 1px rgba(var(--holo-acc-rgb), calc(0.8 * var(--holo-i))); }
+.holo-base .slit { left: 50%; top: 50%; width: 2px; height: 8px; margin: -8px 0 0 -1px; border-radius: 1px; background: var(--holo-core); opacity: var(--holo-i); box-shadow: 0 0 4px var(--holo-core); }
+.holo-rig.side-left .slit { width: 8px; height: 2px; margin: -1px 0 0 0; }      /* a side base's emitter points at the widget */
+.holo-rig.side-right .slit { width: 8px; height: 2px; margin: -1px 0 0 -8px; }
+body.editing .holo-rig.selected .holo-base { outline: 1px dashed var(--ui-accent); outline-offset: 2px; }
 .looks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem; margin: 0.4rem 0 0.6rem; }
 .look-tile { display: flex; flex-direction: column; align-items: center; gap: 0.4rem; padding: 0.55rem 0.25rem 0.4rem; min-height: 0; font-size: 0.78rem; font-weight: 600; line-height: 1.2; text-align: center; }
 .look-tile[aria-pressed=true] { border-color: var(--ui-accent); box-shadow: inset 0 0 0 1px var(--ui-accent); }
@@ -756,10 +784,13 @@ const LOOK_PRESETS = [
 // px, size %. rays 0 hides them. footage: bright raises every alpha for planet glare and clouds.
 const HOLO_DEFAULT = { on: false, tier: "subtle", intensity: 70, base: { side: "below", dx: 0, dy: 0, size: 100 },
   rays: 9, cone: true, float: true, flicker: true, fringe: true, footage: "dark" };
-// The base disc lies on the dash, so its squash follows the widget's tilt: cos(rx) clamped to this range. The floor
-// keeps an upright widget's base a strongly foreshortened dish; the ceiling stops a flat-lying one becoming a circle.
-const HOLO_SQUASH = [0.28, 0.75];
+// The base disc lies on the dash, so its squash follows the widget's tilt: a 0.28 dish for an upright widget (the
+// dash seen almost edge-on), growing by 0.22 × sin(tilt) as the widget lies back. Dash Radar (62°) lands on 0.47,
+// the ratio of the Gladius disc. Tuned by eye against the 16:9 reference.
+const HOLO_SQUASH = [0.28, 0.22];
+const HOLO_STILL = { tx: 0, ty: 0, rx: 0 };   // the idle float at rest
 const holoOf = w => ({ ...HOLO_DEFAULT, ...(w.holo || {}), base: { ...HOLO_DEFAULT.base, ...((w.holo || {}).base || {}) } });
+const HOLO_DEBUG = new URLSearchParams(location.search).has("holodebug");   // marks the computed corners on the rig
 // Every projector color comes from the widget's theme, so the hologram reads as that manufacturer's light.
 // core = the accent pushed toward white (hot center, rim ticks, slit); glow = halos; rays = the beam. Near-white
 // accents (RSI, Esperia, Default) would give a colorless projector: they borrow the border's hue when it has one
@@ -802,16 +833,20 @@ function applyProjection(root, w) {
     root.style.boxShadow = `0 0 ${(4 + 16 * g).toFixed(1)}px ${hexA(accent, 0.4 * g)}, inset 0 0 ${(6 + 18 * g).toFixed(1)}px ${hexA(accent, 0.2 * g)}`;
   }
 }
-function applyPerspective(root, w) {
-  const p = w.persp;
-  const flat = !p || (!p.rx && !p.ry && !p.rz && !p.sx && !p.sy);
+// idle: the Projector's float {tx, ty, rx}. A projected widget that moves keeps a transform (and its promoted layer)
+// even when every angle is 0, and the float sits between perspective() and rotateX() so holoMatrix() can mirror it.
+function applyPerspective(root, w, idle) {
+  const p = w.persp, live = !!idle;
+  const flat = !live && (!p || (!p.rx && !p.ry && !p.rz && !p.sx && !p.sy));
   root.classList.toggle("tilted", !flat);
+  const q = p || {}, t = idle || HOLO_STILL;
   root.style.transform = flat ? "" :
-    `perspective(${p.d || 900}px) rotateX(${p.rx || 0}deg) rotateY(${p.ry || 0}deg) rotateZ(${p.rz || 0}deg) skew(${p.sx || 0}deg, ${p.sy || 0}deg)`;
+    `perspective(${q.d || 900}px) ${live ? `translate(${t.tx.toFixed(2)}px, ${t.ty.toFixed(2)}px) ` : ""}rotateX(${(q.rx || 0) + t.rx}deg) rotateY(${q.ry || 0}deg) rotateZ(${q.rz || 0}deg) skew(${q.sx || 0}deg, ${q.sy || 0}deg)`;
 }
 function positionWidget(w) {
   const rt = runtime[w.id]; if (!rt || !rt.root) return;
   rt.root.style.left = w.x + "px"; rt.root.style.top = w.y + "px";
+  if (rt.rig) { rt.rig.style.left = (w.x + rt.holoBox.x) + "px"; rt.rig.style.top = (w.y + rt.holoBox.y) + "px"; }   // the rig's insides are relative to the widget
 }
 
 // Inner container sizes per widget type, before the Size multiplier. Users can override each.
@@ -826,6 +861,8 @@ function buildWidget(w) {
   applyProjection(root, w);
   applyPerspective(root, w);
   const rt = getRt(w); rt.root = root; rt.spans = {}; rt._key = null;
+  const holo = holoOf(w);
+  if (holo.on) { root.classList.add("holo"); setHoloVars(root, rt.holoColors = holoColorsOf(w), holo); }   // the rig itself comes in attachHolo
   const k = (w.size || 1) * SIZE_BASE, D = dimsOf(w);
   // Width / Height scale (buttons and pedals): stretch the box on one axis without changing text size.
   const kx = w.scaleW || 1, ky = w.scaleH || 1;
@@ -888,12 +925,137 @@ function buildWidget(w) {
   return root;
 }
 
+// ---------- projector rig ----------
+// One rig per projected widget, inserted under it: a base disc, a light cone and a fan of rays that meet the
+// widget where the browser draws it. Laid out once from the widget's projected corners; moving the widget just
+// moves the rig, and nothing in it changes size per frame.
+const rgbOf = hex => { const n = parseInt((normHex(hex) || "#ffffff").slice(1), 16); return `${n >> 16},${(n >> 8) & 255},${n & 255}`; };
+const holoSquash = deg => clamp(HOLO_SQUASH[0] + HOLO_SQUASH[1] * Math.abs(Math.sin((deg || 0) * Math.PI / 180)), 0, 0.75);
+const holoColorsOf = w => deriveHolo({ accent: w.accent || profile.settings.accent, border: w.border || "", bg: w.bg || profile.settings.panel });
+function setHoloVars(e, d, h) {
+  const v = { core: d.core, glow: d.glow, rays: d.rays, "acc-rgb": d.accRgb, "rays-rgb": rgbOf(d.rays), "ped-rgb": rgbOf(d.pedestal),
+    "fringe-a": d.fringeA, "fringe-b": d.fringeB, i: clamp(h.intensity / 70, 0, 1.43).toFixed(3), b: h.footage === "bright" ? 0.15 : 0 };
+  for (const k in v) e.style.setProperty("--holo-" + k, v[k]);
+}
+const svgEl = (tag, attrs = {}) => { const e = document.createElementNS("http://www.w3.org/2000/svg", tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; };
+// The same matrix applyPerspective() writes (origin 50% 50%, perspective, float, rotateX/Y/Z, skew), so the rays
+// land on the real edge. Reading getBoundingClientRect() instead would lose the trapezoid and force layout.
+function holoMatrix(w, rt, idle) {
+  const W = rt.W, H = rt.H, p = { ...PERSP_DEFAULT, ...(w.persp || {}) };
+  let m = new DOMMatrix().translate(W / 2, H / 2);
+  const persp = new DOMMatrix(); persp.m34 = -1 / (p.d || 900); m = m.multiply(persp);
+  m = m.translate(idle.tx, idle.ty);
+  // CSS applies rotateX, then rotateY, then rotateZ; DOMMatrix.rotate(x, y, z) would apply them Z, Y, X, so one axis at a time.
+  m = m.rotate((p.rx || 0) + idle.rx, 0, 0).rotate(0, p.ry || 0, 0).rotate(0, 0, p.rz || 0);
+  // CSS skew(sx, sy) is one matrix [1 tan(sx); tan(sy) 1], not skewX() times skewY().
+  const rad = a => (a || 0) * Math.PI / 180;
+  m = m.multiply(new DOMMatrix([1, Math.tan(rad(p.sy)), Math.tan(rad(p.sx)), 1, 0, 0]));
+  return m.translate(-W / 2, -H / 2);
+}
+const projectPt = (m, x, y) => { const q = m.transformPoint(new DOMPoint(x, y, 0, 1)); return { x: q.x / q.w, y: q.y / q.w }; };
+// The widget's four projected corners, relative to its own left/top.
+function projectedCorners(w, rt, idle = HOLO_STILL) {
+  const m = holoMatrix(w, rt, idle);
+  return [[0, 0], [rt.W, 0], [rt.W, rt.H], [0, rt.H]].map(([x, y]) => projectPt(m, x, y));
+}
+// Runs after the root is in the DOM (offsetWidth is 0 before that): measures the widget once, then builds the
+// rig and lays it out. Every rebuild (size, look, theme) comes back through here, so the old rig goes first.
+function attachHolo(w, rt) {
+  const old = $(`#stage .holo-rig[data-for="${w.id}"]`); if (old) old.remove();
+  rt.rig = null;
+  const h = holoOf(w); if (!h.on) return;
+  const root = rt.root, id = "hr-" + w.id;
+  rt.W = root.offsetWidth; rt.H = root.offsetHeight;
+  // A radar disc takes its rays on the rim, like the Gladius; everything else on the edge facing the base.
+  rt.holoDisc = w.type === "stick" && w.face === "radar" && rt.canvas ? { x: rt.canvas.offsetLeft + rt.canvas._w / 2, y: rt.canvas.offsetTop + rt.canvas._h / 2, r: rt.canvas._w / 2 } : null;
+  rt.holoPhase = rt.holoPhase ?? Math.random() * 100;   // so widgets never flicker in unison
+  const rig = el("div", { class: "holo-rig", "data-for": w.id });
+  setHoloVars(rig, rt.holoColors, h);
+  const svg = svgEl("svg", { class: "holo-rays", "aria-hidden": "true" });
+  const grad = svgEl("radialGradient", { id, gradientUnits: "userSpaceOnUse" });
+  grad.append(svgEl("stop", { offset: "0", class: "a" }), svgEl("stop", { offset: "1", class: "b" }));
+  const defs = svgEl("defs"); defs.append(grad);
+  const bloom = svgEl("g", { class: "bloom" }), lines = svgEl("g", { class: "rays" }), ticks = svgEl("g", { class: "ticks" });
+  rt.rayLines = []; rt.rayBloom = []; rt.rayTicks = []; rt.rayGrad = grad;
+  const n = clamp(Math.round(h.rays), 0, 15), count = n ? n + (rt.holoDisc ? 0 : 2) : 0;
+  for (let i = 0; i < count; i++) {
+    const l = svgEl("line", { stroke: `url(#${id})` }), b = svgEl("line", { stroke: `url(#${id})` }), c = svgEl("circle", { r: 1.5 });
+    if (i >= n) { l.setAttribute("opacity", "0.5"); b.setAttribute("opacity", "0.5"); }   // far corners: held in the beam, not standing on it
+    lines.append(l); bloom.append(b); ticks.append(c); rt.rayLines.push(l); rt.rayBloom.push(b); rt.rayTicks.push(c);
+  }
+  svg.append(defs, bloom, lines, ticks);
+  if (HOLO_DEBUG) { const g = svgEl("g", { class: "debug" }); rt.debugDots = [0, 1, 2, 3].map(() => { const c = svgEl("circle", { r: 3 }); g.append(c); return c; }); svg.append(g); }
+  const cone = el("div", { class: "holo-cone" });
+  const base = el("div", { class: "holo-base" }, el("i", { class: "ring" }), el("i", { class: "core" }), el("i", { class: "slit" }));
+  if (!h.cone) cone.style.display = "none";
+  if (h.base.hidden) base.style.display = "none";   // Project From One Base: one disc for the group
+  rig.append(cone, svg, base);
+  if (selected.has(w.id)) rig.classList.add("selected");
+  Object.assign(rt, { rig, coneEl: cone, baseEl: base, raySvg: svg });
+  root.before(rig);
+  layoutHolo(w, rt);
+}
+// Lays the rig out from the cached size and the projected corners: a few style and attribute writes and no layout
+// reads, so a Base Offset scrub or the idle-float tick can call it directly.
+function layoutHolo(w, rt, idle = HOLO_STILL) {
+  const h = holoOf(w), side = h.base.side, W = rt.W, H = rt.H, m = holoMatrix(w, rt, idle);
+  const P = (x, y) => projectPt(m, x, y), p = { ...PERSP_DEFAULT, ...(w.persp || {}) };
+  const c = rt.holoCorners = [[0, 0], [W, 0], [W, H], [0, H]].map(([x, y]) => P(x, y));
+  const vert = side === "below" || side === "above";
+  // Base: about half the widget wide, centered under (over, beside) the facing edge, squashed like the dash it sits on.
+  const diam = clamp(0.55 * (vert ? W : H), 48, 220) * (h.base.size || 100) / 100, sq = holoSquash(vert ? p.rx : p.ry);
+  const bw = vert ? diam : diam * sq, bh = vert ? diam * sq : diam;
+  const edge = { below: [c[3], c[2]], above: [c[0], c[1]], left: [c[0], c[3]], right: [c[1], c[2]] }[side];
+  let bx = (edge[0].x + edge[1].x) / 2, by = (edge[0].y + edge[1].y) / 2;
+  const gap = 0.45 * (vert ? H : W);
+  if (side === "below") by = Math.max(edge[0].y, edge[1].y) + gap;
+  else if (side === "above") by = Math.min(edge[0].y, edge[1].y) - gap;
+  else if (side === "left") bx = Math.min(edge[0].x, edge[1].x) - gap;
+  else bx = Math.max(edge[0].x, edge[1].x) + gap;
+  bx += h.base.dx || 0; by += h.base.dy || 0;
+  // Ray targets: evenly spaced along the facing edge (plus the two far corners), or around the radar rim starting
+  // at the point nearest the base. Untransformed points go through the same matrix as the corners.
+  const n = clamp(Math.round(h.rays), 0, 15), d = rt.holoDisc, pts = [];
+  const a0 = { below: Math.PI / 2, above: -Math.PI / 2, left: Math.PI, right: 0 }[side];
+  for (let i = 0; i < n; i++) {
+    if (d) { const a = a0 + i * 2 * Math.PI / n; pts.push(P(d.x + Math.cos(a) * d.r, d.y + Math.sin(a) * d.r)); }
+    else { const t = n === 1 ? 0.5 : i / (n - 1); pts.push(vert ? P(W * t, side === "below" ? H : 0) : P(side === "left" ? 0 : W, H * t)); }
+  }
+  if (n && !d) pts.push(...({ below: [c[0], c[1]], above: [c[3], c[2]], left: [c[1], c[2]], right: [c[0], c[3]] }[side]));
+  // The rig box is the union of the corners and the base, padded for the glows; everything inside is relative to it.
+  const pad = 14, xs = [...c.map(q => q.x), bx - bw / 2, bx + bw / 2], ys = [...c.map(q => q.y), by - bh / 2, by + bh / 2];
+  const x0 = Math.floor(Math.min(...xs)) - pad, y0 = Math.floor(Math.min(...ys)) - pad, x1 = Math.ceil(Math.max(...xs)) + pad, y1 = Math.ceil(Math.max(...ys)) + pad;
+  rt.holoBox = { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+  Object.assign(rt.rig.style, { left: (w.x + x0) + "px", top: (w.y + y0) + "px", width: (x1 - x0) + "px", height: (y1 - y0) + "px" });
+  rt.raySvg.setAttribute("width", x1 - x0); rt.raySvg.setAttribute("height", y1 - y0); rt.raySvg.setAttribute("viewBox", `0 0 ${x1 - x0} ${y1 - y0}`);
+  const ox = -x0, oy = -y0, f = v => v.toFixed(1);
+  Object.assign(rt.baseEl.style, { left: f(bx - bw / 2 + ox) + "px", top: f(by - bh / 2 + oy) + "px", width: f(bw) + "px", height: f(bh) + "px" });
+  let far = 1; for (const q of pts) far = Math.max(far, Math.hypot(q.x - bx, q.y - by));
+  for (const [k, v] of [["cx", bx + ox], ["cy", by + oy], ["fx", bx + ox], ["fy", by + oy], ["r", far]]) rt.rayGrad.setAttribute(k, f(v));
+  rt.rayLines.forEach((l, i) => {
+    const q = pts[i]; if (!q) return;
+    for (const e of [l, rt.rayBloom[i]]) { e.setAttribute("x1", f(bx + ox)); e.setAttribute("y1", f(by + oy)); e.setAttribute("x2", f(q.x + ox)); e.setAttribute("y2", f(q.y + oy)); }
+    rt.rayTicks[i].setAttribute("cx", f(q.x + ox)); rt.rayTicks[i].setAttribute("cy", f(q.y + oy));
+  });
+  if (rt.debugDots) rt.debugDots.forEach((e, i) => { e.setAttribute("cx", f(c[i].x + ox)); e.setAttribute("cy", f(c[i].y + oy)); });
+  // Cone: a trapezoid from the base's rim to the two ends of the facing edge, clipped on an element sized to its own bounds.
+  const nr = vert ? [{ x: bx - bw * 0.3, y: by }, { x: bx + bw * 0.3, y: by }] : [{ x: bx, y: by - bh * 0.3 }, { x: bx, y: by + bh * 0.3 }];
+  const poly = [edge[0], edge[1], nr[1], nr[0]];
+  const cx0 = Math.min(...poly.map(q => q.x)), cy0 = Math.min(...poly.map(q => q.y)), cw = Math.max(...poly.map(q => q.x)) - cx0, ch = Math.max(...poly.map(q => q.y)) - cy0;
+  Object.assign(rt.coneEl.style, { left: f(cx0 + ox) + "px", top: f(cy0 + oy) + "px", width: f(cw) + "px", height: f(ch) + "px",
+    clipPath: "polygon(" + poly.map(q => `${f(q.x - cx0)}px ${f(q.y - cy0)}px`).join(", ") + ")" });
+  rt.coneEl.style.setProperty("--holo-dir", { below: "0deg", above: "180deg", left: "90deg", right: "270deg" }[side]);
+  rt.coneEl.style.setProperty("--holo-mdir", vert ? "90deg" : "180deg");
+  rt.rig.classList.toggle("side-left", side === "left"); rt.rig.classList.toggle("side-right", side === "right");
+}
+
 function rebuildAll() {
   applySettings();
   const stage = $("#stage");
-  stage.querySelectorAll(".widget").forEach(e => e.remove());
+  stage.querySelectorAll(".widget, .holo-rig").forEach(e => e.remove());
   for (const id in runtime) if (!profile.widgets.find(w => w.id === id)) delete runtime[id];
   for (const w of profile.widgets) stage.append(buildWidget(w));
+  for (const w of profile.widgets) attachHolo(w, runtime[w.id]);   // needs the roots attached: it measures them
   adaptLayout();
   renderPanel();
   updateOffscreenNote();
@@ -932,8 +1094,7 @@ function adaptLayout() {
     dx = clamp(dx, -x0, Math.max(-x0, C.w - x1)); dy = clamp(dy, -y0, Math.max(-y0, C.h - y1));
     for (const i of idx) {
       ws[i].x = Math.round(ws[i].x + dx); ws[i].y = Math.round(ws[i].y + dy);
-      const r = runtime[ws[i].id] && runtime[ws[i].id].root;
-      if (r) { r.style.left = ws[i].x + "px"; r.style.top = ws[i].y + "px"; }
+      positionWidget(ws[i]);
     }
   }
 }
@@ -1159,6 +1320,7 @@ function toggleSelected(id) {
 }
 function syncSelectionClasses() {
   document.querySelectorAll(".widget").forEach(e => e.classList.toggle("selected", selected.has(e.dataset.id)));
+  document.querySelectorAll(".holo-rig").forEach(e => e.classList.toggle("selected", selected.has(e.dataset.for)));   // outlines the base while editing
 }
 const selectedWidgets = () => profile.widgets.filter(w => selected.has(w.id));
 
@@ -1620,7 +1782,7 @@ function tilesIn(obj, key, options, after, label) {
 }
 function refreshWidget(w) {
   const rt = runtime[w.id]; if (!rt || !rt.root) return;
-  rt.root.replaceWith(buildWidget(w));
+  rt.root.replaceWith(buildWidget(w)); attachHolo(w, rt);
 }
 
 const ICONS = {
