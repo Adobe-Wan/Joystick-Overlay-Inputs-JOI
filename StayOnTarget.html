@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; base-uri 'none'; form-action 'none'; object-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Stay On Target</title>
 <style>
@@ -589,7 +590,7 @@ body:not(.editing):not(.has-widgets) #enter-edit { display: flex; }
     </div>
   </div>
   <input type="file" id="file-in" accept=".json,.js,application/json" hidden>
-  <input type="file" id="ref-in" accept="image/*" hidden>
+  <input type="file" id="ref-in" accept="image/png,image/jpeg,image/webp" hidden>
 </div>
 <div id="toast" class="paper" role="status" aria-live="polite"></div>
 
@@ -623,7 +624,7 @@ let editing = false;
 const selected = new Set();
 let panelMode = "home"; // "home" | "widget" | "multi" | "settings" | "export"
 let showHeat = false;
-const runtime = {};
+const runtime = Object.create(null);   // keyed by widget id: no prototype, so an id like "__proto__" is just a key
 
 // Ship manufacturer MFD color schemes, sampled from each maker's in-game power management screen:
 // accent = a filled power pip (stick dot, bars, pressed buttons), border = an empty pip's outline,
@@ -671,12 +672,13 @@ const el = (tag, props = {}, ...kids) => {
 };
 const uid = () => Math.random().toString(36).slice(2, 9);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-function toast(msg) {
+function toast(msg, ms = 2200) {
   const t = $("#toast"); t.textContent = msg; t.classList.add("show");
-  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove("show"), 2200);
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove("show"), ms);
 }
 function prettyName(id) {
-  return (id || "").replace(/\s*\((STANDARD GAMEPAD\s*)?Vendor:.*\)\s*$/i, "").replace(/^[0-9a-f]{1,4}-[0-9a-f]{1,4}-/i, "").trim() || id;
+  const s = typeof id === "string" ? id : "";   // a label, or a widget not bound to a device yet, has no id
+  return s.replace(/\s*\((STANDARD GAMEPAD\s*)?Vendor:.*\)\s*$/i, "").replace(/^[0-9a-f]{1,4}-[0-9a-f]{1,4}-/i, "").trim() || s;
 }
 // Dark or light text, whichever reads better on a given fill (WCAG relative luminance).
 function onColor(hex) {
@@ -707,6 +709,7 @@ function connectedPads() {
   return list.map(p => { const key = devKey(p.id); return { pad: p, id: p.id, key, nth: count[key] = (count[key] ?? -1) + 1 }; });
 }
 function padFor(w, pads) {
+  if (!w.match) return null;
   const key = devKey(w.match), hit = pads.find(d => d.key === key && d.nth === (w.nth || 0));
   return hit ? hit.pad : null;
 }
@@ -719,22 +722,108 @@ function swapTwins(match) {
 
 // ---------- profile ----------
 function newProfile() { return { savedAt: 0, settings: { ...DEFAULT_SETTINGS }, widgets: [] }; }
+// Every profile is untrusted input: an imported file, a profile.js, or local storage (which every file:// page in the
+// browser shares). normalize() rebuilds it from known fields only, each checked and clamped, so nothing else in the
+// app has to defend against a missing object, a NaN, a CSS url() posing as a color or an id like "__proto__".
+// A widget that can't be repaired (bad id, unknown type) is dropped.
+const WIDGET_TYPES = new Set(["stick", "throttle", "pedals", "axis", "button", "label"]);
+const AXIS_TYPES = new Set(["stick", "throttle", "pedals", "axis"]);
+const ID_RE = /^[\w-]{1,32}$/;
+const isObj = v => !!v && typeof v === "object" && !Array.isArray(v);
+const inRange = (v, lo, hi) => v != null && v !== "" && Number.isFinite(+v) ? clamp(+v, lo, hi) : undefined;
+const oneOf = (v, list) => list.includes(v) ? v : undefined;
+const boolOr = (v, d) => typeof v === "boolean" ? v : d;
+// Copies the fields a checker accepts; checkers return undefined to leave a field out (the app's default applies).
+function pickFields(src, checks) {
+  const o = {};
+  if (!isObj(src)) return o;
+  for (const k in checks) if (k in src) { const v = checks[k](src[k]); if (v !== undefined) o[k] = v; }
+  return o;
+}
+const hexOr = d => v => normHex(v) || d;
+const optHex = v => normHex(v) || undefined;
+const optBool = v => typeof v === "boolean" ? v : undefined;
+const numRange = (lo, hi) => v => inRange(v, lo, hi);
+const intRange = (lo, hi) => v => { const n = inRange(v, lo, hi); return n === undefined ? undefined : Math.round(n); };
+const idText = v => typeof v === "string" && /^[\w-]{0,32}$/.test(v) ? v : undefined;
+const textMax = max => v => typeof v === "string" || typeof v === "number" ? String(v).slice(0, max) : undefined;
+const AXIS_MAP = v => { const o = {}; if (isObj(v)) for (const k in v) if (/^[a-z]{1,2}$/.test(k) && Number.isInteger(v[k]) && v[k] >= 0 && v[k] < 64) o[k] = v[k]; return o; };
+const BOOL_MAP = v => { const o = {}; if (isObj(v)) for (const k in v) if (/^[a-z]{1,2}$/.test(k)) o[k] = !!v[k]; return o; };
+const PERSP_CHECK = { rx: numRange(-180, 180), ry: numRange(-180, 180), rz: numRange(-180, 180), sx: numRange(-60, 60), sy: numRange(-60, 60), d: numRange(100, 10000) };
+const PROJ_CHECK = { glow: numRange(0, 100), fade: numRange(0, 100), scan: optBool };
+const HOLO_CHECK = { on: optBool, tier: v => oneOf(v, ["static", "subtle", "full"]), intensity: numRange(0, 100),
+  base: v => pickFields(v, { side: s => oneOf(s, ["below", "above", "left", "right"]), dx: numRange(-10000, 10000), dy: numRange(-10000, 10000), size: numRange(1, 1000), hidden: optBool }),
+  rays: intRange(0, 15), rayMode: v => oneOf(v, ["corners", "edge"]), falloff: v => v === null ? null : inRange(v, 0, 100),
+  cone: optBool, float: optBool, flicker: optBool, fringe: optBool, footage: v => oneOf(v, ["dark", "bright"]),
+  // What Projector replaced, so switching back to Flat restores it.
+  prev: v => isObj(v) ? pickFields(v, { proj: p => isObj(p) ? pickFields(p, PROJ_CHECK) : undefined, face: f => oneOf(f, ["square", "radar"]) }) : undefined };
+const WIDGET_CHECK = {
+  label: textMax(200), match: textMax(256), nth: intRange(0, 15), button: intRange(0, 127),
+  x: numRange(-10000, 10000), y: numRange(-10000, 10000), size: numRange(0.25, 4), scaleW: numRange(0.25, 4), scaleH: numRange(0.25, 4),
+  boxW: numRange(0, 4000), boxH: numRange(0, 4000), fill: optBool, orient: v => oneOf(v, ["h", "v"]), face: v => oneOf(v, ["square", "radar"]),
+  pad: numRange(0, 100), radius: numRange(0, 100), depth: numRange(0, 100),
+  dims: v => pickFields(v, { box: numRange(1, 1000), bw: numRange(1, 1000), bh: numRange(1, 1000), rw: numRange(1, 1000), rh: numRange(1, 1000), bkw: numRange(1, 1000), bkh: numRange(1, 1000) }),
+  showTitle: optBool, showValues: optBool, showAxisLabels: optBool,
+  accent: optHex, text: optHex, bg: optHex, border: optHex, bgAlpha: numRange(0, 100), theme: idText,
+  axes: AXIS_MAP, inv: BOOL_MAP,
+  persp: v => isObj(v) ? pickFields(v, PERSP_CHECK) : undefined, proj: v => isObj(v) ? pickFields(v, PROJ_CHECK) : undefined, holo: v => isObj(v) ? pickFields(v, HOLO_CHECK) : undefined
+};
+const DEF = DEFAULT_SETTINGS;
+const SETTINGS_CHECK = {
+  scaleMode: v => oneOf(v, ["auto", "manual"]) ?? DEF.scaleMode, scale: v => inRange(v, 0.3, 4) ?? DEF.scale,
+  uiScale: v => v === "auto" ? v : oneOf(+v, [1, 1.25, 1.5, 2, 2.5]) ?? DEF.uiScale,
+  background: v => oneOf(v, ["transparent", "solid"]) ?? DEF.background, bgColor: hexOr(DEF.bgColor),
+  accent: hexOr(DEF.accent), text: hexOr(DEF.text), panel: hexOr(DEF.panel), panelAlpha: v => inRange(v, 0, 100) ?? DEF.panelAlpha,
+  border: v => normHex(v) || "", theme: v => idText(v) ?? DEF.theme, spaceGap: v => v === "" ? "" : intRange(0, 4000)(v) ?? "",
+  gridSnap: v => boolOr(v, DEF.gridSnap), gridSize: v => intRange(4, 128)(v) ?? DEF.gridSize, smartGuides: v => boolOr(v, DEF.smartGuides),
+  centerLines: v => boolOr(v, DEF.centerLines), margin: v => inRange(v, 0, 200) ?? DEF.margin,
+  gridCols: intRange(0, 6), layoutW: numRange(1, 20000), layoutH: numRange(1, 20000)
+};
+function normalizeWidget(src) {
+  if (!isObj(src) || typeof src.id !== "string" || !ID_RE.test(src.id) || !WIDGET_TYPES.has(src.type)) return null;
+  const w = { id: src.id, type: src.type, ...pickFields(src, WIDGET_CHECK) };
+  w.x ??= 0; w.y ??= 0;
+  if (AXIS_TYPES.has(w.type)) { w.axes ??= {}; w.inv ??= {}; } else { delete w.axes; delete w.inv; }
+  if (w.type === "button") w.button ??= 0;
+  return w;
+}
 function normalize(p) {
   const n = newProfile();
-  if (!p || typeof p !== "object") return n;
-  n.savedAt = +p.savedAt || 0;
-  n.settings = { ...DEFAULT_SETTINGS, ...(p.settings || {}) };
-  n.widgets = Array.isArray(p.widgets) ? p.widgets.filter(w => w && w.id && w.type) : [];
+  if (!isObj(p)) return n;
+  n.savedAt = inRange(p.savedAt, 0, Number.MAX_SAFE_INTEGER) || 0;
+  n.settings = { ...DEFAULT_SETTINGS, ...pickFields(p.settings, SETTINGS_CHECK) };
+  const ids = new Set();
+  n.widgets = (Array.isArray(p.widgets) ? p.widgets : []).map(normalizeWidget).filter(Boolean);
+  for (const w of n.widgets) { while (ids.has(w.id)) w.id = uid(); ids.add(w.id); }   // two widgets can't share one runtime entry
   // Earlier builds defaulted to a see-through 62% background, too faint over Star Citizen's HUD.
   if (n.settings.panelAlpha === 62) { n.settings.panelAlpha = 88; n.settings.panel = "#05080c"; n.settings.text = "#f2f7fb"; }
-  for (const w of n.widgets) if (w.bgAlpha === 62) { w.bgAlpha = 88; if (w.bg === "#080c12") w.bg = "#05080c"; }
+  for (const w of n.widgets) {
+    if (w.bgAlpha === 62) { w.bgAlpha = 88; if (w.bg === "#080c12") w.bg = "#05080c"; }
+    w.bgAlpha ??= n.settings.panelAlpha;   // the opacity slider shows the value it will render with
+  }
   return n;
 }
+// Throws on damaged text, so boot can set it aside (setAsideSavedProfile) instead of overwriting it on the next save.
 function loadProfile() {
-  let stored = null;
-  try { stored = JSON.parse(localStorage.getItem(STORE_KEY) || localStorage.getItem(OLD_STORE_KEY) || "null"); } catch (e) {}
-  firstRun = !stored;
-  profile = normalize(stored);
+  let raw = null;
+  try { raw = localStorage.getItem(STORE_KEY) || localStorage.getItem(OLD_STORE_KEY); } catch (e) {}
+  firstRun = !raw;
+  profile = newProfile();
+  if (raw) profile = normalize(JSON.parse(raw));
+}
+// A saved layout that can't be read or built would stop the app on every load, with Reset All out of reach. It moves
+// to BACKUP_KEY, where it can still be recovered by hand, and the app starts with an empty layout.
+const BACKUP_KEY = "stayontarget.profile.unreadable";
+function setAsideSavedProfile(err) {
+  console.error("Stay On Target: the saved layout couldn't be loaded", err);
+  try {
+    const raw = localStorage.getItem(STORE_KEY) || localStorage.getItem(OLD_STORE_KEY);
+    // Removed first, so the copy fits in the room the original took.
+    localStorage.removeItem(STORE_KEY); localStorage.removeItem(OLD_STORE_KEY);
+    if (raw) localStorage.setItem(BACKUP_KEY, raw);
+  } catch (e) {}
+  profile = newProfile(); rebuildAll();
+  toast("Your saved layout couldn't be loaded, so you're starting with an empty one. The old copy is kept in this browser's storage.", 8000);
 }
 let firstRun = false;
 let saveTimer = null;
@@ -744,7 +833,20 @@ function save() {
 }
 function persist() {
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => { try { localStorage.setItem(STORE_KEY, JSON.stringify(profile)); } catch (e) {} }, 150);
+  saveTimer = setTimeout(writeProfile, 150);
+}
+const isQuotaError = e => e && (e.name === "QuotaExceededError" || e.name === "NS_ERROR_DOM_QUOTA_REACHED" || e.code === 22);
+let saveFailed = false;   // one warning per run of failed saves, not one per slider step
+function writeProfile() {
+  const json = JSON.stringify(profile);
+  const write = () => { try { localStorage.setItem(STORE_KEY, json); return null; } catch (e) { return e || new Error("save failed"); } };
+  let err = write();
+  // A remembered screenshot is the only big thing in storage and it is optional: give its room to the layout.
+  if (isQuotaError(err) && dropStoredReference()) err = write();
+  if (!err) { saveFailed = false; return; }
+  if (!saveFailed) toast(isQuotaError(err) ? "Couldn't save your layout: browser storage is full. Use Save / Share to download a backup."
+    : "Couldn't save your layout in this browser. Use Save / Share to download a backup.", 6000);
+  saveFailed = true;
 }
 // ---------- undo / redo ----------
 // Every save() compares the layout and settings with the last recorded state. Saves that come in a quick burst
@@ -791,13 +893,22 @@ function download(name, text, type) {
 function exportProfile(asScript) {
   profile.savedAt = Date.now(); stampLayout();
   const json = JSON.stringify(profile, null, 2);
-  if (asScript) download("profile.js", "// Stay On Target profile. Keep next to StayOnTarget.html.\nwindow.STAYONTARGET_PROFILE = " + json + ";\n", "text/javascript");
+  if (asScript) download("profile.js", "// Stay On Target profile: a personal backup. Keep it next to StayOnTarget.html. It runs as a script, so don't share it; share the .json instead.\nwindow.STAYONTARGET_PROFILE = " + json + ";\n", "text/javascript");
   else download("stayontarget-profile.json", json, "application/json");
 }
+// A real profile is a few kilobytes; anything near this is not one, and parsing it would only cost memory.
+const IMPORT_MAX = 1024 * 1024;
+const IMPORT_FAILED = "Couldn't read that file. Choose a .json or profile.js saved from Stay On Target.";
+// A .js profile is never run: the object is cut out of it and parsed as JSON. Saved only once it has built, so a
+// file that fails leaves the current layout as it was. Building first also lets adaptLayout() read the screen the
+// file was made on before save() stamps the current one.
 function importProfileText(text) {
+  if (text.length > IMPORT_MAX) throw new Error("file too large");
   const m = /window\.(?:STAYONTARGET|JOYVIZ)_PROFILE\s*=\s*([\s\S]*?);?\s*$/.exec(text);
-  profile = normalize(JSON.parse(m ? m[1] : text));
-  save(); rebuildAll(); toast("Profile imported");
+  const next = normalize(JSON.parse(m ? m[1] : text)), prev = profile;
+  profile = next;
+  try { rebuildAll(); } catch (err) { profile = prev; rebuildAll(); throw err; }
+  save(); toast("Profile imported");
 }
 
 // ---------- device types ----------
@@ -1288,7 +1399,7 @@ function projectedCorners(w, rt, idle = HOLO_STILL) {
 // Runs after the root is in the DOM (offsetWidth is 0 before that): measures the widget once, then builds the
 // rig and lays it out. Every rebuild (size, look, theme) comes back through here, so the old rig goes first.
 function attachHolo(w, rt) {
-  const old = $(`#stage .holo-rig[data-for="${w.id}"]`); if (old) old.remove();
+  if (rt.rig) rt.rig.remove();
   rt.rig = null;
   const h = holoOf(w); if (!h.on) return;
   const root = rt.root, id = "hr-" + w.id;
@@ -1749,24 +1860,32 @@ function inputKey(w, pad) {
   for (const a in w.axes) { const i = w.axes[a]; k += (pad.axes[i] ?? 0).toFixed(3) + ","; }
   return k;
 }
+// Reports a widget that failed to draw once, so the console isn't flooded at 60 FPS.
+function drawFailed(rt, w, err) {
+  if (rt.failed) return;
+  rt.failed = true; console.error(`Stay On Target: widget "${w.label || w.id}" failed to draw`, err);
+}
 function frame(now) {
+  // Next frame first: an error below skips this frame's work, never the overlay.
+  requestAnimationFrame(frame);
   const dt = Math.min(0.1, (now - lastFrame) / 1000); lastFrame = now;
   heatTick = Math.floor(now / 250);   // heatmap repaints at 4 Hz, which is plenty
   const pads = connectedPads();
   if (editing && wiz) wizardTick(pads);
   for (const w of profile.widgets) {
     const rt = runtime[w.id]; if (!rt || !rt.root || w.type === "label") continue;
-    const pad = padFor(w, pads), off = !pad;
-    if (rt._off !== off) { rt._off = off; rt.root.classList.toggle("offline", off); }
-    // Only repaint a widget's canvases when its input (or the visible heatmap) changed.
-    // A still stick costs no drawing at all, which keeps OBS's browser source light.
-    const key = inputKey(w, pad) + (showHeat ? "|h" + heatTick : "");
-    rt.dirty = key !== rt._key; rt._key = key;
-    drawWidget(w, rt, pad, dt);
+    try {
+      const pad = padFor(w, pads), off = !pad;
+      if (rt._off !== off) { rt._off = off; rt.root.classList.toggle("offline", off); }
+      // Only repaint a widget's canvases when its input (or the visible heatmap) changed.
+      // A still stick costs no drawing at all, which keeps OBS's browser source light.
+      const key = inputKey(w, pad) + (showHeat ? "|h" + heatTick : "");
+      rt.dirty = key !== rt._key; rt._key = key;
+      drawWidget(w, rt, pad, dt);
+    } catch (err) { drawFailed(rt, w, err); }   // one broken widget leaves the others drawing
   }
   if (holoAnim.length) holoTick(now);
   holoPerf(now, dt);
-  requestAnimationFrame(frame);
 }
 // ---------- projector motion ----------
 // One shared envelope per frame, applied to each moving projected widget with its own phase. Seconds-based, so
@@ -1780,27 +1899,28 @@ function envelopeAt(t, ph, tier) {
 const dropGap = full => full ? 4 + Math.random() * 10 : 10 + Math.random() * 4;   // seconds between dropouts
 function holoTick(now) {
   const t = now / 1000;
-  for (const [w, rt] of holoAnim) {
-    const h = rt.holoCfg, tier = rt.holoTierNow, full = tier === "full", k = clamp(h.intensity / 70, 0, 1.43), ph = rt.holoPhase;
-    let e = 1 - (1 - envelopeAt(t, ph, tier)) * k, dy = 0, dx = 0;
-    // Dropouts: every 4-14 s (Subtle: 10-14 s), 50-130 ms long, 20-50 % deep (Subtle: 20 %). While one runs the
-    // hologram dips, slips down 1 px and, in Full, splits its colors and may tear on the next input-driven redraw.
-    if (h.flicker) {
-      if (rt.dropNext == null) rt.dropNext = t + dropGap(full);
-      if (t >= rt.dropNext) {
-        if (!rt.dropEnd) { rt.dropEnd = t + 0.05 + Math.random() * 0.08; rt.dropDepth = full ? 0.2 + Math.random() * 0.3 : 0.2; rt.tear = full ? 1 + Math.round(Math.random()) : 0; rt.dropDx = full ? 1 + Math.round(Math.random() * 0.6) : 0; }
-        if (t < rt.dropEnd) { e *= 1 - rt.dropDepth * Math.min(1, k); dy = 1; dx = rt.dropDx; }
-        else { rt.dropEnd = 0; rt.tear = 0; rt.dropNext = t + dropGap(full); }
-      }
+  for (const [w, rt] of holoAnim) try { holoTickOne(w, rt, now, t); } catch (err) { drawFailed(rt, w, err); }
+}
+function holoTickOne(w, rt, now, t) {
+  const h = rt.holoCfg, tier = rt.holoTierNow, full = tier === "full", k = clamp(h.intensity / 70, 0, 1.43), ph = rt.holoPhase;
+  let e = 1 - (1 - envelopeAt(t, ph, tier)) * k, dy = 0, dx = 0;
+  // Dropouts: every 4-14 s (Subtle: 10-14 s), 50-130 ms long, 20-50 % deep (Subtle: 20 %). While one runs the
+  // hologram dips, slips down 1 px and, in Full, splits its colors and may tear on the next input-driven redraw.
+  if (h.flicker) {
+    if (rt.dropNext == null) rt.dropNext = t + dropGap(full);
+    if (t >= rt.dropNext) {
+      if (!rt.dropEnd) { rt.dropEnd = t + 0.05 + Math.random() * 0.08; rt.dropDepth = full ? 0.2 + Math.random() * 0.3 : 0.2; rt.tear = full ? 1 + Math.round(Math.random()) : 0; rt.dropDx = full ? 1 + Math.round(Math.random() * 0.6) : 0; }
+      if (t < rt.dropEnd) { e *= 1 - rt.dropDepth * Math.min(1, k); dy = 1; dx = rt.dropDx; }
+      else { rt.dropEnd = 0; rt.tear = 0; rt.dropNext = t + dropGap(full); }
     }
-    rt.dropOn = dy > 0;
-    let idle = dy ? { tx: 0, ty: dy, rx: 0 } : HOLO_STILL;
-    if (h.float) idle = { tx: 2 * Math.sin(0.35 * t + ph) * k, ty: 1.5 * Math.sin(0.52 * t + ph) * k + dy, rx: 0.6 * Math.sin(0.3 * t + ph) * k };
-    applyPerspective(rt.root, w, idle);
-    const op = e.toFixed(3); if (rt._op !== op) { rt._op = op; rt.inner.style.opacity = op; }
-    if (h.float && now - (rt.rayAt || 0) >= 50) { rt.rayAt = now; aimRays(w, rt, rayTargets(w, rt, holoMatrix(w, rt, idle))); }
-    if (rt.fringe) holoFringe(w, rt, dx);   // Full tier only: the fringe canvas exists only there
   }
+  rt.dropOn = dy > 0;
+  let idle = dy ? { tx: 0, ty: dy, rx: 0 } : HOLO_STILL;
+  if (h.float) idle = { tx: 2 * Math.sin(0.35 * t + ph) * k, ty: 1.5 * Math.sin(0.52 * t + ph) * k + dy, rx: 0.6 * Math.sin(0.3 * t + ph) * k };
+  applyPerspective(rt.root, w, idle);
+  const op = e.toFixed(3); if (rt._op !== op) { rt._op = op; rt.inner.style.opacity = op; }
+  if (h.float && now - (rt.rayAt || 0) >= 50) { rt.rayAt = now; aimRays(w, rt, rayTargets(w, rt, holoMatrix(w, rt, idle))); }
+  if (rt.fringe) holoFringe(w, rt, dx);   // Full tier only: the fringe canvas exists only there
 }
 // Frame-time check for the Full tier. An absolute threshold would misfire (an OBS source capped at 30 FPS always
 // shows ~33 ms), so compare medians: 2 s before the first Full widget runs, 3 s after. If frames got 1.5x slower,
@@ -2160,7 +2280,18 @@ for (const sm of SAMPLES) {
   img.src = SAMPLE_DIR + sm.file;
 }
 let refImage = null, autoSample = true, autoPicked = false;   // autoPicked: the sample was chosen for the screen shape, not by the user
-try { refImage = localStorage.getItem(REF_KEY); if (refImage === "none") { refImage = null; autoSample = false; } } catch (e) {}
+// The value ends up in a CSS url(), and local storage is shared with every file:// page, so only an uploaded image
+// (a base64 data URL, nothing that can close the quotes) or one of the shipped samples is accepted.
+const okReference = v => typeof v === "string" && (/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]*$/.test(v) || SAMPLES.some(sm => v === SAMPLE_DIR + sm.file));
+try { const v = localStorage.getItem(REF_KEY); if (v === "none") autoSample = false; else if (okReference(v)) refImage = v; } catch (e) {}
+// Frees the room a remembered screenshot takes when the layout needs it. It stays on screen until reload.
+function dropStoredReference() {
+  try {
+    const v = localStorage.getItem(REF_KEY);
+    if (!v || !v.startsWith("data:")) return false;
+    localStorage.removeItem(REF_KEY); return true;
+  } catch (e) { return false; }
+}
 // Use the sample whose shape is closest to the current screen.
 function pickSampleForScreen() {
   if (!availableSamples.length) return;
@@ -2172,11 +2303,12 @@ function useSample(sm) {
   refImage = SAMPLE_DIR + sm.file; autoPicked = false; applyReference(); renderPanel();
   try { localStorage.setItem(REF_KEY, refImage); } catch (e) {}
 }
-function applyReference() { document.body.style.backgroundImage = editing && refImage ? `url("${refImage}")` : ""; }
+function applyReference() { document.body.style.backgroundImage = editing && okReference(refImage) ? `url("${refImage}")` : ""; }
 $("#ref-in").addEventListener("change", e => {
   const f = e.target.files[0]; if (!f) return;
   const r = new FileReader();
   r.onload = () => {
+    if (!okReference(r.result)) { toast("Choose a PNG, JPEG or WebP screenshot."); return; }
     refImage = r.result; autoPicked = false; applyReference(); renderPanel(); if (wiz) renderWiz();
     try { localStorage.setItem(REF_KEY, refImage); } catch (err) { toast("Screenshot shown, but too large to remember after reload"); }
   };
@@ -2222,7 +2354,7 @@ async function resetAll() {
   profile = newProfile(); save();   // fresh savedAt, so an older profile.js next to the HTML doesn't bring the old layout back
   refImage = null; autoSample = true; pickSampleForScreen();
   selected.clear(); panelMode = "home";
-  rebuildAll(); toast("Everything reset");
+  rebuildAll(); resetHistory(); toast("Everything reset");
   openWelcome();
 }
 $("#welcome").addEventListener("click", e => {
@@ -2259,7 +2391,10 @@ $("#toolbar").addEventListener("click", e => {
 });
 $("#file-in").addEventListener("change", async e => {
   const f = e.target.files[0]; if (!f) return;
-  try { importProfileText(await f.text()); } catch (err) { toast("Could not read that file"); }
+  try {
+    if (f.size > IMPORT_MAX) throw new Error("file too large");
+    importProfileText(await f.text());
+  } catch (err) { toast(IMPORT_FAILED, 6000); }
   e.target.value = "";
 });
 
@@ -3225,10 +3360,10 @@ function renderSettingsPanel(p) {
 
 function renderExportPanel(p) {
   p.append(el("h3", {}, "Save and Share"));
-  p.append(el("div", { class: "hint" }, "Your setup saves automatically. For a backup that survives OBS clearing its cache, download profile.js and put it in the same folder as StayOnTarget.html."));
+  p.append(el("div", { class: "hint" }, "Your setup saves automatically. For a personal backup that survives OBS clearing its cache, download profile.js and put it in the same folder as StayOnTarget.html. It's for your own computer only: don't share it."));
   p.append(el("div", { class: "actions" }, el("button", { class: "primary", onclick: () => exportProfile(true) }, "Download profile.js")));
   p.append(el("h4", {}, "Share With Another Pilot"));
-  p.append(el("div", { class: "hint" }, "Send StayOnTarget.html plus your profile.js. With the same hardware it works straight away; otherwise they remove the widgets and add their own devices."));
+  p.append(el("div", { class: "hint" }, "Download .json and send that file. The other pilot opens the editor and chooses Import a Profile. With the same hardware it works straight away; otherwise they remove the widgets and add their own devices."));
   p.append(el("div", { class: "actions" }, el("button", { onclick: () => exportProfile(false) }, "Download .json"), el("button", { onclick: () => $("#file-in").click() }, "Import a Profile")));
 }
 
@@ -3238,8 +3373,7 @@ function renderExportPanel(p) {
 const IN_OBS = !!window.obsstudio || new URLSearchParams(location.search).has("transparent");
 document.body.classList.toggle("preview", !IN_OBS);
 $("#preview-edit").addEventListener("click", () => setEditing(true));
-loadProfile();
-rebuildAll();
+try { loadProfile(); rebuildAll(); } catch (err) { setAsideSavedProfile(err); }
 resetHistory();
 if (new URLSearchParams(location.search).has("edit")) setEditing(true);
 requestAnimationFrame(frame);
@@ -3249,8 +3383,19 @@ window.addEventListener("load", () => { if (firstRun && !window.STAYONTARGET_PRO
 <!-- Optional saved profile; ignored if the file doesn't exist. -->
 <script src="profile.js"></script>
 <script>
+// profile.js goes through the same checks as an import. If it can't be built, the layout saved in this browser stays.
 const fileProfile = window.STAYONTARGET_PROFILE || window.JOYVIZ_PROFILE;
-if (fileProfile && (+fileProfile.savedAt || 0) > (+profile.savedAt || 0)) { profile = normalize(fileProfile); rebuildAll(); resetHistory(); }
+if (fileProfile) {
+  const prev = profile;
+  try {
+    const next = normalize(fileProfile);
+    if (next.savedAt > (+prev.savedAt || 0)) { profile = next; rebuildAll(); resetHistory(); }
+  } catch (err) {
+    console.error("Stay On Target: profile.js couldn't be loaded", err);
+    profile = prev; rebuildAll(); resetHistory();
+    toast("profile.js couldn't be loaded, so the layout saved in this browser is shown.", 6000);
+  }
+}
 </script>
 </body>
 </html>

@@ -165,7 +165,9 @@ Open the editor and click **Check Devices** on the home panel. It lists every co
 - Still missing? Close other apps that read controllers, unplug the device and plug it back in, then refresh.
 
 ## Sharing with a trainee
-Send `StayOnTarget.html` and your `profile.js`. With the same hardware it just works. With different hardware they remove the widgets and use **+ Device** for their own.
+In **Save / Share**, click **Download .json** and send that file (plus `StayOnTarget.html` if they don't have it yet). They open the editor and choose **Import a Profile**. With the same hardware it just works. With different hardware they remove the widgets and use **+ Device** for their own.
+
+Don't send your `profile.js`, and never use one someone else sent you. It's a personal backup that sits next to your own `StayOnTarget.html`, and it runs as a script when the overlay loads (see `SECURITY.md`). A `.json` is only data.
 
 ## License and credits
 - **License:** MIT (see `LICENSE`). Anyone can use, share and modify Stay On Target for free, as long as the license notice stays with it.
