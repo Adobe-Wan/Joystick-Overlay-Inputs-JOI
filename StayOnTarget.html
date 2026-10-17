@@ -836,7 +836,7 @@ const HOLO_DEBUG = new URLSearchParams(location.search).has("holodebug");   // m
 // core = the accent pushed toward white (hot center, rim ticks, slit); glow = halos; rays = the beam. Near-white
 // accents (RSI, Esperia, Default) would give a colorless projector: they borrow the border's hue when it has one
 // (Esperia's pink), else a cool white. HSV saturation is the chroma test; HSL inflates it for near-whites.
-// The border must also be bright enough to project: RSI's dark #4A4D63 would make a grey hologram.
+// The border must also be bright enough to project: RSI's dark #4A4D63 would make a gray hologram.
 function deriveHolo({ accent, border, bg }) {
   const hsv = h => hexToHsv(normHex(h) || "#ffffff");
   const low = hsv(accent).s < 0.12, bd = border ? hsv(border) : null;
