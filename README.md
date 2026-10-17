@@ -133,6 +133,7 @@ Every color in the effect comes from the widget's theme, so switching the theme 
 | Delete | Remove the selected widgets |
 | Arrows / Shift+arrows | Nudge 1px / 10px |
 | Ctrl+A / Ctrl+D | Select all / duplicate |
+| Ctrl+Z / Ctrl+Y | Undo / redo (also Ctrl+Shift+Z; the small buttons above the + do the same) |
 | Tab | Hide / show the side panel |
 | Alt (while dragging) | Turn snapping off |
 
