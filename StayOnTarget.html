@@ -696,7 +696,14 @@ function hexA(hex, a) {
 // Browsers name the same device differently: Chrome, Edge and OBS say "T-Rudder (Vendor: 231d Product: 011f)",
 // Firefox says "231d-11f-T-Rudder". Match on USB vendor + product so a layout made in OBS also works in
 // another browser, falling back to the cleaned-up name when a browser gives no USB ids.
+// Memoized: the loop asks for the same few ids over and over, and the regexes would run each time.
+const devKeys = new Map();
 function devKey(id) {
+  let k = devKeys.get(id);
+  if (k === undefined) devKeys.set(id, k = devKeyOf(id));
+  return k;
+}
+function devKeyOf(id) {
   const m = /Vendor:\s*([0-9a-f]{1,4})\s*Product:\s*([0-9a-f]{1,4})/i.exec(id || "") || /^([0-9a-f]{1,4})-([0-9a-f]{1,4})-/i.exec(id || "");
   return m ? m[1].toLowerCase().padStart(4, "0") + ":" + m[2].toLowerCase().padStart(4, "0") : prettyName(id).toLowerCase();
 }
@@ -712,6 +719,40 @@ function padFor(w, pads) {
   if (!w.match) return null;
   const key = devKey(w.match), hit = pads.find(d => d.key === key && d.nth === (w.nth || 0));
   return hit ? hit.pad : null;
+}
+// The loop's view of the pads, in connectedPads()'s order and form. The list is rebuilt only when a slot changes
+// (connect, disconnect, re-plug); between those, pollPads() refreshes each entry's pad from getGamepads() and
+// compares timestamps, so a frame with nothing moving allocates nothing. padsGen counts the rebuilds, so each
+// widget looks its pad up again only after one.
+const padList = [];
+let padIds = [], padsGen = 0;
+const slotId = p => p && p.connected !== false ? p.id : "";
+function pollPads() {
+  const raw = navigator.getGamepads ? navigator.getGamepads() : [];
+  let same = raw.length === padIds.length;
+  for (let i = 0; same && i < raw.length; i++) same = slotId(raw[i]) === padIds[i];
+  if (!same) {
+    padIds = Array.from(raw, slotId);
+    const list = [];
+    for (let i = 0; i < raw.length; i++) if (padIds[i]) list.push({ slot: i, pad: raw[i] });
+    list.sort((a, b) => a.pad.index - b.pad.index);
+    const count = {};
+    padList.length = 0;
+    for (const { slot, pad } of list) { const key = devKey(pad.id); padList.push({ slot, pad, id: pad.id, key, nth: count[key] = (count[key] ?? -1) + 1, ts: pad.timestamp }); }
+    padsGen++;
+    return true;
+  }
+  let moved = false;
+  for (const d of padList) { const p = raw[d.slot]; d.pad = p; if (p.timestamp !== d.ts) { d.ts = p.timestamp; moved = true; } }
+  return moved;
+}
+function padOf(w, rt) {
+  if (rt.padGen !== padsGen) {
+    rt.padGen = padsGen;
+    const key = devKey(w.match), n = w.nth || 0;
+    rt.padEntry = w.match ? padList.find(d => d.key === key && d.nth === n) || null : null;
+  }
+  return rt.padEntry ? rt.padEntry.pad : null;
 }
 function twinsOf(w, pads) { const key = devKey(w.match); return pads.filter(d => d.key === key).length; }
 function swapTwins(match) {
@@ -1068,11 +1109,15 @@ function makeCanvas(w, h) {
   c.width = Math.max(1, Math.round(w * dpr)); c.height = Math.max(1, Math.round(h * dpr));
   w = c.width / dpr; h = c.height / dpr;
   c.style.width = w + "px"; c.style.height = h + "px";
-  c.getContext("2d").setTransform(dpr, 0, 0, dpr, 0, 0);
+  c._g = c.getContext("2d"); c._g.setTransform(dpr, 0, 0, dpr, 0, 0);
   c._w = w; c._h = h; return c;
 }
 const HEAT = 24, HEAT1 = 40;
-function getRt(w) { return runtime[w.id] = runtime[w.id] || { heat2: new Float32Array(HEAT * HEAT), heat1: {} }; }
+// The heatmap is time spent at each position. heatClock runs only while the loop does (so time asleep or hidden
+// doesn't count), and each widget's time since its last pass goes to the cell its input sat in, so frames the loop
+// skips because nothing moved still count.
+let heatClock = 0;
+function getRt(w) { return runtime[w.id] = runtime[w.id] || { heat2: new Float32Array(HEAT * HEAT), heat1: {}, heatT: heatClock, hc2: -1, hc1: {} }; }
 function readAxis(pad, w, key) {
   const i = w.axes && w.axes[key];
   if (pad == null || i == null || pad.axes[i] == null) return 0;
@@ -1273,7 +1318,10 @@ function buildWidget(w, grow) {
   applyProjection(root, w);
   const holo = holoOf(w);
   applyPerspective(root, w, holo.on && holoTier(holo) !== "static" ? HOLO_STILL : undefined);
-  const rt = getRt(w); rt.root = root; rt.spans = {}; rt._key = null;
+  const rt = getRt(w); rt.root = root; rt.spans = {};
+  // A new canvas is blank: inNew draws it on the next pass, and the cached input and pad lookup start over.
+  rt.axIdx = w.axes ? Object.values(w.axes) : [];
+  rt.inVals = new Float64Array(rt.axIdx.length + 2).fill(NaN); rt.inNew = true; rt.padGen = -1;
   rt.holo = holo.on; rt.sprite = null;
   if (holo.on) { root.classList.add("holo"); setHoloVars(root, rt.holoColors = holoColorsOf(w), holo); }   // the rig itself comes in attachHolo
   const k = (w.size || 1) * SIZE_BASE, D = { ...dimsOf(w), ...(grow || {}) };
@@ -1499,10 +1547,10 @@ function noiseTile() {
 function holoFringe(w, rt, dx) {
   if (dx === rt.fringeDx && !(dx && rt.dirty)) return;
   rt.fringeDx = dx;
-  const fc = rt.fringe, g = fc.getContext("2d"), W = fc._w, H = fc._h;
+  const fc = rt.fringe, g = fc._g, W = fc._w, H = fc._h;
   g.clearRect(0, 0, W, H);
   if (!dx) { fc.style.display = "none"; return; }
-  const src = rt.canvas, tmp = rt.fringeTmp, tg = tmp.getContext("2d"), col = rt.holoColors;
+  const src = rt.canvas, tmp = rt.fringeTmp, tg = tmp._g, col = rt.holoColors;
   tg.globalCompositeOperation = "source-over"; tg.clearRect(0, 0, W, H); tg.drawImage(src, 0, 0, W, H);
   tg.globalCompositeOperation = "source-in"; tg.fillStyle = hexA(col.fringeB, 0.35); tg.fillRect(0, 0, W, H);
   g.globalCompositeOperation = "source-over"; g.drawImage(src, -dx, 0, W, H);
@@ -1515,7 +1563,7 @@ function holoFringe(w, rt, dx) {
 function tearStrip(c, rt) {
   if (!(rt.tear > 0 && rt.dropOn)) return;
   rt.tear--;
-  const g = c.getContext("2d"), k = c.width / c._w, h = 6 + Math.random() * 8, y = Math.random() * (c._h - h), dx = (4 + Math.random() * 4) * (Math.random() < 0.5 ? -1 : 1);
+  const g = c._g, k = c.width / c._w, h = 6 + Math.random() * 8, y = Math.random() * (c._h - h), dx = (4 + Math.random() * 4) * (Math.random() < 0.5 ? -1 : 1);
   g.drawImage(c, 0, y * k, c.width, h * k, dx, y, c._w, h);
 }
 // Lays the rig out from the cached size and the projected corners: a few style and attribute writes and no layout
@@ -1629,6 +1677,8 @@ function rebuildAll() {
   adaptLayout();
   renderPanel();
   updateOffscreenNote();
+  hasInputs = profile.widgets.some(w => w.type !== "label");
+  wake(true);
 }
 // ---------- moving a layout between screen shapes ----------
 // Positions are saved together with the canvas they were arranged on (settings.layoutW/H). When the
@@ -1731,15 +1781,10 @@ function heatColor(t, accent) {
   const k = (t - 0.5) * 2;
   return `rgba(255,${Math.round(190 - 110 * k)},${Math.round(70 + 30 * k)},${0.6 + 0.35 * k})`;
 }
-function drawStick(w, rt, pad, dt) {
-  const c = rt.canvas, g = c.getContext("2d"), S = c._w, R = S / 2;
+function drawStick(w, rt, pad) {
+  const c = rt.canvas, g = c._g, S = c._w, R = S / 2;
   const accent = w.accent || profile.settings.accent, ink = w.text || profile.settings.text;
   const x = readAxis(pad, w, "x"), y = readAxis(pad, w, "y");
-  if (pad) {
-    const bx = clamp(Math.floor((x + 1) / 2 * HEAT), 0, HEAT - 1), by = clamp(Math.floor((1 - y) / 2 * HEAT), 0, HEAT - 1);
-    rt.heat2[by * HEAT + bx] += dt;
-  }
-  if (!rt.dirty) return;
   g.clearRect(0, 0, S, S);
   const rad = Math.min(rt.radius ?? RADIUS, S / 2);
   // Face: today's square gate, or a radar disc inscribed in the same square (rings and rim ticks, like the Gladius).
@@ -1813,14 +1858,9 @@ function roundRect(g, x, y, w, h, r) {
   g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
   g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
 }
-function drawBar(c, v, accent, { vertical, zero, rt, key, dt, live, skip, ink = "#ffffff", holo, glow }) {
-  const g = c.getContext("2d"), W = c._w, H = c._h, L = vertical ? H : W, T = vertical ? W : H;
+function drawBar(c, v, accent, vertical, zero, rt, key, ink, holo, glow) {
+  const g = c._g, W = c._w, H = c._h, L = vertical ? H : W, T = vertical ? W : H;
   const t = (v + 1) / 2;
-  if (live && rt) {
-    const h = rt.heat1[key] = rt.heat1[key] || new Float32Array(HEAT1);
-    h[clamp(Math.floor(t * HEAT1), 0, HEAT1 - 1)] += dt;
-  }
-  if (skip) return;
   g.clearRect(0, 0, W, H);
   g.save();
   if (vertical) { g.translate(0, H); g.rotate(-Math.PI / 2); }
@@ -1843,26 +1883,42 @@ function drawBar(c, v, accent, { vertical, zero, rt, key, dt, live, skip, ink = 
   g.restore();   // also puts the composite mode back
   if (holo) tearStrip(c, rt);
 }
-function drawWidget(w, rt, pad, dt) {
-  const accent = w.accent || profile.settings.accent, ink = w.text || profile.settings.text, live = !!pad;
+// Moves the widget's time since its last pass into the cells its input sat in, then records where it sits now.
+function heatCredit(w, rt, pad) {
+  const d = heatClock - rt.heatT; rt.heatT = heatClock;
+  if (d > 0) {
+    if (rt.hc2 >= 0) rt.heat2[rt.hc2] += d;
+    for (const k in rt.hc1) { const i = rt.hc1[k]; if (i >= 0) (rt.heat1[k] ||= new Float32Array(HEAT1))[i] += d; }
+  }
+  const cell1 = key => pad ? clamp(Math.floor((readAxis(pad, w, key) + 1) / 2 * HEAT1), 0, HEAT1 - 1) : -1;
+  if (w.type === "stick") {
+    const x = readAxis(pad, w, "x"), y = readAxis(pad, w, "y");
+    rt.hc2 = pad ? clamp(Math.floor((1 - y) / 2 * HEAT), 0, HEAT - 1) * HEAT + clamp(Math.floor((x + 1) / 2 * HEAT), 0, HEAT - 1) : -1;
+  } else if (w.type === "throttle") rt.hc1.t = cell1("t");
+  else if (w.type === "axis") rt.hc1.a = cell1("a");
+  else if (w.type === "pedals") {
+    rt.hc1.r = cell1("r");
+    if (w.axes.bl != null && rt.brakeL) rt.hc1.bl = cell1("bl");
+    if (w.axes.br != null && rt.brakeR) rt.hc1.br = cell1("br");
+  }
+}
+// Called only when the widget's input (or the visible heatmap) changed.
+function drawWidget(w, rt, pad) {
+  const accent = w.accent || profile.settings.accent, ink = w.text || profile.settings.text;
   const holo = rt.holo, glow = holo ? rt.holoColors.glow : null;
-  if (w.type === "stick") return drawStick(w, rt, pad, dt);
+  if (w.type === "stick") return drawStick(w, rt, pad);
   if (w.type === "throttle" || w.type === "axis") {
     const zero = w.type === "throttle", key = w.type === "throttle" ? "t" : "a", v = readAxis(pad, w, key);
-    drawBar(rt.canvas, v, accent, { vertical: w.orient !== "h", zero, rt, key, dt, live, skip: !rt.dirty, ink, holo, glow });
-    if (rt.dirty) setText(rt.spans.v, v, zero);
+    drawBar(rt.canvas, v, accent, w.orient !== "h", zero, rt, key, ink, holo, glow);
+    setText(rt.spans.v, v, zero);
     return;
   }
   if (w.type === "pedals") {
     const r = readAxis(pad, w, "r");
-    drawBar(rt.canvas, r, accent, { vertical: w.orient === "v", zero: false, rt, key: "r", dt, live, skip: !rt.dirty, ink, holo, glow });
-    if (rt.dirty) setText(rt.spans.r, r);
-    for (const [key, c] of [["bl", rt.brakeL], ["br", rt.brakeR]]) {
-      if (w.axes[key] == null || !c) continue;
-      const v = readAxis(pad, w, key);
-      drawBar(c, v, accent, { vertical: true, zero: true, rt, key, dt, live, skip: !rt.dirty, ink, holo, glow });
-      if (rt.dirty) setText(rt.spans[key], v, true);
-    }
+    drawBar(rt.canvas, r, accent, w.orient === "v", false, rt, "r", ink, holo, glow);
+    setText(rt.spans.r, r);
+    if (w.axes.bl != null && rt.brakeL) { const v = readAxis(pad, w, "bl"); drawBar(rt.brakeL, v, accent, true, true, rt, "bl", ink, holo, glow); setText(rt.spans.bl, v, true); }
+    if (w.axes.br != null && rt.brakeR) { const v = readAxis(pad, w, "br"); drawBar(rt.brakeR, v, accent, true, true, rt, "br", ink, holo, glow); setText(rt.spans.br, v, true); }
     return;
   }
   if (w.type === "button") {
@@ -1875,42 +1931,92 @@ function drawWidget(w, rt, pad, dt) {
 }
 
 // ---------- main loop ----------
-let lastFrame = performance.now();
-let heatTick = 0;
-function inputKey(w, pad) {
-  if (!pad) return "off";
-  if (w.type === "button") { const b = pad.buttons[w.button]; return b && (b.pressed || b.value > 0.5) ? "1" : "0"; }
-  let k = "";
-  for (const a in w.axes) { const i = w.axes[a]; k += (pad.axes[i] ?? 0).toFixed(3) + ","; }
-  return k;
+let lastFrame = 0;
+let heatTick = 0, heatShown = -1;
+// True when the widget's input differs from the last pass, to the 3 decimals a readout can show. inVals holds
+// [connected, ...axes] (a button's pressed state in place of axes), compared as numbers: nothing is allocated.
+function inputChanged(w, rt, pad) {
+  const s = rt.inVals; let c = rt.inNew; rt.inNew = false;
+  const on = pad ? 1 : 0;
+  if (s[0] !== on) { s[0] = on; c = true; }
+  if (!pad) return c;
+  if (w.type === "button") {
+    const b = pad.buttons[w.button], v = b && (b.pressed || b.value > 0.5) ? 1 : 0;
+    if (s[1] !== v) { s[1] = v; c = true; }
+    return c;
+  }
+  const ax = rt.axIdx;
+  for (let k = 0; k < ax.length; k++) { const v = Math.round((pad.axes[ax[k]] ?? 0) * 1000); if (s[k + 1] !== v) { s[k + 1] = v; c = true; } }
+  return c;
 }
 // Reports a widget that failed to draw once, so the console isn't flooded at 60 FPS.
 function drawFailed(rt, w, err) {
   if (rt.failed) return;
   rt.failed = true; console.error(`Stay On Target: widget "${w.label || w.id}" failed to draw`, err);
 }
+// The loop runs only while something on screen can change: input widgets with a device connected, the setup wizard
+// listening for a move, readout text still due, a moving Projector, or the Projector's frame-time check. Otherwise
+// it stops, and a device connecting, a rebuild, edit mode or the page coming back wakes it. It also stops while the
+// page is hidden or OBS reports the source hidden or off the air; editing keeps it running, since OBS's Interact
+// window can show a source that isn't on air.
+let rafId = 0, passDue = true, redrawAll = true, hasInputs = false, idleT = 0, checkAt = 0;
+const obsState = { visible: true, active: true };
+const loopPaused = () => document.hidden || (!editing && (!obsState.visible || !obsState.active));
+const loopNeeded = () => passDue || (hasInputs && padList.length > 0) || (editing && !!wiz) || textQueue.length > 0 || holoAnim.length > 0 || perfPending();
+// all: repaint every widget on the next pass, not only those whose input changed.
+function wake(all) {
+  passDue = true; if (all) redrawAll = true;
+  if (rafId || loopPaused()) return;
+  clearTimeout(idleT); lastFrame = 0;
+  rafId = requestAnimationFrame(frame);
+}
+// Asleep with input widgets but no device: browsers announce a device with gamepadconnected, and a slow check
+// covers one that doesn't.
+function idleCheck() {
+  clearTimeout(idleT);
+  if (!hasInputs || loopPaused()) return;
+  idleT = setTimeout(() => { if (Array.from(navigator.getGamepads ? navigator.getGamepads() : [], slotId).some(Boolean)) wake(); else idleCheck(); }, 1000);
+}
+window.addEventListener("gamepadconnected", () => wake());
+window.addEventListener("gamepaddisconnected", () => wake());
+document.addEventListener("visibilitychange", () => wake());
+window.addEventListener("obsSourceVisibleChanged", e => { obsState.visible = !(e.detail && e.detail.visible === false); wake(); });
+window.addEventListener("obsSourceActiveChanged", e => { obsState.active = !(e.detail && e.detail.active === false); wake(); });
 function frame(now) {
   // Next frame first: an error below skips this frame's work, never the overlay.
-  requestAnimationFrame(frame);
-  const dt = Math.min(0.1, (now - lastFrame) / 1000); lastFrame = now;
+  rafId = requestAnimationFrame(frame);
+  if (loopPaused()) { cancelAnimationFrame(rafId); rafId = 0; return; }
+  const dt = lastFrame ? Math.min(0.1, (now - lastFrame) / 1000) : 0; lastFrame = now;
+  heatClock += dt;
+  const moved = pollPads();
+  if (editing && wiz) wizardTick(connectedPads());
   heatTick = Math.floor(now / 250);   // heatmap repaints at 4 Hz, which is plenty
-  const pads = connectedPads();
-  if (editing && wiz) wizardTick(pads);
-  for (const w of profile.widgets) {
-    const rt = runtime[w.id]; if (!rt || !rt.root || w.type === "label") continue;
-    try {
-      const pad = padFor(w, pads), off = !pad;
-      if (rt._off !== off) { rt._off = off; rt.root.classList.toggle("offline", off); }
-      // Only repaint a widget's canvases when its input (or the visible heatmap) changed.
-      // A still stick costs no drawing at all, which keeps OBS's browser source light.
-      const key = inputKey(w, pad) + (showHeat ? "|h" + heatTick : "");
-      rt.dirty = key !== rt._key; rt._key = key;
-      drawWidget(w, rt, pad, dt);
-    } catch (err) { drawFailed(rt, w, err); }   // one broken widget leaves the others drawing
+  const heatDue = showHeat && heatTick !== heatShown;
+  // Pads report a new timestamp when their data changes; with none, the widgets are skipped. A slow pass a few
+  // times a second covers a browser that leaves timestamps alone.
+  const check = now - checkAt >= 250;
+  if (moved || passDue || heatDue || check) {
+    const all = redrawAll; passDue = redrawAll = false;
+    if (check) checkAt = now;
+    if (heatDue) heatShown = heatTick;
+    for (const w of profile.widgets) {
+      const rt = runtime[w.id]; if (!rt || !rt.root || w.type === "label") continue;
+      try {
+        const pad = padOf(w, rt), off = !pad;
+        if (rt._off !== off) { rt._off = off; rt.root.classList.toggle("offline", off); }
+        // Only repaint a widget's canvases when its input (or the visible heatmap) changed.
+        // A still stick costs no drawing at all, which keeps OBS's browser source light.
+        const changed = inputChanged(w, rt, pad);
+        if (changed || heatDue) heatCredit(w, rt, pad);
+        rt.dirty = changed || heatDue || all;
+        if (rt.dirty) drawWidget(w, rt, pad);
+      } catch (err) { drawFailed(rt, w, err); }   // one broken widget leaves the others drawing
+    }
   }
   flushText(now);
   if (holoAnim.length) holoTick(now);
   holoPerf(now, dt);
+  if (!loopNeeded()) { cancelAnimationFrame(rafId); rafId = 0; if (!padList.length) idleCheck(); }
 }
 // ---------- projector motion ----------
 // One shared envelope per frame, applied to each moving projected widget with its own phase. Seconds-based, so
@@ -1951,8 +2057,10 @@ function holoTickOne(w, rt, now, t) {
 // shows ~33 ms), so compare medians: 2 s before the first Full widget runs, 3 s after. If frames got 1.5x slower,
 // Full widgets fall back to Subtle for this session only, with one toast.
 const perf = { base: null, buf: [], since: null, done: false };
+// The check needs frames: the 2 s baseline, then 3 s while a Full widget runs.
+const perfPending = () => !perf.done && (perf.base == null || holoAnim.some(([, rt]) => rt.holoTierNow === "full"));
 function holoPerf(now, dt) {
-  if (perf.done) return;
+  if (perf.done || !dt) return;   // dt is 0 on the first frame after the loop wakes
   const fullOn = holoAnim.some(([, rt]) => rt.holoTierNow === "full");
   if (perf.base == null) {
     if (fullOn) { perf.done = true; return; }   // Full was on from boot: there is no clean baseline to compare with
@@ -2265,15 +2373,16 @@ function setEditing(on) {
   if (!on) { closeWelcome(); closeFab(); if (wiz) closeWizard(); }
   applyReference();
   setSelection([]); placeResize();
+  wake();
 }
 function addLabel() {
   const s = profile.settings;
   addAndPlace({ id: uid(), type: "label", x: 0, y: 0, label: "Label", size: 1, accent: s.accent, text: s.text, bg: s.panel, bgAlpha: 0 });
 }
-function toggleHeat() { showHeat = !showHeat; applySettings(); renderPanel(); toast(showHeat ? "Session heatmap on (H to hide, R to reset)" : "Session heatmap off"); }
+function toggleHeat() { showHeat = !showHeat; applySettings(); wake(true); renderPanel(); toast(showHeat ? "Session heatmap on (H to hide, R to reset)" : "Session heatmap off"); }
 function resetHeat() {
-  for (const id in runtime) { runtime[id].heat2.fill(0); for (const k in runtime[id].heat1) runtime[id].heat1[k].fill(0); }
-  toast("Heatmap reset");
+  for (const id in runtime) { const rt = runtime[id]; rt.heat2.fill(0); for (const k in rt.heat1) rt.heat1[k].fill(0); rt.heatT = heatClock; }
+  wake(true); toast("Heatmap reset");
 }
 function deleteSelected() {
   profile.widgets = profile.widgets.filter(w => !selected.has(w.id));
@@ -2614,6 +2723,7 @@ function refreshWidget(w) {
   const rt = runtime[w.id]; if (!rt || !rt.root) return;
   rt.root.replaceWith(buildWidget(w)); attachHolo(w, rt); syncHoloList();
   if (selected.has(w.id)) placeResize();
+  wake();
 }
 // Panel controls that change a widget's size rebuild it around its center, so widgets lined up by their centers
 // stay lined up. The center is remembered across the steps of one slider drag, so rounding never makes it creep.
@@ -2810,6 +2920,7 @@ function renderWiz() {
   host.classList.toggle("open", !!wiz);
   host.classList.toggle("see-through", !!wiz && wiz.stage === "bg");
   b.innerHTML = "";
+  if (wiz) wake();   // the steps poll the devices every frame
   if (!wiz) { if (was && editing) $("#fab").focus(); return; }
   if (wiz.remap && wiz.stage === "name") return finishRemap();   // re-detecting keeps the widget's name
   const off = wizBg ? 1 : 0, total = 3 + off;
@@ -3401,7 +3512,7 @@ $("#preview-edit").addEventListener("click", () => setEditing(true));
 try { loadProfile(); rebuildAll(); } catch (err) { setAsideSavedProfile(err); }
 resetHistory();
 if (new URLSearchParams(location.search).has("edit")) setEditing(true);
-requestAnimationFrame(frame);
+wake(true);
 // First run (no saved setup and no profile.js): open the editor with the getting-started dialog.
 window.addEventListener("load", () => { if (firstRun && !window.STAYONTARGET_PROFILE && !window.JOYVIZ_PROFILE) { setEditing(true); openWelcome(); } });
 </script>
