@@ -1819,34 +1819,27 @@ function heatLayer(c) {
   return hc._g;
 }
 function blitHeat(g, c) { g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(c._heat, 0, 0); g.restore(); }
-function drawStick(w, rt, pad) {
-  const c = rt.canvas, g = c._g, S = c._w, R = S / 2;
+// The gate's outline: a rounded square, or a radar disc inscribed in the same square.
+function stickFacePath(g, radar, S, lw, rad) {
+  const e = lw / 2, R = S / 2;
+  if (radar) { g.beginPath(); g.arc(R, R, R - e, 0, Math.PI * 2); } else roundRect(g, e, e, S - lw, S - lw, rad);
+}
+// Everything about the gate that doesn't move (grid or rings, the recess, rim and ticks), drawn once per canvas onto
+// a layer of its own that drawStick copies pixel for pixel. Projected, its strokes add up as light on the layer, and
+// the layer adds onto the canvas the same way.
+function stickFace(w, rt, c) {
+  if (c._face) return c._face;
+  const f = c._face = makeCanvas(c._w, c._h), g = f._g, S = c._w, R = S / 2;
   const accent = w.accent || profile.settings.accent, ink = w.text || profile.settings.text;
-  const x = readAxis(pad, w, "x"), y = readAxis(pad, w, "y");
-  g.clearRect(0, 0, S, S);
-  const rad = Math.min(rt.radius ?? RADIUS, S / 2);
+  const rad = f._rad = Math.min(rt.radius ?? RADIUS, S / 2);
   // Face: today's square gate, or a radar disc inscribed in the same square (rings and rim ticks, like the Gladius).
-  const radar = w.face === "radar";
+  const radar = f._radar = w.face === "radar";
   // The rim is a whole number of device pixels wide and sits on the pixel grid, so all four sides read the same at any scale.
-  const dp = c.width / S, lw = Math.max(1, Math.round(dp)) / dp, e = lw / 2;
-  const face = () => { if (radar) { g.beginPath(); g.arc(R, R, R - e, 0, Math.PI * 2); } else roundRect(g, e, e, S - lw, S - lw, rad); };
+  const dp = c.width / S, lw = f._lw = Math.max(1, Math.round(dp)) / dp;
+  const face = () => stickFacePath(g, radar, S, lw, rad);
   g.save(); face(); g.clip();
-  // Projector: what must darken (face fill, heat cells) goes first with source-over, then everything is light that
-  // adds up, so overlapping strokes brighten toward white.
-  const holo = rt.holo, light = () => { if (holo) g.globalCompositeOperation = "lighter"; };
-  if (showHeat) {
-    const hg = heatLayer(c);
-    if (hg) {
-      let mx = 0; for (const v of rt.heat2) mx = Math.max(mx, v);
-      const cell = S / HEAT, lut = heatLUT(accent);
-      if (mx > 0) for (let j = 0; j < HEAT; j++) for (let i = 0; i < HEAT; i++) {
-        const v = rt.heat2[j * HEAT + i]; if (!v) continue;
-        hg.fillStyle = lut[Math.round(Math.sqrt(v / mx) * 255)]; hg.fillRect(i * cell, j * cell, cell + 0.5, cell + 0.5);
-      }
-    }
-    blitHeat(g, c);
-  }
-  light();
+  const holo = rt.holo;
+  if (holo) g.globalCompositeOperation = "lighter";
   // Projected, the gate's structure (grid, rings, rim) is drawn in the beam's hue rather than the text color, the
   // way every line on the Gladius radar is one cyan: dim rings, a brighter rim, bright ticks.
   const line = holo ? rt.holoColors.rays : ink;
@@ -1862,7 +1855,8 @@ function drawStick(w, rt, pad) {
     side.addColorStop(0, `rgba(0,0,0,${0.3 * depth})`); side.addColorStop(1, "rgba(0,0,0,0)");
     g.fillStyle = side; g.fillRect(0, 0, S * 0.12, S);
   }
-  g.restore(); light();
+  g.restore();
+  if (holo) g.globalCompositeOperation = "lighter";
   if (holo && radar) { g.strokeStyle = hexA(rt.holoColors.glow, 0.3); g.lineWidth = 3; face(); g.stroke(); }   // rim bloom: the rim is the brightest part
   g.strokeStyle = hexA(line, holo ? 0.5 : 0.4); g.lineWidth = lw; face(); g.stroke();
   if (radar) {   // 36 rim ticks every 10°, the four cardinal ones longer and in the highlight color
@@ -1872,11 +1866,39 @@ function drawStick(w, rt, pad) {
       g.beginPath(); g.moveTo(R + Math.cos(a) * (R - 1), R + Math.sin(a) * (R - 1)); g.lineTo(R + Math.cos(a) * (R - 1 - len), R + Math.sin(a) * (R - 1 - len)); g.stroke();
     }
   } else if (depth > 0) { g.strokeStyle = `rgba(255,255,255,${0.14 * depth})`; g.beginPath(); g.moveTo(rad, S - 1.5); g.lineTo(S - rad, S - 1.5); g.stroke(); }
-  const px = R + x * (R - 7), py = R - y * (R - 7);
+  g.globalCompositeOperation = "source-over";
+  return f;
+}
+function drawStick(w, rt, pad) {
+  const c = rt.canvas, g = c._g, S = c._w, R = S / 2;
+  const accent = w.accent || profile.settings.accent;
+  const x = readAxis(pad, w, "x"), y = readAxis(pad, w, "y");
+  const face = stickFace(w, rt, c), holo = rt.holo;
+  g.clearRect(0, 0, S, S);
+  // Projector: what must darken (heat cells) goes first with source-over, then everything is light that adds up, so
+  // overlapping strokes brighten toward white.
+  if (showHeat) {
+    g.save(); stickFacePath(g, face._radar, S, face._lw, face._rad); g.clip();
+    const hg = heatLayer(c);
+    if (hg) {
+      let mx = 0; for (const v of rt.heat2) mx = Math.max(mx, v);
+      const cell = S / HEAT, lut = heatLUT(accent);
+      if (mx > 0) for (let j = 0; j < HEAT; j++) for (let i = 0; i < HEAT; i++) {
+        const v = rt.heat2[j * HEAT + i]; if (!v) continue;
+        hg.fillStyle = lut[Math.round(Math.sqrt(v / mx) * 255)]; hg.fillRect(i * cell, j * cell, cell + 0.5, cell + 0.5);
+      }
+    }
+    blitHeat(g, c);
+    g.restore();
+  }
+  g.save(); g.setTransform(1, 0, 0, 1, 0, 0); if (holo) g.globalCompositeOperation = "lighter"; g.drawImage(face, 0, 0); g.restore();
+  if (holo) g.globalCompositeOperation = "lighter";
+  const depth = depthOf(w), px = R + x * (R - 7), py = R - y * (R - 7);
   g.strokeStyle = hexA(accent, 0.5); g.setLineDash([3, 3]);
   g.beginPath(); g.moveTo(px, 0); g.lineTo(px, S); g.moveTo(0, py); g.lineTo(S, py); g.stroke(); g.setLineDash([]);
   if (depth > 0) {
     // A lit sphere: soft shadow cast down-right, accent glow, then a radial gradient with a specular highlight.
+    // The blur stays a live filter: a cached sprite would land on other subpixel positions and shift the pixels.
     const r = 6.5 + 2.5 * depth;
     g.fillStyle = `rgba(0,0,0,${0.55 * depth})`; g.filter = `blur(${(1.5 + 2 * depth).toFixed(1)}px)`;
     g.beginPath(); g.ellipse(px + 2 * depth, py + 3.5 * depth, r, r * 0.8, 0, 0, Math.PI * 2); g.fill(); g.filter = "none";
