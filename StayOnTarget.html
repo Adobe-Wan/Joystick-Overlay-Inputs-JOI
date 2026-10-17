@@ -120,7 +120,11 @@ body.editing .holo-rig.selected .holo-base { outline: 1px dashed var(--ui-accent
 .looks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem; margin: 0.4rem 0 0.6rem; }
 .look-tile { display: flex; flex-direction: column; align-items: center; gap: 0.4rem; padding: 0.55rem 0.25rem 0.4rem; min-height: 0; font-size: 0.78rem; font-weight: 600; line-height: 1.2; text-align: center; }
 .look-tile[aria-pressed=true] { border-color: var(--ui-accent); box-shadow: inset 0 0 0 1px var(--ui-accent); }
-.look-prev { width: 46px; height: 32px; display: grid; place-items: center; }
+.look-prev { position: relative; width: 46px; height: 32px; display: grid; place-items: center; }
+/* Projector presets: a small base ellipse under the box, so the tile reads as "projected" at a glance. */
+.look-prev.proj i { margin-bottom: 6px; }
+.look-prev.proj::after { content: ""; position: absolute; left: 50%; bottom: 0; width: 22px; height: 7px; margin-left: -11px; border-radius: 50%;
+  border: 1px solid var(--ui-accent); box-shadow: 0 0 4px var(--ui-accent), inset 0 0 3px rgba(79,209,255,0.5); }
 .look-prev i { display: block; width: 40px; height: 26px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.55); background: rgba(255,255,255,0.08); transform-origin: 50% 50%; }
 .look-prev i.holo { border-color: var(--ui-accent); box-shadow: 0 0 6px var(--ui-accent), inset 0 0 6px rgba(79,209,255,0.35);
   background: repeating-linear-gradient(180deg, rgba(79,209,255,0.12) 0 2px, rgba(79,209,255,0.03) 2px 3px); }
@@ -790,7 +794,14 @@ const LOOK_PRESETS = [
   { name: "Overhead", hint: "A panel above the canopy frame, tipped down toward the pilot.", persp: { rx: -32 }, proj: { glow: 20 } },
   { name: "Canopy Glass", hint: "Projected onto the canopy in front of you.", persp: { rx: -10, d: 1200 }, proj: { glow: 65, fade: 60, scan: true } },
   { name: "Left Holo", hint: "A hologram hanging off the left wall of the cockpit.", persp: { ry: 48, d: 700 }, proj: { glow: 60, fade: 50, scan: true } },
-  { name: "Right Holo", hint: "A hologram hanging off the right wall of the cockpit.", persp: { ry: -48, d: 700 }, proj: { glow: 60, fade: 50, scan: true } }
+  { name: "Right Holo", hint: "A hologram hanging off the right wall of the cockpit.", persp: { ry: -48, d: 700 }, proj: { glow: 60, fade: 50, scan: true } },
+  // Projector looks: the hologram stands in a beam from a base on the dash. Dash Radar lies nearly flat, seen from
+  // above like the Gladius radar, with no panel behind the disc (fade 100: a faint rectangle gave it away).
+  { name: "Dash Radar", hint: "A radar disc projected up from the dash, like the Gladius.", persp: { rx: 62, d: 700 }, proj: { glow: 60, fade: 100, scan: true }, holo: { on: true, base: { side: "below" }, rays: 11 }, face: "radar" },
+  { name: "Dash Projector", hint: "An upright hologram standing in a beam from the console.", persp: { rx: 12, d: 900 }, proj: { glow: 55, fade: 65, scan: true }, holo: { on: true } },
+  { name: "Left Projector", hint: "Projected from the left console, turned toward you.", persp: { rx: 8, ry: 34, d: 800 }, proj: { glow: 55, fade: 65, scan: true }, holo: { on: true, base: { side: "below", dx: 18 } } },
+  { name: "Right Projector", hint: "Projected from the right console, turned toward you.", persp: { rx: 8, ry: -34, d: 800 }, proj: { glow: 55, fade: 65, scan: true }, holo: { on: true, base: { side: "below", dx: -18 } } },
+  { name: "Overhead Projector", hint: "Hangs down from a projector in the canopy frame.", persp: { rx: -24 }, proj: { glow: 55, fade: 65, scan: true }, holo: { on: true, base: { side: "above" } } }
 ];
 // Projector look: the widget is a hologram emitted from a base on the dash, like the Gladius radar. Off by
 // default; a widget without `holo` renders exactly as before. tier: static (painted once) | subtle (slow float,
@@ -828,9 +839,13 @@ function deriveHolo({ accent, border, bg }) {
 }
 const lookPersp = l => ({ ...PERSP_DEFAULT, ...l.persp });
 const lookProj = l => ({ ...PROJ_DEFAULT, ...(l.proj || {}) });
+const lookHolo = l => holoOf({ holo: l.holo });
+// Two projector settings are the same look when both are off, whatever else they remember, or when they match.
+const sameHolo = (a, b) => (!a.on && !b.on) || JSON.stringify(a) === JSON.stringify(b);
 const sameLook = (w, l) => {
   const p = { ...PERSP_DEFAULT, ...(w.persp || {}) }, q = { ...PROJ_DEFAULT, ...(w.proj || {}) }, lp = lookPersp(l), lq = lookProj(l);
-  return Object.keys(lp).every(k => p[k] === lp[k]) && Object.keys(lq).every(k => q[k] === lq[k]);
+  return Object.keys(lp).every(k => p[k] === lp[k]) && Object.keys(lq).every(k => q[k] === lq[k])
+    && sameHolo(holoOf(w), lookHolo(l)) && (w.type !== "stick" || (w.face || "square") === (l.face || "square"));
 };
 // Glow, fade and scanlines on top of the widget's colors. Runs after styleWidget, so colors stay the theme's.
 function applyProjection(root, w) {
@@ -1053,6 +1068,7 @@ function layoutHolo(w, rt, idle = HOLO_STILL) {
   else if (side === "above") by = Math.min(edge[0].y, edge[1].y) - gap;
   else if (side === "left") bx = Math.min(edge[0].x, edge[1].x) - gap;
   else bx = Math.max(edge[0].x, edge[1].x) + gap;
+  rt.holoBase0 = { x: bx, y: by };   // where the base lands without offsets; Project From One Base measures from here
   bx += h.base.dx || 0; by += h.base.dy || 0;
   // Ray targets: evenly spaced along the facing edge (plus the two far corners), or around the radar rim starting
   // at the point nearest the base. Untransformed points go through the same matrix as the corners.
@@ -1817,6 +1833,12 @@ function checkIn(obj, key, after) {
   c.addEventListener("change", () => { obj[key] = c.checked; save(); after && after(); });
   return c;
 }
+// MUI-style switch, the same markup as the Edit Mode switch in the toolbar.
+function switchIn(obj, key, after, label) {
+  const c = el("input", { type: "checkbox", "aria-label": label || key }); c.checked = !!obj[key];
+  c.addEventListener("change", () => { obj[key] = c.checked; save(); after && after(); });
+  return el("label", { class: "switch" }, c, el("span", { class: "track" }, el("span", { class: "thumb" })));
+}
 function rangeIn(obj, key, min, max, after) {
   const r = el("input", { type: "range", min, max, style: "width:160px" }); r.value = obj[key];
   r.addEventListener("input", () => { obj[key] = +r.value; save(); after && after(); });
@@ -2244,16 +2266,18 @@ function perspectiveSection(p, ws) {
     const box = el("i", { class: lq.fade >= 100 ? "holo visor" : lq.scan || lq.glow >= 50 ? "holo" : "",
       style: `transform:perspective(${Math.round(lp.d * 0.3)}px) rotateX(${lp.rx}deg) rotateY(${lp.ry}deg) rotateZ(${lp.rz}deg)` });
     looks.append(el("button", { class: "look-tile", title: l.hint, "aria-pressed": ws.every(w => sameLook(w, l)) ? "true" : "false",
-      onclick: () => { for (const w of ws) { w.persp = lookPersp(l); w.proj = lookProj(l); } save(); updProj(); renderPanel(); } },
-      el("span", { class: "look-prev", "aria-hidden": "true" }, box), l.name));
+      onclick: () => {
+        for (const w of ws) {
+          w.persp = lookPersp(l); w.proj = lookProj(l);
+          if (l.holo) w.holo = JSON.parse(JSON.stringify(l.holo)); else delete w.holo;   // a preset without a projector switches it off
+          if (w.type === "stick" && l.face) w.face = l.face; else delete w.face;
+        }
+        save(); updProj(); renderPanel();
+      } },
+      el("span", { class: "look-prev" + (l.holo ? " proj" : ""), "aria-hidden": "true" }, box), l.name));
   }
   p.append(looks);
-  const slider = (label, obj, key, min, max, unit, after) => {
-    const out = el("span", { style: "min-width:3.2rem;text-align:right;font-variant-numeric:tabular-nums" }, obj[key] + unit);
-    const r = rangeIn(obj, key, min, max, () => { out.textContent = obj[key] + unit; after(); });
-    r.style.width = "8.5rem"; r.setAttribute("aria-label", label);
-    p.append(el("div", { class: "row" }, el("span", {}, label), el("span", { style: "display:flex;align-items:center;gap:0.4rem" }, r, out)));
-  };
+  const slider = (label, obj, key, min, max, unit, after) => sliderRow(p, label, obj, key, min, max, unit, after);
   slider("Tilt (forward/back)", proxy, "rx", -70, 70, "°", upd);
   slider("Turn (left/right)", proxy, "ry", -70, 70, "°", upd);
   slider("Rotate", proxy, "rz", -45, 45, "°", upd);
@@ -2263,20 +2287,81 @@ function perspectiveSection(p, ws) {
   slider("Glow", pproxy, "glow", 0, 100, "%", updProj);
   slider("Background fade", pproxy, "fade", 0, 100, "%", updProj);
   p.append(row("Scanlines", checkIn(pproxy, "scan", updProj)));
-  p.append(el("div", { class: "actions" }, el("button", { onclick: () => { for (const w of ws) { w.persp = { ...PERSP_DEFAULT }; delete w.proj; } save(); updProj(); renderPanel(); } }, "Reset to Flat")));
+  p.append(el("div", { class: "actions" }, el("button", { onclick: () => { for (const w of ws) { w.persp = { ...PERSP_DEFAULT }; delete w.proj; delete w.holo; delete w.face; } save(); updProj(); renderPanel(); } }, "Reset to Flat")));
   p.append(el("div", { class: "hint" }, "Snapping and alignment use the widget's flat footprint. Glow uses the highlight color, so it follows your theme."));
+}
+// Slider with a live value readout, shared by the Cockpit Look and Projector sections. Returns the range input.
+function sliderRow(p, label, obj, key, min, max, unit, after) {
+  const out = el("span", { style: "min-width:3.2rem;text-align:right;font-variant-numeric:tabular-nums" }, obj[key] + unit);
+  const r = rangeIn(obj, key, min, max, () => { out.textContent = obj[key] + unit; after(); });
+  r.style.width = "8.5rem"; r.setAttribute("aria-label", label);
+  p.append(el("div", { class: "row" }, el("span", {}, label), el("span", { style: "display:flex;align-items:center;gap:0.4rem" }, r, out)));
+  return r;
 }
 
 // Projector: a hologram emitted from a base on the dash. Face (square gate or radar disc) lives here because the
 // radar is what the Gladius projects, but it also works without Projector.
 function projectorSection(p, ws) {
-  const w0 = ws[0];
+  for (const w of ws) w.holo = holoOf(w);   // fill the defaults onto the widget, as Cockpit Look does for persp/proj
+  const w0 = ws[0], h0 = w0.holo, sticks = ws.every(w => w.type === "stick");
   const upd = () => { for (const w of ws) refreshWidget(w); syncSelectionClasses(); };
+  const proxy = new Proxy({}, { get: (_, k) => w0.holo[k], set: (_, k, v) => { for (const w of ws) w.holo[k] = v; return true; } });
+  const bproxy = new Proxy({}, { get: (_, k) => w0.holo.base[k], set: (_, k, v) => { for (const w of ws) w.holo.base[k] = v; return true; } });
+  // Intensity and Base Offset are the ones users scrub: they update the rig in place and rebuild on release.
+  const rigs = () => ws.map(w => [w, runtime[w.id]]).filter(([, rt]) => rt && rt.rig);
+  const updIntensity = () => { for (const [w, rt] of rigs()) { setHoloVars(rt.root, rt.holoColors, w.holo); setHoloVars(rt.rig, rt.holoColors, w.holo); } };
+  const updBase = () => { for (const [w, rt] of rigs()) layoutHolo(w, rt); };
+  const group = (label, tiles) => { p.append(el("div", { class: "row" }, el("span", {}, label))); p.append(tiles); };
   p.append(el("h4", {}, "Projector"));
-  p.append(el("div", { class: "hint" }, "Project the widget from a base on the dash. Off by default."));
-  if (ws.every(w => w.type === "stick")) {
+  p.append(el("div", { class: "hint" }, "Project the widget from a base on the dash. Off by default." + (REDUCED_MOTION ? " Your system asks for less motion, so it stays still." : "")));
+  // Switching on also gives the widget a hologram's see-through face and scanlines, and a Stick its radar disc;
+  // switching off puts those back, so off renders exactly as never-on.
+  p.append(row("Projector", switchIn({ get v() { return !!h0.on; }, set v(x) {
+    for (const w of ws) {
+      w.holo.on = x;
+      if (!x) { if (w.holo.prev) { w.proj = w.holo.prev.proj; w.face = w.holo.prev.face; if (!w.face) delete w.face; delete w.holo.prev; } continue; }
+      w.holo.prev = { proj: w.proj && { ...w.proj }, face: w.face };
+      w.proj = { ...PROJ_DEFAULT, ...(w.proj || {}) }; w.proj.fade = Math.max(w.proj.fade, 60); w.proj.scan = true;
+      if (w.type === "stick" && !w.face) w.face = "radar";
+    } } }, "v", () => { upd(); renderPanel(); }, "Projector")));
+  if (h0.on) {
+    group("Motion", tilesIn(proxy, "tier", [["static", "Static", "No motion. Zero per-frame cost."], ["subtle", "Subtle", "Slow float, rare dropout."], ["full", "Full", "Dynamic fringe, tears, photons and dust."]], upd, "Projector motion"));
+    sliderRow(p, "Intensity", proxy, "intensity", 0, 100, "%", updIntensity).addEventListener("change", upd);
+    sliderRow(p, "Base size", bproxy, "size", 50, 200, "%", upd);
+    sliderRow(p, "Base offset X", bproxy, "dx", -200, 200, " px", updBase).addEventListener("change", upd);
+    sliderRow(p, "Base offset Y", bproxy, "dy", -200, 200, " px", updBase).addEventListener("change", upd);
+    sliderRow(p, "Rays", proxy, "rays", 0, 15, "", upd);
+    group("Base side", tilesIn(bproxy, "side", [["below", "Below"], ["above", "Above"], ["left", "Left"], ["right", "Right"]], upd, "Base side"));
+    p.append(row("Cone", checkIn(proxy, "cone", upd)));
+    p.append(row("Float", checkIn(proxy, "float", upd)));
+    p.append(row("Flicker", checkIn(proxy, "flicker", upd)));
+    p.append(row("Fringe", checkIn(proxy, "fringe", upd)));
+    p.append(row("Footage", tilesIn(proxy, "footage", [["dark", "Dark", "Space and dim cockpits."], ["bright", "Bright", "Planet glare and clouds: brighter light and lines."]], upd, "Footage")));
+  }
+  if (sticks) {
     const face = new Proxy({}, { get: () => w0.face || "square", set: (_, k, v) => { for (const w of ws) w.face = v; return true; } });
     p.append(row("Face", tilesIn(face, "v", [["square", "Square", "Today's square gate with a grid."], ["radar", "Radar", "A round radar disc with rings and rim ticks."]], upd, "Stick face")));
+  }
+  if (h0.on) {
+    p.append(el("div", { class: "actions" },
+      ws.length > 1 ? el("button", { onclick: () => { projectFromOneBase(ws); save(); upd(); renderPanel(); } }, "Project From One Base") : null,
+      el("button", { onclick: () => { for (const w of ws) { delete w.holo; delete w.face; } save(); upd(); renderPanel(); } }, "Reset Projector")));
+    p.append(el("div", { class: "hint" }, (ws.length > 1 ? "Project From One Base aims every selected widget at a single base under the group; moving one widget on its own breaks the group, and you can press it again. " : "")
+      + "Float, Flicker and Fringe need Subtle or Full motion. Fringe shows during dropouts in Full."));
+  }
+}
+// One projector for a group: every selected widget's rays converge on a base under the selection's bottom center,
+// sized from the group's width, and only the leftmost widget draws the disc. Offsets stay per widget, so the group
+// keeps converging when dragged together.
+function projectFromOneBase(ws) {
+  const u = unionBox(ws), cx = u.x + u.w / 2, cy = u.y + u.h + clamp(0.45 * u.h, 30, 120);
+  const left = ws.reduce((a, b) => b.x < a.x ? b : a), diam = clamp(0.55 * u.w, 48, 220);
+  for (const w of ws) {
+    const rt = runtime[w.id]; if (!rt || !rt.rig) continue;
+    w.holo.base.side = "below"; layoutHolo(w, rt);   // natural base position first, then the offset to the shared one
+    w.holo.base.dx = Math.round(cx - (w.x + rt.holoBase0.x)); w.holo.base.dy = Math.round(cy - (w.y + rt.holoBase0.y));
+    w.holo.base.size = Math.round(diam / clamp(0.55 * rt.W, 48, 220) * 100);
+    if (w === left) delete w.holo.base.hidden; else w.holo.base.hidden = true;
   }
 }
 
