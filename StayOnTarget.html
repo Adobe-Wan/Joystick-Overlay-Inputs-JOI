@@ -1801,6 +1801,24 @@ function heatColor(t, accent) {
   const k = (t - 0.5) * 2;
   return `rgba(255,${Math.round(190 - 110 * k)},${Math.round(70 + 30 * k)},${0.6 + 0.35 * k})`;
 }
+// heatColor in 256 steps per accent, so painting the cells builds no color strings.
+const heatLUTs = new Map();
+function heatLUT(accent) {
+  let lut = heatLUTs.get(accent);
+  if (!lut) heatLUTs.set(accent, lut = Array.from({ length: 256 }, (_, i) => heatColor(i / 255, accent)));
+  return lut;
+}
+// The heat cells live on a layer of their own, repainted once per heatmap tick (or after a reset) and copied
+// pixel for pixel under each redraw, so a moving input doesn't repaint hundreds of cells every frame.
+let heatEpoch = 0;   // bumped by Reset Heatmap
+function heatLayer(c) {
+  const hc = c._heat || (c._heat = makeCanvas(c._w, c._h));
+  if (hc._tick === heatShown && hc._epoch === heatEpoch) return null;
+  hc._tick = heatShown; hc._epoch = heatEpoch;
+  hc._g.clearRect(0, 0, hc._w, hc._h);
+  return hc._g;
+}
+function blitHeat(g, c) { g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(c._heat, 0, 0); g.restore(); }
 function drawStick(w, rt, pad) {
   const c = rt.canvas, g = c._g, S = c._w, R = S / 2;
   const accent = w.accent || profile.settings.accent, ink = w.text || profile.settings.text;
@@ -1817,12 +1835,16 @@ function drawStick(w, rt, pad) {
   // adds up, so overlapping strokes brighten toward white.
   const holo = rt.holo, light = () => { if (holo) g.globalCompositeOperation = "lighter"; };
   if (showHeat) {
-    let mx = 0; for (const v of rt.heat2) mx = Math.max(mx, v);
-    const cell = S / HEAT;
-    if (mx > 0) for (let j = 0; j < HEAT; j++) for (let i = 0; i < HEAT; i++) {
-      const v = rt.heat2[j * HEAT + i]; if (!v) continue;
-      g.fillStyle = heatColor(Math.sqrt(v / mx), accent); g.fillRect(i * cell, j * cell, cell + 0.5, cell + 0.5);
+    const hg = heatLayer(c);
+    if (hg) {
+      let mx = 0; for (const v of rt.heat2) mx = Math.max(mx, v);
+      const cell = S / HEAT, lut = heatLUT(accent);
+      if (mx > 0) for (let j = 0; j < HEAT; j++) for (let i = 0; i < HEAT; i++) {
+        const v = rt.heat2[j * HEAT + i]; if (!v) continue;
+        hg.fillStyle = lut[Math.round(Math.sqrt(v / mx) * 255)]; hg.fillRect(i * cell, j * cell, cell + 0.5, cell + 0.5);
+      }
     }
+    blitHeat(g, c);
   }
   light();
   // Projected, the gate's structure (grid, rings, rim) is drawn in the beam's hue rather than the text color, the
@@ -1887,10 +1909,15 @@ function drawBar(c, v, accent, vertical, zero, rt, key, ink, holo, glow) {
   g.fillStyle = hexA(ink, 0.14); roundRect(g, 0, 0, L, T, 5); g.fill();
   // Projector: heat cells stay source-over so their colors read; the fill, tip and glow add up as light.
   const lightUp = () => { if (holo) g.globalCompositeOperation = "lighter"; };
-  if (showHeat && rt && rt.heat1[key]) {
-    const h = rt.heat1[key]; let mx = 0; for (const q of h) mx = Math.max(mx, q);
-    const bw = L / HEAT1;
-    if (mx > 0) for (let i = 0; i < HEAT1; i++) if (h[i]) { g.fillStyle = heatColor(Math.sqrt(h[i] / mx), accent); g.fillRect(i * bw, 0, bw + 0.5, T); }
+  if (showHeat && rt.heat1[key]) {
+    const hg = heatLayer(c);
+    if (hg) {
+      const h = rt.heat1[key], bw = L / HEAT1, lut = heatLUT(accent); let mx = 0; for (const q of h) mx = Math.max(mx, q);
+      hg.save(); if (vertical) { hg.translate(0, H); hg.rotate(-Math.PI / 2); }
+      if (mx > 0) for (let i = 0; i < HEAT1; i++) if (h[i]) { hg.fillStyle = lut[Math.round(Math.sqrt(h[i] / mx) * 255)]; hg.fillRect(i * bw, 0, bw + 0.5, T); }
+      hg.restore();
+    }
+    blitHeat(g, c);
   } else {
     const from = zero ? 0 : L / 2, to = t * L;
     lightUp(); g.fillStyle = accent;
@@ -2415,6 +2442,7 @@ function addLabel() {
 function toggleHeat() { showHeat = !showHeat; applySettings(); wake(true); renderPanel(); toast(showHeat ? "Session heatmap on (H to hide, R to reset)" : "Session heatmap off"); }
 function resetHeat() {
   for (const id in runtime) { const rt = runtime[id]; rt.heat2.fill(0); for (const k in rt.heat1) rt.heat1[k].fill(0); rt.heatT = heatClock; }
+  heatEpoch++;
   wake(true); toast("Heatmap reset");
 }
 function deleteSelected() {
