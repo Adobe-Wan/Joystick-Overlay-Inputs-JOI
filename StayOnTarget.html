@@ -83,15 +83,15 @@ body.preview:not(.editing).has-widgets #preview-chip { display: flex; }
 .widget { z-index: 1; }
 .holo-rig { position: absolute; z-index: 0; pointer-events: none; --holo-i: 1; --holo-b: 0; }
 .holo-rig > * { position: absolute; }
-.holo-cone { background: linear-gradient(var(--holo-dir, 0deg), rgba(var(--holo-rays-rgb), calc(0.3 * var(--holo-i) + var(--holo-b))), rgba(var(--holo-rays-rgb), calc(0.06 * var(--holo-i) + var(--holo-b))));
+.holo-cone { background: linear-gradient(var(--holo-dir, 0deg), rgba(var(--holo-rays-rgb), calc(0.18 * var(--holo-i) + var(--holo-b))), rgba(var(--holo-rays-rgb), calc(0.02 * var(--holo-i) + var(--holo-b))));
   -webkit-mask-image: linear-gradient(var(--holo-mdir, 90deg), transparent, #000 20%, #000 80%, transparent); mask-image: linear-gradient(var(--holo-mdir, 90deg), transparent, #000 20%, #000 80%, transparent); }
 .holo-rays { left: 0; top: 0; overflow: visible; }
 .holo-rays stop { stop-color: var(--holo-rays); }
-.holo-rays stop.a { stop-opacity: calc(0.55 * var(--holo-i) + var(--holo-b)); }
-.holo-rays stop.b { stop-opacity: calc(0.08 * var(--holo-i) + var(--holo-b)); }
+.holo-rays stop.a { stop-opacity: calc(0.45 * var(--holo-i) + var(--holo-b)); }
+.holo-rays stop.b { stop-opacity: calc(0.05 * var(--holo-i) + var(--holo-b)); }
 .holo-rays line { fill: none; stroke-linecap: round; }
 .holo-rays .rays line { stroke-width: 1; }
-.holo-rays .bloom line { stroke-width: 3; opacity: 0.18; }
+.holo-rays .bloom line { stroke-width: 3; opacity: 0.1; }
 .holo-rays .ticks circle { fill: var(--holo-core); opacity: calc(0.9 * var(--holo-i) + var(--holo-b)); }
 .holo-rays .debug circle { fill: none; stroke: var(--guide); stroke-width: 1; }
 .holo-base { border-radius: 50%; background: rgba(var(--holo-ped-rgb), 0.55); border: 1px solid rgba(var(--holo-acc-rgb), calc(0.9 * var(--holo-i) + var(--holo-b)));
@@ -104,6 +104,19 @@ body.preview:not(.editing).has-widgets #preview-chip { display: flex; }
 .holo-rig.side-left .slit { width: 8px; height: 2px; margin: -1px 0 0 0; }      /* a side base's emitter points at the widget */
 .holo-rig.side-right .slit { width: 8px; height: 2px; margin: -1px 0 0 -8px; }
 body.editing .holo-rig.selected .holo-base { outline: 1px dashed var(--ui-accent); outline-offset: 2px; }
+/* The projected widget itself. Its content sits in an inner wrapper that fades toward the base (a mask on the root
+   would clip the frame glow and the selection outline) and carries the per-frame opacity envelope, so the
+   .offline rule on the root keeps dimming disconnected widgets. isolation keeps the Full tier's fringe blend inside. */
+.widget.holo { isolation: isolate; contain: layout paint style; }
+.widget.holo .holo-in { -webkit-mask-image: linear-gradient(var(--holo-mask-dir, 180deg), #000 0 60%, rgba(0,0,0,0.45) 100%); mask-image: linear-gradient(var(--holo-mask-dir, 180deg), #000 0 60%, rgba(0,0,0,0.45) 100%); will-change: opacity; }
+/* Scan roll: a 2px band sweeping down the widget, compositor-only. Subtle tier and up. */
+.widget.holo .holo-roll { display: none; position: absolute; inset: 0; pointer-events: none; will-change: transform;
+  background: linear-gradient(180deg, rgba(var(--holo-core-rgb), calc(0.15 * var(--holo-i) + var(--holo-b))) 0 2px, transparent 2px); animation: holo-roll 8s linear infinite; }
+.widget.holo.live .holo-roll { display: block; }
+@keyframes holo-roll { from { transform: translateY(-2px); } to { transform: translateY(100%); } }
+/* Bright footage: dark scanlines vanish over clouds, so they become lines of the highlight color instead. */
+.widget.holo.bright.scan::after { background: repeating-linear-gradient(180deg, rgba(0,0,0,0) 0 2px, rgba(var(--holo-acc-rgb), 0.15) 2px 3px), linear-gradient(180deg, var(--beam, transparent), transparent 65%); }
+@media (prefers-reduced-motion: reduce) { .widget.holo .holo-roll { display: none; } }
 .looks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem; margin: 0.4rem 0 0.6rem; }
 .look-tile { display: flex; flex-direction: column; align-items: center; gap: 0.4rem; padding: 0.55rem 0.25rem 0.4rem; min-height: 0; font-size: 0.78rem; font-weight: 600; line-height: 1.2; text-align: center; }
 .look-tile[aria-pressed=true] { border-color: var(--ui-accent); box-shadow: inset 0 0 0 1px var(--ui-accent); }
@@ -738,8 +751,8 @@ function styleWidget(root, w) {
   const solid = (w.bgAlpha ?? profile.settings.panelAlpha) > 0;
   if (!solid) { root.style.borderColor = "transparent"; root.style.boxShadow = "none"; }
   // 3D depth: a bevel (light top edge, dark bottom), an extruded side and a deeper drop shadow.
-  // Plain CSS gradients and box-shadows, painted once; nothing changes per frame.
-  const d = clamp((w.depth || 0) / 100, 0, 1);
+  // Plain CSS gradients and box-shadows, painted once; nothing changes per frame. A hologram has no bezel.
+  const d = depthOf(w);
   if (solid && d > 0) {
     const edge = mixHex(w.border || w.bg || profile.settings.panel, "#000000", 0.55);
     root.style.backgroundImage = `linear-gradient(180deg, rgba(255,255,255,${(0.12 * d).toFixed(3)}) 0%, rgba(255,255,255,0) 42%, rgba(0,0,0,${(0.38 * d).toFixed(3)}) 100%)`;
@@ -750,6 +763,7 @@ function styleWidget(root, w) {
       `0 ${(6 + 14 * d).toFixed(1)}px ${(16 + 18 * d).toFixed(1)}px rgba(0,0,0,0.6)`].join(", ");
   }
 }
+const depthOf = w => holoOf(w).on ? 0 : clamp((w.depth || 0) / 100, 0, 1);   // Projector ignores depth: an extruded bezel is not a hologram
 // Blend two #rrggbb colors; t = 0 gives a, 1 gives b.
 function mixHex(a, b, t) {
   const p = h => { const m = /^#?([0-9a-f]{6})$/i.exec(h || ""); const n = m ? parseInt(m[1], 16) : 0; return [n >> 16, (n >> 8) & 255, n & 255]; };
@@ -862,6 +876,7 @@ function buildWidget(w) {
   applyPerspective(root, w);
   const rt = getRt(w); rt.root = root; rt.spans = {}; rt._key = null;
   const holo = holoOf(w);
+  rt.holo = holo.on; rt.sprite = null;
   if (holo.on) { root.classList.add("holo"); setHoloVars(root, rt.holoColors = holoColorsOf(w), holo); }   // the rig itself comes in attachHolo
   const k = (w.size || 1) * SIZE_BASE, D = dimsOf(w);
   // Width / Height scale (buttons and pedals): stretch the box on one axis without changing text size.
@@ -921,8 +936,34 @@ function buildWidget(w) {
     root.style.fontSize = 18 * k + "px";
     root.textContent = w.label || "Label";
   }
+  if (holo.on) {
+    // Hologram treatment on top of the Cockpit Look: the content moves into a wrapper that fades toward the base,
+    // a scan-roll band on top, and a firm border so readouts stay legible over bright footage.
+    const inner = el("div", { class: "holo-in" }); inner.append(...root.childNodes);
+    root.append(inner, el("i", { class: "holo-roll" }));
+    root.style.setProperty("--holo-mask-dir", { below: "180deg", above: "0deg", left: "270deg", right: "90deg" }[holo.base.side] || "180deg");
+    const tier = holoTier(holo), bright = holo.footage === "bright";
+    root.classList.toggle("live", tier !== "static"); root.classList.toggle("bright", bright);
+    // A radar disc has no frame in the Gladius: its rectangle fades out with Background fade and loses the frame glow.
+    const fade = w.type === "stick" && w.face === "radar" ? clamp(({ ...PROJ_DEFAULT, ...(w.proj || {}) }).fade / 100, 0, 1) : 0;
+    if (fade) root.style.boxShadow = "none";
+    if ((w.bgAlpha ?? profile.settings.panelAlpha) > 0) root.style.borderColor = hexA(w.border || w.accent || profile.settings.accent, (bright ? 1 : 0.85) * (1 - fade));
+  }
   if (selected.has(w.id)) root.classList.add("selected");
   return root;
+}
+// The tier that actually runs: reduced motion and Intensity 0 both mean Static.
+const REDUCED_MOTION = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const holoTier = h => REDUCED_MOTION || !(h.intensity > 0) ? "static" : h.tier;
+// Glow sprite: a radial falloff rendered once per widget and color, drawn under the dot or bar tip with "lighter"
+// instead of shadowBlur (which would blur on every repaint). It fades to the same RGB at alpha 0, never to
+// transparent, which would leave a dark premultiplied fringe.
+function holoSprite(rt, color) {
+  if (rt.sprite && rt.sprite.color === color) return rt.sprite.canvas;
+  const c = makeCanvas(48, 48), g = c.getContext("2d"), r = g.createRadialGradient(24, 24, 0, 24, 24, 24);
+  r.addColorStop(0, hexA(color, 0.6)); r.addColorStop(0.45, hexA(color, 0.22)); r.addColorStop(1, hexA(color, 0));
+  g.fillStyle = r; g.fillRect(0, 0, 48, 48);
+  rt.sprite = { color, canvas: c }; return c;
 }
 
 // ---------- projector rig ----------
@@ -933,8 +974,8 @@ const rgbOf = hex => { const n = parseInt((normHex(hex) || "#ffffff").slice(1), 
 const holoSquash = deg => clamp(HOLO_SQUASH[0] + HOLO_SQUASH[1] * Math.abs(Math.sin((deg || 0) * Math.PI / 180)), 0, 0.75);
 const holoColorsOf = w => deriveHolo({ accent: w.accent || profile.settings.accent, border: w.border || "", bg: w.bg || profile.settings.panel });
 function setHoloVars(e, d, h) {
-  const v = { core: d.core, glow: d.glow, rays: d.rays, "acc-rgb": d.accRgb, "rays-rgb": rgbOf(d.rays), "ped-rgb": rgbOf(d.pedestal),
-    "fringe-a": d.fringeA, "fringe-b": d.fringeB, i: clamp(h.intensity / 70, 0, 1.43).toFixed(3), b: h.footage === "bright" ? 0.15 : 0 };
+  const v = { core: d.core, glow: d.glow, rays: d.rays, "acc-rgb": d.accRgb, "core-rgb": rgbOf(d.core), "rays-rgb": rgbOf(d.rays), "ped-rgb": rgbOf(d.pedestal),
+    "fringe-a": hexA(d.fringeA, 0.45), "fringe-b": hexA(d.fringeB, 0.45), i: clamp(h.intensity / 70, 0, 1.43).toFixed(3), b: h.footage === "bright" ? 0.15 : 0 };
   for (const k in v) e.style.setProperty("--holo-" + k, v[k]);
 }
 const svgEl = (tag, attrs = {}) => { const e = document.createElementNS("http://www.w3.org/2000/svg", tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; };
@@ -1176,6 +1217,10 @@ function drawStick(w, rt, pad, dt) {
   const radar = w.face === "radar";
   const face = () => { if (radar) { g.beginPath(); g.arc(R, R, R - 0.5, 0, Math.PI * 2); } else roundRect(g, 0.5, 0.5, S - 1, S - 1, rad); };
   g.save(); face(); g.clip();
+  // Projector: what must darken (face fill, heat cells) goes first with source-over, then everything is light that
+  // adds up, so overlapping strokes brighten toward white.
+  const holo = rt.holo, light = () => { if (holo) g.globalCompositeOperation = "lighter"; };
+  if (holo && radar) { g.fillStyle = hexA(w.bg || profile.settings.panel, 0.25); g.fillRect(0, 0, S, S); }
   if (showHeat) {
     let mx = 0; for (const v of rt.heat2) mx = Math.max(mx, v);
     const cell = S / HEAT;
@@ -1184,10 +1229,11 @@ function drawStick(w, rt, pad, dt) {
       g.fillStyle = heatColor(Math.sqrt(v / mx), accent); g.fillRect(i * cell, j * cell, cell + 0.5, cell + 0.5);
     }
   }
+  light();
   g.strokeStyle = hexA(ink, 0.16); g.lineWidth = 1;
   if (radar) for (const f of [1 / 3, 2 / 3]) { g.beginPath(); g.arc(R, R, (R - 0.5) * f, 0, Math.PI * 2); g.stroke(); }
   else for (let k = 1; k < 4; k++) { const p = Math.round(S * k / 4) + 0.5; g.beginPath(); g.moveTo(p, 0); g.lineTo(p, S); g.moveTo(0, p); g.lineTo(S, p); g.stroke(); }
-  const depth = clamp((w.depth || 0) / 100, 0, 1);
+  const depth = depthOf(w);
   if (depth > 0) {   // recessed gate: shadow under the top lip, faint light on the bottom edge
     const lip = g.createLinearGradient(0, 0, 0, S * 0.3);
     lip.addColorStop(0, `rgba(0,0,0,${0.5 * depth})`); lip.addColorStop(1, "rgba(0,0,0,0)");
@@ -1196,12 +1242,13 @@ function drawStick(w, rt, pad, dt) {
     side.addColorStop(0, `rgba(0,0,0,${0.3 * depth})`); side.addColorStop(1, "rgba(0,0,0,0)");
     g.fillStyle = side; g.fillRect(0, 0, S * 0.12, S);
   }
-  g.restore();
+  g.restore(); light();
+  if (holo && radar) { g.strokeStyle = hexA(rt.holoColors.glow, 0.3); g.lineWidth = 3; face(); g.stroke(); }   // rim bloom: the rim is the brightest part
   g.strokeStyle = hexA(ink, 0.4); g.lineWidth = 1; face(); g.stroke();
   if (radar) {   // 36 rim ticks every 10°, the four cardinal ones longer and in the highlight color
     for (let i = 0; i < 36; i++) {
       const a = i * Math.PI / 18, card = i % 9 === 0, len = card ? 7 : 3.5;
-      g.strokeStyle = card ? accent : hexA(ink, 0.45);
+      g.strokeStyle = card ? accent : holo ? hexA(rt.holoColors.core, 0.7) : hexA(ink, 0.45);
       g.beginPath(); g.moveTo(R + Math.cos(a) * (R - 1), R + Math.sin(a) * (R - 1)); g.lineTo(R + Math.cos(a) * (R - 1 - len), R + Math.sin(a) * (R - 1 - len)); g.stroke();
     }
   } else if (depth > 0) { g.strokeStyle = `rgba(255,255,255,${0.14 * depth})`; g.beginPath(); g.moveTo(rad, S - 1.5); g.lineTo(S - rad, S - 1.5); g.stroke(); }
@@ -1217,6 +1264,10 @@ function drawStick(w, rt, pad, dt) {
     const ball = g.createRadialGradient(px - r * 0.35, py - r * 0.4, r * 0.1, px, py, r);
     ball.addColorStop(0, mixHex(accent, "#ffffff", 0.75)); ball.addColorStop(0.35, accent); ball.addColorStop(1, mixHex(accent, "#000000", 0.55));
     g.fillStyle = ball; g.beginPath(); g.arc(px, py, r, 0, Math.PI * 2); g.fill(); g.shadowBlur = 0;
+  } else if (holo) {   // the glow is a sprite under the dot, no shadowBlur in the projected path
+    g.drawImage(holoSprite(rt, rt.holoColors.glow), px - 20, py - 20, 40, 40);
+    g.fillStyle = accent; g.beginPath(); g.arc(px, py, 6.5, 0, Math.PI * 2); g.fill();
+    g.globalCompositeOperation = "source-over";
   } else {
     g.fillStyle = accent; g.shadowColor = accent; g.shadowBlur = 12;
     g.beginPath(); g.arc(px, py, 6.5, 0, Math.PI * 2); g.fill(); g.shadowBlur = 0;
@@ -1228,7 +1279,7 @@ function roundRect(g, x, y, w, h, r) {
   g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
   g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
 }
-function drawBar(c, v, accent, { vertical, zero, rt, key, dt, live, skip, ink = "#ffffff" }) {
+function drawBar(c, v, accent, { vertical, zero, rt, key, dt, live, skip, ink = "#ffffff", holo, glow }) {
   const g = c.getContext("2d"), W = c._w, H = c._h, L = vertical ? H : W, T = vertical ? W : H;
   const t = (v + 1) / 2;
   if (live && rt) {
@@ -1240,36 +1291,41 @@ function drawBar(c, v, accent, { vertical, zero, rt, key, dt, live, skip, ink = 
   g.save();
   if (vertical) { g.translate(0, H); g.rotate(-Math.PI / 2); }
   g.fillStyle = hexA(ink, 0.14); roundRect(g, 0, 0, L, T, 5); g.fill();
+  // Projector: heat cells stay source-over so their colors read; the fill, tip and glow add up as light.
+  const lightUp = () => { if (holo) g.globalCompositeOperation = "lighter"; };
   if (showHeat && rt && rt.heat1[key]) {
     const h = rt.heat1[key]; let mx = 0; for (const q of h) mx = Math.max(mx, q);
     const bw = L / HEAT1;
     if (mx > 0) for (let i = 0; i < HEAT1; i++) if (h[i]) { g.fillStyle = heatColor(Math.sqrt(h[i] / mx), accent); g.fillRect(i * bw, 0, bw + 0.5, T); }
   } else {
     const from = zero ? 0 : L / 2, to = t * L;
-    g.fillStyle = accent;
+    lightUp(); g.fillStyle = accent;
     roundRect(g, Math.min(from, to), 0, Math.max(2, Math.abs(to - from)), T, 5); g.fill();
   }
+  lightUp();
   if (!zero) { g.fillStyle = hexA(ink, 0.5); g.fillRect(L / 2 - 0.5, 0, 1, T); }
+  if (holo) { const s = Math.max(24, T * 2.4); g.drawImage(holoSprite(rt, glow), clamp(t * L, 1, L - 1) - s / 2, T / 2 - s / 2, s, s); }   // glow under the tip
   g.fillStyle = ink; g.fillRect(clamp(t * L, 1, L - 1) - 1, 0, 2, T);
-  g.restore();
+  g.restore();   // also puts the composite mode back
 }
 function drawWidget(w, rt, pad, dt) {
   const accent = w.accent || profile.settings.accent, ink = w.text || profile.settings.text, live = !!pad;
+  const holo = rt.holo, glow = holo ? rt.holoColors.glow : null;
   if (w.type === "stick") return drawStick(w, rt, pad, dt);
   if (w.type === "throttle" || w.type === "axis") {
     const zero = w.type === "throttle", key = w.type === "throttle" ? "t" : "a", v = readAxis(pad, w, key);
-    drawBar(rt.canvas, v, accent, { vertical: w.orient !== "h", zero, rt, key, dt, live, skip: !rt.dirty, ink });
+    drawBar(rt.canvas, v, accent, { vertical: w.orient !== "h", zero, rt, key, dt, live, skip: !rt.dirty, ink, holo, glow });
     if (rt.dirty) setText(rt.spans.v, v, zero);
     return;
   }
   if (w.type === "pedals") {
     const r = readAxis(pad, w, "r");
-    drawBar(rt.canvas, r, accent, { vertical: w.orient === "v", zero: false, rt, key: "r", dt, live, skip: !rt.dirty, ink });
+    drawBar(rt.canvas, r, accent, { vertical: w.orient === "v", zero: false, rt, key: "r", dt, live, skip: !rt.dirty, ink, holo, glow });
     if (rt.dirty) { const sp = rt.spans.r, p = pct(r); setText(sp, r); sp.classList.toggle("pos", p > 0); sp.classList.toggle("neg", p < 0); }
     for (const [key, c] of [["bl", rt.brakeL], ["br", rt.brakeR]]) {
       if (w.axes[key] == null || !c) continue;
       const v = readAxis(pad, w, key);
-      drawBar(c, v, accent, { vertical: true, zero: true, rt, key, dt, live, skip: !rt.dirty, ink });
+      drawBar(c, v, accent, { vertical: true, zero: true, rt, key, dt, live, skip: !rt.dirty, ink, holo, glow });
       if (rt.dirty) setText(rt.spans[key], v, true);
     }
     return;
@@ -2136,6 +2192,7 @@ function layoutSection(p, ws) {
   slider("Padding", all((w, k) => w.pad ?? PAD, (w, k, v) => { w.pad = v; }), "v", 0, 48);
   slider("Corner radius", all((w, k) => w.radius ?? RADIUS, (w, k, v) => { w.radius = v; }), "v", 0, 32);
   slider("3D depth", all((w, k) => w.depth || 0, (w, k, v) => { w.depth = v; }), "v", 0, 100, "%");
+  if (ws.some(w => holoOf(w).on)) p.append(el("div", { class: "hint" }, "Depth is off while Projector is on."));
   const live = ws.filter(w => w.type !== "button" && w.type !== "label");
   if (live.length) {
     const flag = key => all(w => w[key] !== false, (w, k, v) => { w[key] = v; });
