@@ -78,8 +78,9 @@ body.preview:not(.editing).has-widgets #preview-chip { display: flex; }
 .btn-widget { padding: 8px 14px; min-width: 64px; font-weight: 700; font-size: 13px; letter-spacing: 0.06em; transition: background 60ms, color 60ms, box-shadow 60ms; }
 .btn-widget.on { background: var(--accent); color: var(--on, #031018); border-color: var(--accent); box-shadow: 0 0 14px var(--accent); text-shadow: none; }
 .label-widget { font-weight: 700; letter-spacing: 0.06em; }
-/* Perspective: one GPU-composited CSS transform per widget, no per-frame cost. */
-.widget.tilted { transform-origin: 50% 50%; will-change: transform; backface-visibility: hidden; }
+/* Perspective: one CSS transform per widget, no per-frame cost. A static tilt needs no will-change (a 3D transform
+   gets its own layer anyway); the Projector's float is an animation, which promotes its widget while it runs. */
+.widget.tilted { transform-origin: 50% 50%; backface-visibility: hidden; }
 /* Projection look: fine scanlines plus a faint beam of the highlight color from the top edge. Painted once. */
 .widget.scan::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
   background: repeating-linear-gradient(180deg, rgba(0,0,0,0) 0 2px, rgba(0,0,0,0.2) 2px 3px), linear-gradient(180deg, var(--beam, transparent), transparent 65%); }
@@ -934,8 +935,9 @@ function syncUndoButtons() {
   if (r) r.disabled = !hist.redo.length;
 }
 function download(name, text, type) {
-  const a = el("a", { href: URL.createObjectURL(new Blob([text], { type })), download: name });
+  const url = URL.createObjectURL(new Blob([text], { type })), a = el("a", { href: url, download: name });
   document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);   // after the download has had time to start
 }
 function exportProfile(asScript) {
   profile.savedAt = Date.now(); stampLayout();
@@ -1696,6 +1698,7 @@ function syncHoloList() {
 function rebuildAll() {
   applySettings();
   const stage = $("#stage");
+  if (holoRO) holoRO.disconnect();   // attachHolo observes the new roots again
   stage.querySelectorAll(".widget, .holo-rig").forEach(e => e.remove());
   for (const id in runtime) if (!profile.widgets.find(w => w.id === id)) delete runtime[id];
   for (const w of profile.widgets) stage.append(buildWidget(w));
@@ -2823,7 +2826,7 @@ function choiceRow(p, label, obj, key, options, after, { wrap, aria } = {}) {
 // Rebuilds widgets in place: every new root goes in, then all are measured in one layout, then the rigs go in.
 function refreshWidgets(ws) {
   const list = ws.map(w => [w, runtime[w.id]]).filter(([, rt]) => rt && rt.root);
-  for (const [w, rt] of list) rt.root.replaceWith(buildWidget(w));
+  for (const [w, rt] of list) { if (holoRO) holoRO.unobserve(rt.root); rt.root.replaceWith(buildWidget(w)); }
   for (const [, rt] of list) if (rt.holo) measureHolo(rt);
   for (const [w, rt] of list) attachHolo(w, rt, true);
   syncHoloList(); wake();
