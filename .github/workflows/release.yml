@@ -28,6 +28,13 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Check this is main
+        run: |
+          # A hand-run release must come from main, so a release can only ship reviewed code.
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] && [ "$GITHUB_REF" != refs/heads/main ]; then
+            echo "Run the Release workflow from main, not $GITHUB_REF"; exit 1
+          fi
+
       - name: Check version format
         run: |
           [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Version must look like v1.2.3, got '$TAG'"; exit 1; }
