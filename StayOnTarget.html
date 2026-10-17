@@ -197,8 +197,14 @@ body.editing.show-center #center-lines { display: block; }
    (--rz-k) so they stay the same size on screen at 1080p and 4K. */
 #resize { position: absolute; display: none; pointer-events: none; z-index: 6; --rz-k: 1; }
 body.editing #resize.on { display: block; }
-#resize i { position: absolute; width: calc(10px * var(--rz-k)); height: calc(10px * var(--rz-k)); margin: calc(-5px * var(--rz-k)) 0 0 calc(-5px * var(--rz-k));
+#resize i { position: absolute; z-index: 2; width: calc(10px * var(--rz-k)); height: calc(10px * var(--rz-k)); margin: calc(-5px * var(--rz-k)) 0 0 calc(-5px * var(--rz-k));
   background: #fff; border: calc(1.5px * var(--rz-k)) solid var(--ui-accent); border-radius: calc(2px * var(--rz-k)); pointer-events: auto; box-sizing: border-box; }
+/* Edges: an invisible strip along each side you can grab anywhere, like Figma; the corner squares sit on top. */
+#resize i.edge { z-index: 1; background: none; border: 0; border-radius: 0; margin: 0; }
+#resize i[data-c=n], #resize i[data-c=s] { left: 0; width: 100%; height: calc(8px * var(--rz-k)); cursor: ns-resize; }
+#resize i[data-c=e], #resize i[data-c=w] { top: 0; height: 100%; width: calc(8px * var(--rz-k)); cursor: ew-resize; }
+#resize i[data-c=n] { top: calc(-4px * var(--rz-k)); } #resize i[data-c=s] { top: calc(100% - 4px * var(--rz-k)); }
+#resize i[data-c=w] { left: calc(-4px * var(--rz-k)); } #resize i[data-c=e] { left: calc(100% - 4px * var(--rz-k)); }
 #resize i[data-c=nw] { left: 0; top: 0; cursor: nwse-resize; } #resize i[data-c=ne] { left: 100%; top: 0; cursor: nesw-resize; }
 #resize i[data-c=se] { left: 100%; top: 100%; cursor: nwse-resize; } #resize i[data-c=sw] { left: 0; top: 100%; cursor: nesw-resize; }
 #resize::after { content: attr(data-size); position: absolute; left: 50%; top: 100%; transform: translate(-50%, calc(10px * var(--rz-k))) scale(var(--rz-k)); transform-origin: 50% 0;
@@ -292,6 +298,18 @@ input[type=checkbox] { accent-color: var(--ui-accent); width: 1.3rem; height: 1.
   font-size: 1rem;
 }
 #panel h3 { margin: 0.2rem 0 0.8rem; font-size: 1.3rem; font-weight: 600; }
+/* Widget and group panels: a sticky head (title, name, align icons) and foot (Duplicate, Remove), as Figma keeps
+   its alignment row and actions in reach. Negative margins reach the panel's padding so nothing shows through. */
+#panel .p-head { position: sticky; top: -1.1rem; z-index: 3; margin: -1.1rem -1.1rem 0; padding: 1.1rem 1.1rem 0.7rem; background: #121a24;
+  border-bottom: 1px solid rgba(255,255,255,0.08); }
+#panel .p-head h3 { margin-bottom: 0.4rem; }
+#panel .p-head .row { margin: 0.4rem 0 0.6rem; }
+#panel .p-foot { position: sticky; bottom: -1.1rem; z-index: 3; margin: 0.9rem -1.1rem -1.1rem; padding: 0.7rem 1.1rem 1.1rem; background: #121a24;
+  border-top: 1px solid rgba(255,255,255,0.08); display: flex; gap: 0.5rem; }
+#panel .p-foot button { flex: 1; }
+#panel .pair-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin: 0.5rem 0; }
+#panel .pair-row label { display: flex; align-items: center; justify-content: space-between; gap: 0.4rem; color: #b6c3d1; }
+#panel .pair-row input[type=number] { width: 5.2rem; min-height: 2rem; padding: 0.2rem 0.5rem; text-align: right; }
 #panel h4 { margin: 1.4rem 0 0.6rem; font-size: 0.85rem; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600; }
 #panel .row { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; margin: 0.5rem 0; }
 #panel .row > span { color: #b6c3d1; }
@@ -381,6 +399,16 @@ button.subtle:hover { border-color: rgba(255,255,255,0.3); color: var(--text); b
 /* First-run dialog */
 #welcome { position: fixed; inset: 0; z-index: 50; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.55); }
 #welcome.open { display: flex; }
+/* One-time tips: a card beside the side panel pointing at it, never blocking the stage. */
+#coach { position: fixed; right: 24.25rem; top: 5rem; z-index: 45; width: min(22rem, calc(100vw - 26rem)); padding: 1.1rem 1.2rem; display: none; line-height: 1.5; }
+body.panel-hidden #coach { right: 1.5rem; }
+#coach.open { display: block; }
+#coach::after { content: ""; position: absolute; right: -0.45rem; top: 1.6rem; width: 0.8rem; height: 0.8rem; background: #121a24;
+  border-top: 1px solid rgba(255,255,255,0.12); border-right: 1px solid rgba(255,255,255,0.12); transform: rotate(45deg); }
+body.panel-hidden #coach::after { display: none; }
+#coach h2 { margin: 0 0 0.4rem; font-size: 1.15rem; font-weight: 600; }
+#coach p { margin: 0 0 0.5rem; color: #b6c3d1; }
+#coach .foot { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.8rem; }
 #confirm { position: fixed; inset: 0; z-index: 60; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); color-scheme: dark; }
 #confirm.open { display: flex; }
 #confirm .dialog { width: min(30rem, calc(100vw - 2rem)); padding: 1.6rem 1.8rem; font-size: 1.07rem; line-height: 1.55; }
@@ -485,7 +513,7 @@ body:not(.editing):not(.has-widgets) #enter-edit { display: flex; }
 <div id="stage">
   <div id="center-lines"><i class="v"></i><i class="h"></i></div>
   <div id="guides"></div>
-  <div id="resize" aria-hidden="true"><i data-c="nw"></i><i data-c="ne"></i><i data-c="se"></i><i data-c="sw"></i></div>
+  <div id="resize" aria-hidden="true"><i class="edge" data-c="n"></i><i class="edge" data-c="e"></i><i class="edge" data-c="s"></i><i class="edge" data-c="w"></i><i data-c="nw"></i><i data-c="ne"></i><i data-c="se"></i><i data-c="sw"></i></div>
 </div>
 <div id="marquee"></div>
 <div id="enter-edit"><div class="card paper" role="region" aria-label="Stay On Target">
@@ -509,6 +537,12 @@ body:not(.editing):not(.has-widgets) #enter-edit { display: flex; }
       <span style="display:flex;gap:0.5rem;flex-wrap:wrap"><button data-welcome="close">Explore on My Own</button><button class="primary" data-welcome="device">Get Started</button></span>
     </div>
   </div>
+</div>
+<div id="coach" class="paper" role="dialog" aria-labelledby="coach-title">
+  <h2 id="coach-title">Edit Widgets Together</h2>
+  <p>Drag a box around several widgets, or Shift+click them, and the side panel edits all of them at once.</p>
+  <p>Use it to match sizes, line them up in rows and columns, or give the whole set one color theme and Cockpit Look.</p>
+  <div class="foot"><button data-coach="ok">Got It</button><button class="primary" data-coach="show">Show Me</button></div>
 </div>
 <div id="confirm" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-body">
   <div class="dialog paper">
@@ -783,7 +817,25 @@ let wizBg = false;   // this run started with the background step (first setup)
 function startSetup() { closeFab(); closeWelcome(); wizBg = true; wiz = { kind: "device", stage: "bg" }; renderWiz(); }
 function startDeviceWizard() { closeFab(); closeWelcome(); if (!wiz) wizBg = false; wiz = { kind: "device", stage: "type" }; renderWiz(); }
 function startButtonWizard() { closeFab(); closeWelcome(); wiz = { kind: "button", stage: "press", base: snapshotAll() }; renderWiz(); }
-function closeWizard() { wiz = null; wizAdded = []; wizBg = false; renderWiz(); }
+function closeWizard() {
+  const finished = wiz && wiz.kind === "done";
+  wiz = null; wizAdded = []; wizBg = false; renderWiz();
+  if (finished) maybeTip("groups");
+}
+// ---------- one-time tips ----------
+// Shown once per browser. "groups": after setup ends with two or more widgets, point at editing them together.
+const TIPS_KEY = "stayontarget.tips";
+let tipsSeen = {}; try { tipsSeen = JSON.parse(localStorage.getItem(TIPS_KEY) || "{}") || {}; } catch (e) {}
+function maybeTip(id) {
+  if (tipsSeen[id] || !editing) return;
+  if (id === "groups" && profile.widgets.filter(w => w.type !== "label").length < 2) return;
+  $("#coach").classList.add("open");
+  setTimeout(() => $("#coach [data-coach=show]").focus(), 0);
+}
+function closeTip(id) {
+  $("#coach").classList.remove("open");
+  tipsSeen[id] = true; try { localStorage.setItem(TIPS_KEY, JSON.stringify(tipsSeen)); } catch (e) {}
+}
 const cancelWizard = closeWizard;
 function wizChooseType(t) {
   closeFab(); closeWelcome();
@@ -1907,13 +1959,13 @@ function placeOnScreen(where) {
 let drag = null, marquee = null, sizing = null;
 document.addEventListener("pointerdown", e => {
   if (!editing || e.button !== 0) return;
-  if (e.target.closest("#ui, #welcome, #wizard, #enter-edit")) return;
-  // A corner handle: resize. The opposite corner stays put; the box can't go smaller than the content.
+  if (e.target.closest("#ui, #welcome, #wizard, #enter-edit, #coach")) return;
+  // A corner or edge handle: resize. The opposite side stays put; the box can't go smaller than the content.
   const hd = e.target.closest("#resize i");
   if (hd) {
     const w = selectedWidgets()[0]; if (!w) return;
     const b = boxOf(w), rt = runtime[w.id];
-    sizing = { w, c: hd.dataset.c, b, sx: e.clientX, sy: e.clientY, sc: overlayScale(), right: b.x + b.w, bottom: b.y + b.h };
+    sizing = { w, c: hd.dataset.c, b, sx: e.clientX, sy: e.clientY, sc: overlayScale(), right: b.x + b.w, bottom: b.y + b.h, cx: b.x + b.w / 2, cy: b.y + b.h / 2 };
     Object.assign(rt.root.style, { boxSizing: "border-box", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center" });
     $("#resize").classList.add("busy"); hd.setPointerCapture(e.pointerId);
     return;
@@ -1934,15 +1986,32 @@ document.addEventListener("pointerdown", e => {
 document.addEventListener("pointermove", e => {
   if (sizing) {
     const z = sizing, w = z.w, root = runtime[w.id].root, gs = profile.settings.gridSize, snap = profile.settings.gridSnap && !e.altKey;
-    const dx = (e.clientX - z.sx) / z.sc, dy = (e.clientY - z.sy) / z.sc, east = z.c[1] === "e", south = z.c[0] === "s";
+    const dx = (e.clientX - z.sx) / z.sc, dy = (e.clientY - z.sy) / z.sc;
+    const east = z.c.includes("e"), west = z.c.includes("w"), south = z.c.includes("s"), north = z.c.includes("n");
+    const horiz = east || west, vert = north || south;
+    // Figma's modifiers, with Ctrl standing in for Alt (Alt already turns snapping off here): Shift keeps the
+    // proportions, Ctrl resizes from the center. Padding never changes: the box grows around centered content.
+    const keep = e.shiftKey, center = e.ctrlKey || e.metaKey;
+    let W = z.b.w, H = z.b.h;
     // The dragged edge lands on the grid when grid snap is on (Alt turns it off, as for moving).
-    let ex = east ? z.b.x + z.b.w + dx : z.b.x + dx, ey = south ? z.b.y + z.b.h + dy : z.b.y + dy;
-    if (snap) { ex = Math.round(ex / gs) * gs; ey = Math.round(ey / gs) * gs; }
-    w.boxW = Math.max(10, Math.round(east ? ex - z.b.x : z.right - ex)); w.boxH = Math.max(10, Math.round(south ? ey - z.b.y : z.bottom - ey));
-    root.style.minWidth = w.boxW + "px"; root.style.minHeight = w.boxH + "px";
+    if (horiz) {
+      let ex = east ? z.right + dx : z.b.x + dx; if (snap && !center) ex = Math.round(ex / gs) * gs;
+      W = east ? ex - z.b.x : z.right - ex; if (center) W = z.b.w + 2 * (W - z.b.w);
+    }
+    if (vert) {
+      let ey = south ? z.bottom + dy : z.b.y + dy; if (snap && !center) ey = Math.round(ey / gs) * gs;
+      H = south ? ey - z.b.y : z.bottom - ey; if (center) H = z.b.h + 2 * (H - z.b.h);
+    }
+    if (keep) {
+      const k = horiz && vert ? Math.max(W / z.b.w, H / z.b.h) : horiz ? W / z.b.w : H / z.b.h;
+      W = z.b.w * k; H = z.b.h * k;
+    }
+    if (horiz || keep) { w.boxW = Math.max(10, Math.round(W)); root.style.minWidth = w.boxW + "px"; }
+    if (vert || keep) { w.boxH = Math.max(10, Math.round(H)); root.style.minHeight = w.boxH + "px"; }
     const nb = { w: root.offsetWidth, h: root.offsetHeight };   // what the content allows
-    if (!east) w.x = Math.round(z.right - nb.w);
-    if (!south) w.y = Math.round(z.bottom - nb.h);
+    // An edge dragged with Shift grows the other axis evenly about its middle, as Figma does.
+    w.x = Math.round(center || (keep && !horiz) ? z.cx - nb.w / 2 : west ? z.right - nb.w : z.b.x);
+    w.y = Math.round(center || (keep && !vert) ? z.cy - nb.h / 2 : north ? z.bottom - nb.h : z.b.y);
     positionWidget(w); placeResize();
     return;
   }
@@ -1968,7 +2037,7 @@ document.addEventListener("pointerup", () => {
     w.boxW = Math.round(b.w); w.boxH = Math.round(b.h);   // keep what it actually came to, not a size below the content
     refreshWidget(w); syncSelectionClasses(); save(); renderPanel(); return;
   }
-  if (drag) { if (drag.moved) save(); drag = null; drawGuides([]); return; }
+  if (drag) { if (drag.moved) { save(); renderPanel(); } drag = null; drawGuides([]); return; }
   if (marquee) {
     const r = marquee.rect;
     $("#marquee").style.display = "none";
@@ -2004,10 +2073,10 @@ document.addEventListener("keydown", e => {
     const step = e.shiftKey ? 10 : 1;
     const dx = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0;
     const dy = e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0;
-    moveWidgets(selectedWidgets(), dx, dy); save();
+    moveWidgets(selectedWidgets(), dx, dy); save(); renderPanel();
   }
 });
-document.addEventListener("dblclick", e => { if (!editing && !e.target.closest("#ui, #welcome, #wizard, #enter-edit")) setEditing(true); });
+document.addEventListener("dblclick", e => { if (!editing && !e.target.closest("#ui, #welcome, #wizard, #enter-edit, #coach")) setEditing(true); });
 
 // ---------- edit mode ----------
 function setEditing(on) {
@@ -2358,14 +2427,63 @@ const ICONS = {
   vcenter: '<path d="M2 9h14M5 4v10h3V4zM10 6v6h3V6z"/>',
   bottom: '<path d="M2 15h14M5 3v9h3V3zM10 7v5h3V7z"/>'
 };
-function alignSection(p) {
+// The align icons, first thing under the panel's title as in Figma: to the screen for one widget, to each other for several.
+function alignRow(p) {
   const n = selected.size;
-  p = section(p, "Arrange", { key: "arrange", open: false });
-  p.append(el("h5", {}, n > 1 ? "Align to Each Other" : "Align to Screen"));
-  const r = el("div", { class: "icon-row", role: "group", "aria-label": "Align" });
   const tips = { left: "Align left", hcenter: "Align centers horizontally", right: "Align right", top: "Align top", vcenter: "Align middles vertically", bottom: "Align bottom" };
-  for (const k in ICONS) r.append(el("button", { title: tips[k], "aria-label": tips[k], onclick: () => align(k), html: `<svg viewBox="0 0 18 18">${ICONS[k]}</svg>` }));
+  const r = el("div", { class: "icon-row", role: "group", "aria-label": n > 1 ? "Align to each other" : "Align to screen" });
+  for (const k in ICONS) r.append(el("button", { title: tips[k] + (n > 1 ? "" : " of the screen"), "aria-label": tips[k], onclick: () => align(k), html: `<svg viewBox="0 0 18 18">${ICONS[k]}</svg>` }));
   p.append(r);
+}
+// Sticky top of a widget or group panel: what is selected, its name, and the align icons, so they stay in reach
+// while the sections scroll under them.
+function panelHead(p, title, sub, nameRow) {
+  const h = el("div", { class: "p-head" }, el("h3", {}, title), sub ? el("div", { class: "hint small" }, sub) : null, nameRow || null);
+  alignRow(h); p.append(h);
+}
+// Sticky foot: Duplicate and Remove always in reach instead of at the end of a long scroll.
+function panelFoot(p, removeLabel) {
+  p.append(el("div", { class: "p-foot" },
+    el("button", { onclick: duplicateSelected, title: "Duplicate (Ctrl+D)" }, "Duplicate"),
+    el("button", { class: "danger", onclick: deleteSelected, title: "Remove (Delete)" }, removeLabel)));
+}
+// Position and Size: where the widget (or the group's box) sits and how big it is, Figma's frame section.
+function positionSection(p, ws) {
+  p = section(p, "Position and Size", { key: "pos" });
+  const ub = unionBox(ws);
+  const posIn = (axis, label) => {
+    const n = el("input", { type: "number", min: -4000, max: 8000, step: 1, "aria-label": label + " in pixels" });
+    n.value = Math.round(ub[axis]);
+    n.addEventListener("change", () => {
+      if (n.value === "" || isNaN(+n.value)) { n.value = Math.round(ub[axis]); return; }
+      const d = Math.round(+n.value) - Math.round(ub[axis]);
+      moveWidgets(ws, axis === "x" ? d : 0, axis === "y" ? d : 0); save(); placeResize(); renderPanel();
+    });
+    n.addEventListener("keydown", e => { if (e.key === "Enter") n.blur(); });
+    return el("span", { style: "display:flex;align-items:center;gap:0.3rem" }, n, el("span", {}, "px"));
+  };
+  p.append(el("div", { class: "pair-row" },
+    el("label", {}, el("span", {}, "X"), posIn("x", ws.length > 1 ? "Group left edge" : "Left edge")),
+    el("label", {}, el("span", {}, "Y"), posIn("y", ws.length > 1 ? "Group top edge" : "Top edge"))));
+  boxSizeRows(p, ws);
+  sizeRow(p, ws, () => { for (const w of ws) refreshWidget(w); syncSelectionClasses(); });
+}
+// What to show inside the widget.
+function showSection(p, ws) {
+  const live = ws.filter(w => w.type !== "button" && w.type !== "label");
+  if (!live.length) return;
+  const upd = () => { for (const w of ws) refreshWidget(w); syncSelectionClasses(); };
+  const flag = key => new Proxy({}, { get: () => ws[0][key] !== false, set: (_, k, v) => { for (const w of ws) w[key] = v; return true; } });
+  p = section(p, "Show", { key: "show" });
+  toggleRow(p, "Name", flag("showTitle"), "v", upd);
+  toggleRow(p, "Values", flag("showValues"), "v", upd, "The percentage readouts under the widget.");
+  toggleRow(p, "Axis labels", flag("showAxisLabels"), "v", upd);
+}
+// Arrange: spacing and rows and columns for a group (Figma keeps Tidy Up with its align tools), and placing
+// on the screen. Open by default for a group, where it does the most.
+function arrangeSection(p) {
+  const n = selected.size;
+  p = section(p, "Arrange", { key: n > 1 ? "arrange-multi" : "arrange", open: n > 1 });
   if (n > 1) {
     const s = profile.settings;
     p.append(el("h5", {}, "Spacing"));
@@ -2377,11 +2495,11 @@ function alignSection(p) {
     p.append(el("div", { class: "wide-row" },
       el("button", { onclick: () => distribute(true, s.spaceGap) }, "Space Evenly ↔"),
       el("button", { onclick: () => distribute(false, s.spaceGap) }, "Space Evenly ↕")));
-    p.append(el("h5", {}, "Grid"));
+    p.append(el("h5", {}, "Rows and Columns"));
     const colsObj = { get v() { return String(s.gridCols || 0); }, set v(x) { s.gridCols = +x; } };
     choiceRow(p, "Columns", colsObj, "v", [["0", "Auto", "Keeps the rows your widgets already roughly sit in."], ...[1, 2, 3, 4, 5, 6].map(n => [String(n), String(n), `${n} per row, in reading order.`])], null, { aria: "Grid columns" });
     p.append(el("div", { class: "actions" }, el("button", { onclick: () => arrangeGrid(s.gridCols || 0, s.spaceGap), title: "Line the selected widgets up in rows and columns" }, "Arrange in Grid")));
-    p.append(el("div", { class: "hint small" }, "Uses the gap above (Auto: the grid size). Match Width or Height in Layout first for even cells."));
+    p.append(el("div", { class: "hint small" }, "Uses the gap above (Auto: the grid size). Match Width or Height in Position and Size first for even cells."));
   }
   p.append(el("h5", {}, n > 1 ? "Place Group on Screen" : "Place on Screen"));
   p.append(el("div", { class: "wide-row" },
@@ -2587,6 +2705,12 @@ function closeFab(refocus) {
 }
 $("#fab").addEventListener("click", () => $("#fab-menu").classList.contains("open") ? closeFab() : openFab());
 $("#undo-btn").addEventListener("click", undo);
+$("#coach").addEventListener("click", e => {
+  const b = e.target.closest("[data-coach]"); if (!b) return;
+  closeTip("groups");
+  if (b.dataset.coach === "show") { document.body.classList.remove("panel-hidden"); setSelection(profile.widgets.map(w => w.id)); }
+});
+$("#coach").addEventListener("keydown", e => { if (e.key === "Escape") { e.stopPropagation(); closeTip("groups"); } });
 $("#redo-btn").addEventListener("click", redo);
 $("#fab-wrap").addEventListener("keydown", e => {
   if (e.key === "Escape" && $("#fab-menu").classList.contains("open")) { e.preventDefault(); e.stopPropagation(); closeFab(true); return; }
@@ -2703,7 +2827,6 @@ function layoutSection(p, ws) {
   const all = (get, set) => new Proxy({}, { get: (_, k) => get(w0, k), set: (_, k, v) => { for (const w of ws) set(w, k, v); return true; } });
   const slider = (label, obj, key, min, max, unit = " px", hint) => sliderRow(p, label, obj, key, min, max, unit, upd, { hint });
   p = section(p, "Layout", { key: "layout" });
-  boxSizeRows(p, ws);
   const sticks = ws.every(w => w.type === "stick");
   if (sticks) {
     // The radar face is what the Gladius projects, but it works on its own too, so it lives with the other layout choices.
@@ -2713,13 +2836,6 @@ function layoutSection(p, ws) {
   slider("Padding", all((w, k) => w.pad ?? PAD, (w, k, v) => { w.pad = v; }), "v", 0, 48);
   slider("Corner radius", all((w, k) => w.radius ?? RADIUS, (w, k, v) => { w.radius = v; }), "v", 0, 32);
   slider("3D depth", all((w, k) => w.depth || 0, (w, k, v) => { w.depth = v; }), "v", 0, 100, "%", ws.some(w => holoOf(w).on) ? "Off while Projector is on: a hologram has no bezel." : null);
-  const live = ws.filter(w => w.type !== "button" && w.type !== "label");
-  if (live.length) {
-    const flag = key => all(w => w[key] !== false, (w, k, v) => { w[key] = v; });
-    toggleRow(p, "Show name", flag("showTitle"), "v", upd);
-    toggleRow(p, "Show values", flag("showValues"), "v", upd, "The percentage readouts under the widget.");
-    toggleRow(p, "Show axis labels", flag("showAxisLabels"), "v", upd);
-  }
   if (ws.every(w => w.type === "throttle" || w.type === "axis" || w.type === "pedals")) {
     const def = w => w.orient || (w.type === "pedals" ? "h" : "v");
     const o = all(w => def(w), (w, k, v) => { w.orient = v; });
@@ -2937,17 +3053,17 @@ function renderWidgetPanel(p) {
   const w = selectedWidgets()[0]; if (!w) return;
   const names = { stick: "Stick", throttle: "Throttle", pedals: "Pedals", axis: "Single axis", button: "Button", label: "Label" };
   const upd = () => { refreshWidget(w); syncSelectionClasses(); };
-  p.append(el("h3", {}, names[w.type] || w.type));
-  p.append(row("Name", textIn(w, "label", upd)));
-  sizeRow(p, [w], upd);
-  alignSection(p);
+  const seen = w.match && padFor(w, connectedPads());
+  panelHead(p, names[w.type] || w.type, w.type !== "label" && w.match && !seen ? "Its device is not connected. See Device below." : "", row("Name", textIn(w, "label", upd)));
+  positionSection(p, [w]);
+  arrangeSection(p);
   layoutSection(p, [w]);
-  perspectiveSection(p, [w]);
-  projectorSection(p, [w]);
+  showSection(p, [w]);
   themeSection(p, [w]);
   colorSection(p, [w]);
+  perspectiveSection(p, [w]);
+  projectorSection(p, [w]);
   if (w.type !== "label") {
-    const seen = w.match && padFor(w, connectedPads());
     const name = w.match ? prettyName(w.match) + (w.nth ? " #" + (w.nth + 1) : "") : "";
     const d = section(p, "Device", { key: "device", summary: name ? name + (seen ? "" : " (not connected)") : "None yet" });
     d.append(el("div", { class: "hint small" }, name ? name + (seen ? " is connected." : " is not connected.") : "No device yet."));
@@ -2960,25 +3076,21 @@ function renderWidgetPanel(p) {
       }
     }
   }
-  p.append(el("div", { class: "actions" },
-    el("button", { onclick: duplicateSelected }, "Duplicate"),
-    el("button", { class: "danger", onclick: deleteSelected }, "Remove")));
+  panelFoot(p, "Remove");
 }
 
 function renderMultiPanel(p) {
   const ws = selectedWidgets();
-  p.append(el("h3", {}, ws.length + " widgets selected"));
-  p.append(el("div", { class: "hint" }, "Drag any of them to move them together. Shift+click adds or removes one."));
-  sizeRow(p, ws, () => { for (const w of ws) refreshWidget(w); syncSelectionClasses(); });
-  alignSection(p);
+  panelHead(p, ws.length + " widgets selected", "Every change here applies to all of them. Drag any one to move the group; Shift+click adds or removes one.");
+  positionSection(p, ws);
+  arrangeSection(p);
   layoutSection(p, ws);
-  perspectiveSection(p, ws);
-  projectorSection(p, ws);
+  showSection(p, ws);
   themeSection(p, ws);
   colorSection(p, ws);
-  p.append(el("div", { class: "actions" },
-    el("button", { onclick: duplicateSelected }, "Duplicate"),
-    el("button", { class: "danger", onclick: deleteSelected }, "Remove All")));
+  perspectiveSection(p, ws);
+  projectorSection(p, ws);
+  panelFoot(p, "Remove All");
 }
 
 // Device check: every controller slot the browser exposes, live, plus which widgets are still waiting.
