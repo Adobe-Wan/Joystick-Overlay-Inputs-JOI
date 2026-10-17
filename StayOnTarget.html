@@ -146,15 +146,23 @@ body.editing .holo-rig.selected .holo-base { outline: 1px dashed var(--ui-accent
 .holo-base .core { transition: transform 120ms, opacity 120ms; }
 .holo-rig.pulse .core { opacity: 1; transform: scale(1.6, 2); }
 @media (prefers-reduced-motion: reduce) { .widget.holo .holo-roll i, .holo-dust, .holo-photon { display: none; } .holo-rig.full .holo-base { animation: none; } }
-.looks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem; margin: 0.4rem 0 0.6rem; }
-.look-tile { display: flex; flex-direction: column; align-items: center; gap: 0.4rem; padding: 0.55rem 0.25rem 0.4rem; min-height: 0; font-size: 0.78rem; font-weight: 600; line-height: 1.2; text-align: center; }
+.looks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem; margin: 0.3rem 0 0.4rem; }
+.look-tile { display: flex; flex-direction: column; align-items: center; gap: 0.35rem; padding: 0.5rem 0.2rem 0.4rem; min-height: 0; font-size: 0.8rem; font-weight: 600; line-height: 1.2; text-align: center; white-space: nowrap; }
 .look-tile[aria-pressed=true] { border-color: var(--ui-accent); box-shadow: inset 0 0 0 1px var(--ui-accent); }
-.look-prev { position: relative; width: 46px; height: 32px; display: grid; place-items: center; }
-/* Projector presets: a small base ellipse under the box, so the tile reads as "projected" at a glance. */
-.look-prev.proj i { margin-bottom: 6px; }
-.look-prev.proj::after { content: ""; position: absolute; left: 50%; bottom: 0; width: 22px; height: 7px; margin-left: -11px; border-radius: 50%;
+.look-prev { position: relative; width: 46px; height: 34px; display: grid; place-items: center; }
+/* Projector presets: a beam fanning up from a small base ellipse to the box, so the tile reads as "projected". */
+.look-prev.proj i { position: relative; margin-bottom: 8px; }
+.look-prev.proj::before { content: ""; position: absolute; left: 50%; bottom: 3px; width: 36px; height: 26px; margin-left: -18px;
+  background: linear-gradient(to top, rgba(79,209,255,0.55), rgba(79,209,255,0.05)); clip-path: polygon(50% 100%, 0 0, 100% 0); }
+.look-prev.proj::after { content: ""; position: absolute; left: 50%; bottom: 0; width: 18px; height: 6px; margin-left: -9px; border-radius: 50%;
   border: 1px solid var(--ui-accent); box-shadow: 0 0 4px var(--ui-accent), inset 0 0 3px rgba(79,209,255,0.5); }
+.look-prev.proj.above i { margin: 8px 0 0; }
+.look-prev.proj.above::before { bottom: auto; top: 3px; clip-path: polygon(50% 0, 0 100%, 100% 100%); background: linear-gradient(to bottom, rgba(79,209,255,0.55), rgba(79,209,255,0.05)); }
+.look-prev.proj.above::after { bottom: auto; top: 0; }
 .look-prev i { display: block; width: 40px; height: 26px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.55); background: rgba(255,255,255,0.08); transform-origin: 50% 50%; }
+.look-prev i.disc { width: 30px; height: 30px; border-radius: 50%; }
+.sec.sub { border-top: 0; margin: 0.5rem 0 0; padding-top: 0; }
+.sec.sub .sec-t { text-transform: none; letter-spacing: 0; font-size: 0.95rem; color: #b6c3d1; font-weight: 600; }
 .look-prev i.holo { border-color: var(--ui-accent); box-shadow: 0 0 6px var(--ui-accent), inset 0 0 6px rgba(79,209,255,0.35);
   background: repeating-linear-gradient(180deg, rgba(79,209,255,0.12) 0 2px, rgba(79,209,255,0.03) 2px 3px); }
 .look-prev i.visor { background: none; }
@@ -845,26 +853,28 @@ const PERSP_DEFAULT = { rx: 0, ry: 0, rz: 0, sx: 0, sy: 0, d: 900 };
 // drops out, so the scene shows through), scan (scanlines). Angles follow Star Citizen cockpits: side
 // screens have their outer edge nearer the camera, consoles lie back toward the dash.
 const PROJ_DEFAULT = { glow: 0, fade: 0, scan: false };
+// The panel shows the tiles in three groups (group) with a short label under each tile (tile); the full name is the
+// tooltip and the accessible name.
 const LOOK_PRESETS = [
-  { name: "Flat", hint: "Straight on, no effects. The default.", persp: {} },
-  { name: "Hologram", hint: "A projected panel facing the camera: glow, scanlines and a see-through background.", persp: {}, proj: { glow: 55, fade: 45, scan: true } },
-  { name: "Visor HUD", hint: "Just the outline and glowing readouts, like your helmet HUD.", persp: {}, proj: { glow: 70, fade: 100 } },
-  { name: "Left Screen", hint: "An angled MFD to the left of the pilot.", persp: { rx: 4, ry: 30 }, proj: { glow: 20 } },
-  { name: "Right Screen", hint: "An angled MFD to the right of the pilot.", persp: { rx: 4, ry: -30 }, proj: { glow: 20 } },
-  { name: "Dash Console", hint: "Lies back on the console below the canopy.", persp: { rx: 40, d: 800 }, proj: { glow: 20 } },
-  { name: "Low Left", hint: "A side console low on the left, tilted up toward the pilot.", persp: { rx: 30, ry: 24, rz: -3, d: 800 }, proj: { glow: 20 } },
-  { name: "Low Right", hint: "A side console low on the right, tilted up toward the pilot.", persp: { rx: 30, ry: -24, rz: 3, d: 800 }, proj: { glow: 20 } },
-  { name: "Overhead", hint: "A panel above the canopy frame, tipped down toward the pilot.", persp: { rx: -32 }, proj: { glow: 20 } },
-  { name: "Canopy Glass", hint: "Projected onto the canopy in front of you.", persp: { rx: -10, d: 1200 }, proj: { glow: 65, fade: 60, scan: true } },
-  { name: "Left Holo", hint: "A hologram hanging off the left wall of the cockpit.", persp: { ry: 48, d: 700 }, proj: { glow: 60, fade: 50, scan: true } },
-  { name: "Right Holo", hint: "A hologram hanging off the right wall of the cockpit.", persp: { ry: -48, d: 700 }, proj: { glow: 60, fade: 50, scan: true } },
+  { name: "Flat", tile: "Flat", group: "Screens", hint: "Straight on, no effects. The default.", persp: {} },
+  { name: "Left Screen", tile: "Left", group: "Screens", hint: "An angled MFD to the left of the pilot.", persp: { rx: 4, ry: 30 }, proj: { glow: 20 } },
+  { name: "Right Screen", tile: "Right", group: "Screens", hint: "An angled MFD to the right of the pilot.", persp: { rx: 4, ry: -30 }, proj: { glow: 20 } },
+  { name: "Dash Console", tile: "Dash", group: "Screens", hint: "Lies back on the console below the canopy.", persp: { rx: 40, d: 800 }, proj: { glow: 20 } },
+  { name: "Low Left", tile: "Low Left", group: "Screens", hint: "A side console low on the left, tilted up toward the pilot.", persp: { rx: 30, ry: 24, rz: -3, d: 800 }, proj: { glow: 20 } },
+  { name: "Low Right", tile: "Low Right", group: "Screens", hint: "A side console low on the right, tilted up toward the pilot.", persp: { rx: 30, ry: -24, rz: 3, d: 800 }, proj: { glow: 20 } },
+  { name: "Overhead", tile: "Overhead", group: "Screens", hint: "A panel above the canopy frame, tipped down toward the pilot.", persp: { rx: -32 }, proj: { glow: 20 } },
+  { name: "Hologram", tile: "Facing You", group: "Holograms", hint: "A projected panel facing the camera: glow, scanlines and a see-through background.", persp: {}, proj: { glow: 55, fade: 45, scan: true } },
+  { name: "Visor HUD", tile: "Visor HUD", group: "Holograms", hint: "Just the outline and glowing readouts, like your helmet HUD.", persp: {}, proj: { glow: 70, fade: 100 } },
+  { name: "Canopy Glass", tile: "Canopy Glass", group: "Holograms", hint: "Projected onto the canopy in front of you.", persp: { rx: -10, d: 1200 }, proj: { glow: 65, fade: 60, scan: true } },
+  { name: "Left Holo", tile: "Left Wall", group: "Holograms", hint: "A hologram hanging off the left wall of the cockpit.", persp: { ry: 48, d: 700 }, proj: { glow: 60, fade: 50, scan: true } },
+  { name: "Right Holo", tile: "Right Wall", group: "Holograms", hint: "A hologram hanging off the right wall of the cockpit.", persp: { ry: -48, d: 700 }, proj: { glow: 60, fade: 50, scan: true } },
   // Projector looks: the hologram stands in a beam from a base on the dash. Dash Radar lies nearly flat, seen from
   // above like the Gladius radar, with no panel behind the disc (fade 100: a faint rectangle gave it away).
-  { name: "Dash Radar", hint: "A radar disc projected up from the dash, like the Gladius.", persp: { rx: 62, d: 700 }, proj: { glow: 60, fade: 100, scan: true }, holo: { on: true, base: { side: "below" }, rays: 11 }, face: "radar" },
-  { name: "Dash Projector", hint: "An upright hologram standing in a beam from the console.", persp: { rx: 12, d: 900 }, proj: { glow: 55, fade: 65, scan: true }, holo: { on: true } },
-  { name: "Left Projector", hint: "Projected from the left console, turned toward you.", persp: { rx: 8, ry: 34, d: 800 }, proj: { glow: 55, fade: 65, scan: true }, holo: { on: true, base: { side: "below", dx: 18 } } },
-  { name: "Right Projector", hint: "Projected from the right console, turned toward you.", persp: { rx: 8, ry: -34, d: 800 }, proj: { glow: 55, fade: 65, scan: true }, holo: { on: true, base: { side: "below", dx: -18 } } },
-  { name: "Overhead Projector", hint: "Hangs down from a projector in the canopy frame.", persp: { rx: -24 }, proj: { glow: 55, fade: 65, scan: true }, holo: { on: true, base: { side: "above" } } }
+  { name: "Dash Radar", tile: "Dash Radar", group: "Projectors", hint: "A radar disc projected up from the dash, like the Gladius.", persp: { rx: 62, d: 700 }, proj: { glow: 60, fade: 100, scan: true }, holo: { on: true, base: { side: "below" }, rays: 11 }, face: "radar" },
+  { name: "Dash Projector", tile: "Dash", group: "Projectors", hint: "An upright hologram standing in a beam from the console.", persp: { rx: 12, d: 900 }, proj: { glow: 55, fade: 65, scan: true }, holo: { on: true } },
+  { name: "Left Projector", tile: "Left", group: "Projectors", hint: "Projected from the left console, turned toward you.", persp: { rx: 8, ry: 34, d: 800 }, proj: { glow: 55, fade: 65, scan: true }, holo: { on: true, base: { side: "below", dx: 18 } } },
+  { name: "Right Projector", tile: "Right", group: "Projectors", hint: "Projected from the right console, turned toward you.", persp: { rx: 8, ry: -34, d: 800 }, proj: { glow: 55, fade: 65, scan: true }, holo: { on: true, base: { side: "below", dx: -18 } } },
+  { name: "Overhead Projector", tile: "Overhead", group: "Projectors", hint: "Hangs down from a projector in the canopy frame.", persp: { rx: -24 }, proj: { glow: 55, fade: 65, scan: true }, holo: { on: true, base: { side: "above" } } }
 ];
 // Projector look: the widget is a hologram emitted from a base on the dash, like the Gladius radar. Off by
 // default; a widget without `holo` renders exactly as before. tier: static (painted once) | subtle (slow float,
@@ -2067,13 +2077,13 @@ function secOpen(key, def) {
   if (!secState) { try { secState = JSON.parse(localStorage.getItem(SEC_KEY) || "{}") || {}; } catch (e) { secState = {}; } }
   return key in secState ? !!secState[key] : def;
 }
-function section(p, title, { key, open = true, summary, extra } = {}) {
+function section(p, title, { key, open = true, summary, extra, sub } = {}) {
   const isOpen = secOpen(key, open);
   const body = el("div", { class: "sec-b", id: "sec-" + key }); body.hidden = !isOpen;
   const t = el("button", { type: "button", class: "sec-t", "aria-expanded": String(isOpen), "aria-controls": body.id }, el("span", {}, title),
     summary ? el("span", { class: "sum" }, summary) : null, el("span", { class: "chev", "aria-hidden": "true" }, "▼"));
   t.addEventListener("click", () => { const o = body.hidden; body.hidden = !o; t.setAttribute("aria-expanded", String(o)); secState[key] = o; try { localStorage.setItem(SEC_KEY, JSON.stringify(secState)); } catch (e) {} });
-  p.append(el("div", { class: "sec" }, el("div", { class: "sec-h" }, t, extra || null), body));
+  p.append(el("div", { class: "sec" + (sub ? " sub" : "") }, el("div", { class: "sec-h" }, t, extra || null), body));
   return body;
 }
 // Slider with its value: label and value on one line, the slider full width below. fmt turns a value into text.
@@ -2499,38 +2509,44 @@ function perspectiveSection(p, ws) {
   const updProj = () => { for (const w of ws) refreshWidget(w); syncSelectionClasses(); };
   const proxy = new Proxy({}, { get: (_, k) => w0.persp[k], set: (_, k, v) => { for (const w of ws) w.persp[k] = v; return true; } });
   const pproxy = new Proxy({}, { get: (_, k) => w0.proj[k], set: (_, k, v) => { for (const w of ws) w.proj[k] = v; return true; } });
-  p.append(el("h4", {}, "Cockpit Look"));
-  p.append(el("div", { class: "hint" }, "Place the widget on a cockpit screen or project it like a hologram. Fine-tune it below."));
+  const current = LOOK_PRESETS.find(l => ws.every(w => sameLook(w, l)));
+  p = section(p, "Cockpit Look", { key: "look", open: false, summary: current ? current.name : "Custom" });
+  p.append(el("div", { class: "hint small" }, "Place the widget on a cockpit screen or project it like a hologram."));
   // Buttons, not a <select>: native dropdowns don't open in every browser source (OBS's Interact window).
-  const looks = el("div", { class: "looks", role: "group", "aria-label": "Cockpit look presets" });
-  for (const l of LOOK_PRESETS) {
-    const lp = lookPersp(l), lq = lookProj(l);
-    const box = el("i", { class: lq.fade >= 100 ? "holo visor" : lq.scan || lq.glow >= 50 ? "holo" : "",
-      style: `transform:perspective(${Math.round(lp.d * 0.3)}px) rotateX(${lp.rx}deg) rotateY(${lp.ry}deg) rotateZ(${lp.rz}deg)` });
-    looks.append(el("button", { class: "look-tile", title: l.hint, "aria-pressed": ws.every(w => sameLook(w, l)) ? "true" : "false",
-      onclick: () => {
-        for (const w of ws) {
-          w.persp = lookPersp(l); w.proj = lookProj(l);
-          if (l.holo) w.holo = JSON.parse(JSON.stringify(l.holo)); else delete w.holo;   // a preset without a projector switches it off
-          if (w.type === "stick" && l.face) w.face = l.face; else delete w.face;
-        }
-        save(); updProj(); renderPanel();
-      } },
-      el("span", { class: "look-prev" + (l.holo ? " proj" : ""), "aria-hidden": "true" }, box), l.name));
+  for (const g of ["Screens", "Holograms", "Projectors"]) {
+    p.append(el("h5", {}, g));
+    const looks = el("div", { class: "looks", role: "group", "aria-label": g });
+    for (const l of LOOK_PRESETS.filter(l => l.group === g)) {
+      const lp = lookPersp(l), lq = lookProj(l);
+      const box = el("i", { class: [lq.fade >= 100 ? "holo visor" : lq.scan || lq.glow >= 50 ? "holo" : "", l.face === "radar" ? "disc" : ""].join(" ").trim(),
+        style: `transform:perspective(${Math.round(lp.d * 0.3)}px) rotateX(${lp.rx}deg) rotateY(${lp.ry}deg) rotateZ(${lp.rz}deg)` });
+      looks.append(el("button", { class: "look-tile", title: l.name + ": " + l.hint, "aria-label": l.name, "aria-pressed": l === current ? "true" : "false",
+        onclick: () => {
+          for (const w of ws) {
+            w.persp = lookPersp(l); w.proj = lookProj(l);
+            if (l.holo) w.holo = JSON.parse(JSON.stringify(l.holo)); else delete w.holo;   // a preset without a projector switches it off
+            if (w.type === "stick" && l.face) w.face = l.face; else delete w.face;
+          }
+          save(); updProj(); renderPanel();
+        } },
+        el("span", { class: "look-prev" + (l.holo ? " proj" + (l.holo.base && l.holo.base.side === "above" ? " above" : "") : ""), "aria-hidden": "true" }, box), l.tile));
+    }
+    p.append(looks);
   }
-  p.append(looks);
-  const slider = (label, obj, key, min, max, unit, after) => sliderRow(p, label, obj, key, min, max, unit, after);
-  slider("Tilt (forward/back)", proxy, "rx", -70, 70, "°", upd);
-  slider("Turn (left/right)", proxy, "ry", -70, 70, "°", upd);
+  // Presets cover most cockpits; the angles and projection effects behind them sit in a disclosure.
+  const f = section(p, "Fine-Tune", { key: "look-fine", open: false, sub: true });
+  const slider = (label, obj, key, min, max, unit, after, hint) => sliderRow(f, label, obj, key, min, max, unit, after, { hint });
+  slider("Tilt", proxy, "rx", -70, 70, "°", upd, "Forward and back.");
+  slider("Turn", proxy, "ry", -70, 70, "°", upd, "Left and right.");
   slider("Rotate", proxy, "rz", -45, 45, "°", upd);
-  slider("Skew horizontal", proxy, "sx", -40, 40, "°", upd);
-  slider("Skew vertical", proxy, "sy", -40, 40, "°", upd);
-  slider("Depth (lower = stronger)", proxy, "d", 300, 3000, "px", upd);
-  slider("Glow", pproxy, "glow", 0, 100, "%", updProj);
-  slider("Background fade", pproxy, "fade", 0, 100, "%", updProj);
-  p.append(row("Scanlines", checkIn(pproxy, "scan", updProj)));
-  p.append(el("div", { class: "actions" }, el("button", { onclick: () => { for (const w of ws) { w.persp = { ...PERSP_DEFAULT }; delete w.proj; delete w.holo; delete w.face; } save(); updProj(); renderPanel(); } }, "Reset to Flat")));
-  p.append(el("div", { class: "hint" }, "Snapping and alignment use the widget's flat footprint. Glow uses the highlight color, so it follows your theme."));
+  slider("Skew X", proxy, "sx", -40, 40, "°", upd);
+  slider("Skew Y", proxy, "sy", -40, 40, "°", upd);
+  slider("Perspective", proxy, "d", 300, 3000, " px", upd, "Lower is stronger.");
+  slider("Glow", pproxy, "glow", 0, 100, "%", updProj, "In the highlight color, so it follows your theme.");
+  slider("Background fade", pproxy, "fade", 0, 100, "%", updProj, "How much of the background drops out so the scene shows through.");
+  toggleRow(f, "Scanlines", pproxy, "scan", updProj);
+  f.append(el("div", { class: "hint small" }, "Snapping and alignment use the widget's flat footprint."));
+  p.append(el("div", { class: "actions" }, el("button", { class: "subtle", onclick: () => { for (const w of ws) { w.persp = { ...PERSP_DEFAULT }; delete w.proj; delete w.holo; delete w.face; } save(); updProj(); renderPanel(); } }, "Reset to Flat")));
 }
 // Projector: a hologram emitted from a base on the dash.
 function projectorSection(p, ws) {
