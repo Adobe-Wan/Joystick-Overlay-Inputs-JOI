@@ -1180,7 +1180,18 @@ function attachHolo(w, rt) {
   }
   root.before(rig);
   layoutHolo(w, rt);
+  if (holoRO) holoRO.observe(root);
 }
+// The rig is laid out from the size measured above, but a widget can change size after that without a rebuild:
+// the " · not connected" title, a late web font. Then the rays would stop short of the real edges, so a resize
+// (rare, never per frame) re-attaches the rig from the new size.
+const holoRO = window.ResizeObserver ? new ResizeObserver(es => {
+  for (const e of es) {
+    const w = profile.widgets.find(o => o.id === e.target.dataset.id), rt = w && runtime[w.id];
+    if (!rt || rt.root !== e.target || !rt.rig) continue;
+    if (e.target.offsetWidth !== rt.W || e.target.offsetHeight !== rt.H) { attachHolo(w, rt); if (selected.has(w.id)) placeResize(); }
+  }
+}) : null;
 // 64x64 noise tile for the cone's dust, drawn once per session and reused as a data URL.
 let noiseURL = null;
 function noiseTile() {
@@ -1284,11 +1295,11 @@ function rayTargets(w, rt, m) {
     if (!extra) return pts;
     const E = { above: [[0, 0], [W, 0]], right: [[W, 0], [W, H]], below: [[0, H], [W, H]], left: [[0, 0], [0, H]] };
     const opp = { below: "above", above: "below", left: "right", right: "left" }[side];
-    const order = [side, opp, ...Object.keys(E).filter(k => k !== side && k !== opp)];
-    const len = k => (k === "above" || k === "below") ? W : H, per = 2 * (W + H) || 1;
-    const q = order.map(k => ({ k, f: extra * len(k) / per })).map(o => ({ ...o, c: Math.floor(o.f), r: o.f - Math.floor(o.f) }));
-    let left = extra - q.reduce((t, o) => t + o.c, 0);
-    for (const o of [...q].sort((a, b) => b.r - a.r)) { if (left <= 0) break; o.c++; left--; }
+    // Mirror-symmetric: the two edges either side of the base always get the same count, the facing edge gets
+    // any odd one out. Shares follow edge length.
+    const sides = Object.keys(E).filter(k => k !== side && k !== opp), sideLen = vert ? H : W, faceLen = vert ? W : H;
+    const each = Math.floor(extra * sideLen / (2 * (sideLen + faceLen) || 1)), rest = extra - 2 * each;
+    const q = [{ k: side, c: Math.ceil(rest / 2) }, { k: opp, c: Math.floor(rest / 2) }, ...sides.map(k => ({ k, c: each }))];
     for (const o of q) { const [[ax, ay], [bx, by]] = E[o.k]; for (let j = 0; j < o.c; j++) { const t = (j + 1) / (o.c + 1); pts.push(P(ax + (bx - ax) * t, ay + (by - ay) * t)); } }
     return pts;
   }
