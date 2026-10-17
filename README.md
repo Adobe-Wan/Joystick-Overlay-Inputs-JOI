@@ -88,9 +88,8 @@ Most themes are sampled from that manufacturer's in-game power management screen
 
 ## Cockpit Look (perspective and projection)
 Select a widget (or several) and use **Cockpit Look** in the side panel to make it sit naturally in your cockpit, either on an angled screen or projected like a hologram. Widgets start Flat; the looks are optional.
-- **Presets** (click a tile): Flat, Hologram, Visor HUD, Left Screen, Right Screen, Dash Console, Low Left, Low Right, Overhead, Canopy Glass, Left Holo, Right Holo, plus the Projector looks described in the next section. Hover a tile for a short description.
-- **Angle sliders:** Tilt (forward/back), Turn (left/right), Rotate, Skew horizontal and vertical, and Depth (lower values give a stronger 3D effect).
-- **Projection:** Glow (a halo in your highlight color, so it follows the theme), Background fade (lets the scene show through) and Scanlines.
+- **Presets** (click a tile), in three groups. **Screens:** Flat, Left, Right, Dash, Low Left, Low Right, Overhead. **Holograms:** Facing You, Visor HUD, Canopy Glass, Left Wall, Right Wall. **Projectors:** the Projector looks described in the next section. Hover a tile for its full name and a short description; the section header shows which preset is active.
+- **Fine-Tune** (collapsed under the presets): Tilt, Turn, Rotate, Skew X, Skew Y and Perspective (lower is stronger), plus Glow (a halo in your highlight color, so it follows the theme), Background fade (lets the scene show through) and Scanlines.
 - **Reset to Flat** undoes all of it.
 - Snapping and alignment use the widget's flat footprint, so the tilted corners can sit slightly outside the guides.
 
@@ -101,11 +100,11 @@ Projector makes a widget look like a hologram emitted from a small projector bas
 
 ![Dash Radar in Aegis, Drake and AVS colors over the Gladius cockpit](docs/projector.png)
 
-- **Turn it on:** select a widget and pick one of the Projector tiles under **Cockpit Look** (**Dash Radar**, **Dash Projector**, **Left Projector**, **Right Projector**, **Overhead Projector**), or flip the **Projector** switch in the **Projector** section. Switching it on also fades the background, adds scanlines and gives a Stick its **Radar** face; switching it off puts those back.
-- **Face** (Sticks): **Square** is the usual gate with a grid, **Radar** a round disc with rings and rim ticks. Radar works with or without Projector, with the heatmap too.
-- **Motion:** **Static** paints everything once and costs nothing per frame. **Subtle** adds a slow float and a rare, gentle dropout. **Full** adds a color split and tear during dropouts, photons riding the rays, dust in the beam and a breathing base. If your system asks for reduced motion, Projector stays Static. If Full makes frames noticeably slower, it drops to Subtle for that session and tells you.
-- **Intensity**, **Base size**, **Base offset X/Y** (where the base sits under the widget), **Rays** (0 hides them), **Base side** (Below, Above, Left, Right), **Cone**, **Float**, **Flicker**, **Fringe**.
-- **Footage: Dark / Bright.** Over planet glare, clouds or a bright sky, low-alpha light disappears. **Bright** brightens the base, rays and cone, turns the scanlines into lines of your highlight color and firms up the border so readouts stay legible.
+- **Turn it on:** select a widget and pick one of the **Projectors** tiles under **Cockpit Look** (**Dash Radar**, **Dash**, **Left**, **Right**, **Overhead**), or flip the switch in the **Projector** section header; its controls appear once it is on. Switching it on also fades the background, adds scanlines and gives a Stick its **Radar** face; switching it off puts those back.
+- **Face** (Sticks, in the **Layout** section): **Square** is the usual gate with a grid, **Radar** a round disc with rings and rim ticks. Radar works with or without Projector, with the heatmap too.
+- **Motion:** **Still** paints everything once and costs nothing per frame. **Subtle** adds a slow float and a rare, gentle dropout. **Full** adds a color split and tear during dropouts, photons riding the rays, dust in the beam and a breathing base. If your system asks for reduced motion, Projector stays Still. If Full makes frames noticeably slower, it drops to Subtle for that session and tells you.
+- **Basics:** Motion, **Intensity**, and **Scene**. **Base & Beams:** **Projector position** (Below, Above, Left, Right), **Base size**, **Move left or right** and **Move up or down** (where the base sits), **Rays** (0 hides them) and **Cone**. **Effects:** **Float**, **Flicker** and **Color Fringe**, which need Subtle or Full motion.
+- **Scene: Dark / Bright.** Over planet glare, clouds or a bright sky, low-alpha light disappears. **Bright** brightens the base, rays and cone, turns the scanlines into lines of your highlight color and firms up the border so readouts stay legible.
 - **Project From One Base** (with several widgets selected) aims every selected widget at one base under the group. Dragging the group keeps them together; moving one widget on its own breaks the group, and you can press it again.
 - **Reset Projector** turns it off for the selected widgets; **Reset to Flat** removes it along with the rest of the look. While Projector is on, **3D depth** has no effect.
 

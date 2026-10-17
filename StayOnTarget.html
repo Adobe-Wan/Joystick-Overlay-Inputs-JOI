@@ -1775,7 +1775,7 @@ document.addEventListener("keydown", e => {
   else if (!editing) return;
   else if ((e.key === "Delete" || e.key === "Backspace") && selected.size) deleteSelected();
   else if (e.key === "Escape") { if (selected.size) setSelection([]); else setEditing(false); }
-  else if (e.key === "Tab") { e.preventDefault(); document.body.classList.toggle("panel-hidden"); }
+  else if (e.key === "Tab" && !e.target.closest("#ui")) { e.preventDefault(); document.body.classList.toggle("panel-hidden"); }   // inside the panel, Tab moves focus as usual
   else if (k === "a" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); setSelection(profile.widgets.map(w => w.id)); }
   else if (k === "d" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); if (selected.size) duplicateSelected(); }
   else if (e.key.startsWith("Arrow") && selected.size) {
@@ -2044,11 +2044,6 @@ function openColorPop(anchor, label, start, onChange) {
   colorPop = { pop, anchor, onDoc };
   anchor.setAttribute("aria-expanded", "true");
   paint(); sv.focus();
-}
-function checkIn(obj, key, after) {
-  const c = el("input", { type: "checkbox" }); c.checked = !!obj[key];
-  c.addEventListener("change", () => { obj[key] = c.checked; save(); after && after(); });
-  return c;
 }
 // MUI-style switch, the same markup as the Edit Mode switch in the toolbar.
 function switchIn(obj, key, after, label) {
@@ -2548,51 +2543,57 @@ function perspectiveSection(p, ws) {
   f.append(el("div", { class: "hint small" }, "Snapping and alignment use the widget's flat footprint."));
   p.append(el("div", { class: "actions" }, el("button", { class: "subtle", onclick: () => { for (const w of ws) { w.persp = { ...PERSP_DEFAULT }; delete w.proj; delete w.holo; delete w.face; } save(); updProj(); renderPanel(); } }, "Reset to Flat")));
 }
-// Projector: a hologram emitted from a base on the dash.
+// Projector: a hologram emitted from a base on the dash. The switch sits in the section header, and the controls
+// show only while it is on, grouped into Basics, Base & Beams and Effects.
 function projectorSection(p, ws) {
   for (const w of ws) w.holo = holoOf(w);   // fill the defaults onto the widget, as Cockpit Look does for persp/proj
   const w0 = ws[0], h0 = w0.holo;
   const upd = () => { for (const w of ws) refreshWidget(w); syncSelectionClasses(); };
   const proxy = new Proxy({}, { get: (_, k) => w0.holo[k], set: (_, k, v) => { for (const w of ws) w.holo[k] = v; return true; } });
   const bproxy = new Proxy({}, { get: (_, k) => w0.holo.base[k], set: (_, k, v) => { for (const w of ws) w.holo.base[k] = v; return true; } });
-  // Intensity and Base Offset are the ones users scrub: they update the rig in place and rebuild on release.
+  // Intensity and the base offsets are the ones users scrub: they update the rig in place and rebuild on release.
   const rigs = () => ws.map(w => [w, runtime[w.id]]).filter(([, rt]) => rt && rt.rig);
   const updIntensity = () => { for (const [w, rt] of rigs()) { setHoloVars(rt.root, rt.holoColors, w.holo); setHoloVars(rt.rig, rt.holoColors, w.holo); } };
   const updBase = () => { for (const [w, rt] of rigs()) layoutHolo(w, rt); };
-  const group = (label, tiles) => { p.append(el("div", { class: "row" }, el("span", {}, label))); p.append(tiles); };
-  p.append(el("h4", {}, "Projector"));
-  p.append(el("div", { class: "hint" }, "Project the widget from a base on the dash. Off by default." + (REDUCED_MOTION ? " Your system asks for less motion, so it stays still." : "")));
   // Switching on also gives the widget a hologram's see-through face and scanlines, and a Stick its radar disc;
   // switching off puts those back, so off renders exactly as never-on.
-  p.append(row("Projector", switchIn({ get v() { return !!h0.on; }, set v(x) {
+  const sw = switchIn({ get v() { return !!h0.on; }, set v(x) {
     for (const w of ws) {
       w.holo.on = x;
       if (!x) { if (w.holo.prev) { w.proj = w.holo.prev.proj; w.face = w.holo.prev.face; if (!w.face) delete w.face; delete w.holo.prev; } continue; }
       w.holo.prev = { proj: w.proj && { ...w.proj }, face: w.face };
       w.proj = { ...PROJ_DEFAULT, ...(w.proj || {}) }; w.proj.fade = Math.max(w.proj.fade, 60); w.proj.scan = true;
       if (w.type === "stick" && !w.face) w.face = "radar";
-    } } }, "v", () => { upd(); renderPanel(); }, "Projector")));
-  if (h0.on) {
-    group("Motion", tilesIn(proxy, "tier", [["static", "Static", "No motion. Zero per-frame cost."], ["subtle", "Subtle", "Slow float, rare dropout."], ["full", "Full", "Dynamic fringe, tears, photons and dust."]], upd, "Projector motion"));
-    sliderRow(p, "Intensity", proxy, "intensity", 0, 100, "%", updIntensity).addEventListener("change", upd);
-    sliderRow(p, "Base size", bproxy, "size", 50, 200, "%", upd);
-    sliderRow(p, "Base offset X", bproxy, "dx", -200, 200, " px", updBase).addEventListener("change", upd);
-    sliderRow(p, "Base offset Y", bproxy, "dy", -200, 200, " px", updBase).addEventListener("change", upd);
-    sliderRow(p, "Rays", proxy, "rays", 0, 15, "", upd);
-    group("Base side", tilesIn(bproxy, "side", [["below", "Below"], ["above", "Above"], ["left", "Left"], ["right", "Right"]], upd, "Base side"));
-    p.append(row("Cone", checkIn(proxy, "cone", upd)));
-    p.append(row("Float", checkIn(proxy, "float", upd)));
-    p.append(row("Flicker", checkIn(proxy, "flicker", upd)));
-    p.append(row("Fringe", checkIn(proxy, "fringe", upd)));
-    p.append(row("Footage", tilesIn(proxy, "footage", [["dark", "Dark", "Space and dim cockpits."], ["bright", "Bright", "Planet glare and clouds: brighter light and lines."]], upd, "Footage")));
+    } } }, "v", () => { upd(); renderPanel(); }, "Projector");
+  p = section(p, "Projector", { key: "projector", open: false, extra: sw });
+  const px = v => (v > 0 ? "+" : "") + v + " px";
+  if (!h0.on) {
+    p.append(el("div", { class: "hint small" }, "Projects the widget from a base on the dash, like the Gladius radar. Turn it on to see the controls."
+      + (REDUCED_MOTION ? " Your system asks for less motion, so it stays still." : "")));
+    return;
   }
-  if (h0.on) {
-    p.append(el("div", { class: "actions" },
-      ws.length > 1 ? el("button", { onclick: () => { projectFromOneBase(ws); save(); upd(); renderPanel(); } }, "Project From One Base") : null,
-      el("button", { onclick: () => { for (const w of ws) { delete w.holo; delete w.face; } save(); upd(); renderPanel(); } }, "Reset Projector")));
-    p.append(el("div", { class: "hint" }, (ws.length > 1 ? "Project From One Base aims every selected widget at a single base under the group; moving one widget on its own breaks the group, and you can press it again. " : "")
-      + "Float, Flicker and Fringe need Subtle or Full motion. Fringe shows during dropouts in Full."));
-  }
+  p.append(el("h5", {}, "Basics"));
+  choiceRow(p, "Motion", proxy, "tier", [["static", "Still", "No motion. Costs nothing per frame."], ["subtle", "Subtle", "A slow float and a rare, gentle dropout."],
+    ["full", "Full", "Color split and tears during dropouts, photons on the rays, dust in the beam."]], upd, { aria: "Projector motion" });
+  if (REDUCED_MOTION) p.append(el("div", { class: "hint small" }, "Your system asks for less motion, so the projector stays still."));
+  sliderRow(p, "Intensity", proxy, "intensity", 0, 100, "%", updIntensity).addEventListener("change", upd);
+  choiceRow(p, "Scene", proxy, "footage", [["dark", "Dark", "Space and dim cockpits."], ["bright", "Bright", "Planet glare and clouds: brighter light and lines so readouts stay legible."]], upd, { aria: "Scene brightness" });
+  p.append(el("h5", {}, "Base & Beams"));
+  choiceRow(p, "Projector position", bproxy, "side", [["below", "Below"], ["above", "Above"], ["left", "Left"], ["right", "Right"]], upd, { aria: "Projector position" });
+  sliderRow(p, "Base size", bproxy, "size", 50, 200, "%", upd);
+  sliderRow(p, "Move left or right", bproxy, "dx", -200, 200, " px", updBase, { fmt: px }).addEventListener("change", upd);
+  sliderRow(p, "Move up or down", bproxy, "dy", -200, 200, " px", updBase, { fmt: px }).addEventListener("change", upd);
+  sliderRow(p, "Rays", proxy, "rays", 0, 15, "", upd, { fmt: v => v ? String(v) : "Off" });
+  toggleRow(p, "Cone", proxy, "cone", upd, "A soft volume of light between the base and the widget.");
+  p.append(el("h5", {}, "Effects"));
+  if (holoTier(h0) === "static") p.append(el("div", { class: "hint small" }, "Float, Flicker and Color Fringe need Subtle or Full motion."));
+  toggleRow(p, "Float", proxy, "float", upd, "A slow idle drift.");
+  toggleRow(p, "Flicker", proxy, "flicker", upd, "A rare, gentle dropout.");
+  toggleRow(p, "Color Fringe", proxy, "fringe", upd, "A slight color split at the edges; in Full it shows during dropouts.");
+  p.append(el("div", { class: "actions" },
+    ws.length > 1 ? el("button", { onclick: () => { projectFromOneBase(ws); save(); upd(); renderPanel(); } }, "Project From One Base") : null,
+    el("button", { class: "subtle", onclick: () => { for (const w of ws) { delete w.holo; delete w.face; } save(); upd(); renderPanel(); } }, "Reset Projector")));
+  if (ws.length > 1) p.append(el("div", { class: "hint small" }, "Project From One Base aims every selected widget at a single base under the group. Moving one widget on its own breaks the group; press it again to regroup."));
 }
 // One projector for a group: every selected widget's rays converge on a base under the selection's bottom center,
 // sized from the group's width, and only the leftmost widget draws the disc. Offsets stay per widget, so the group
