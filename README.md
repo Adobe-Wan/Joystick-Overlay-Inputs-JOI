@@ -88,7 +88,7 @@ Most themes are sampled from that manufacturer's in-game power management screen
 
 ## Cockpit Look (perspective and projection)
 Select a widget (or several) and use **Cockpit Look** in the side panel to make it sit naturally in your cockpit, either on an angled screen or projected like a hologram. Widgets start Flat; the looks are optional.
-- **Presets** (click a tile): Flat, Hologram, Visor HUD, Left Screen, Right Screen, Dash Console, Low Left, Low Right, Overhead, Canopy Glass, Left Holo, Right Holo. Hover a tile for a short description.
+- **Presets** (click a tile): Flat, Hologram, Visor HUD, Left Screen, Right Screen, Dash Console, Low Left, Low Right, Overhead, Canopy Glass, Left Holo, Right Holo, plus the Projector looks described in the next section. Hover a tile for a short description.
 - **Angle sliders:** Tilt (forward/back), Turn (left/right), Rotate, Skew horizontal and vertical, and Depth (lower values give a stronger 3D effect).
 - **Projection:** Glow (a halo in your highlight color, so it follows the theme), Background fade (lets the scene show through) and Scanlines.
 - **Reset to Flat** undoes all of it.
@@ -96,9 +96,26 @@ Select a widget (or several) and use **Cockpit Look** in the side panel to make 
 
 Perspective is a single CSS 3D transform per widget, which the GPU composites, and the projection effects are painted once. They cost nothing per frame, and flat widgets skip them entirely.
 
+## Projector look
+Projector makes a widget look like a hologram emitted from a small projector base on your dashboard, the way the Gladius cockpit's center radar is: a disc of light floating above a dark pedestal, held up by a fan of thin rays, in your ship manufacturer's colors. It's off by default, and a widget that never turns it on looks exactly as before.
+
+![Dash Radar in Aegis, Drake and AVS colors over the Gladius cockpit](docs/projector.png)
+
+- **Turn it on:** select a widget and pick one of the Projector tiles under **Cockpit Look** (**Dash Radar**, **Dash Projector**, **Left Projector**, **Right Projector**, **Overhead Projector**), or flip the **Projector** switch in the **Projector** section. Switching it on also fades the background, adds scanlines and gives a Stick its **Radar** face; switching it off puts those back.
+- **Face** (Sticks): **Square** is the usual gate with a grid, **Radar** a round disc with rings and rim ticks. Radar works with or without Projector, with the heatmap too.
+- **Motion:** **Static** paints everything once and costs nothing per frame. **Subtle** adds a slow float and a rare, gentle dropout. **Full** adds a color split and tear during dropouts, photons riding the rays, dust in the beam and a breathing base. If your system asks for reduced motion, Projector stays Static. If Full makes frames noticeably slower, it drops to Subtle for that session and tells you.
+- **Intensity**, **Base size**, **Base offset X/Y** (where the base sits under the widget), **Rays** (0 hides them), **Base side** (Below, Above, Left, Right), **Cone**, **Float**, **Flicker**, **Fringe**.
+- **Footage: Dark / Bright.** Over planet glare, clouds or a bright sky, low-alpha light disappears. **Bright** brightens the base, rays and cone, turns the scanlines into lines of your highlight color and firms up the border so readouts stay legible.
+- **Project From One Base** (with several widgets selected) aims every selected widget at one base under the group. Dragging the group keeps them together; moving one widget on its own breaks the group, and you can press it again.
+- **Reset Projector** turns it off for the selected widgets; **Reset to Flat** removes it along with the rest of the look. While Projector is on, **3D depth** has no effect.
+
+Every color in the effect comes from the widget's theme, so switching the theme recolors the base, rays and glow. Themes with a near-white highlight borrow their border color (Esperia's pink) or use a cool white (RSI, Default).
+
+**OBS tips.** The page can't add light to the game footage behind it (OBS composites the overlay on top), so the hologram fakes it with low alphas and white-pushed cores. For true additive light, right-click the browser source in OBS and set **Blending Mode** to **Screen** or **Additive**. The Subtle and Full tiers depend on **Enable Browser Source Hardware Acceleration** (see below).
+
 ## Performance in OBS
 - Widgets only redraw when an input actually changes. Hands off the controls means near-zero drawing work.
-- Keep **Enable Browser Source Hardware Acceleration** on (OBS Settings, Advanced). That's the default.
+- Keep **Enable Browser Source Hardware Acceleration** on (OBS Settings, Advanced). That's the default. The Projector look's Subtle and Full motion tiers rely on it: without it their float and glow are drawn on the CPU every frame.
 - Set the Browser Source FPS to 60. Going higher only adds load.
 
 ## Keys (in edit mode or OBS Interact)
