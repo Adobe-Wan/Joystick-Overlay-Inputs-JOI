@@ -119,10 +119,16 @@ body.preview:not(.editing).has-widgets #preview-chip { display: flex; }
 .holo-rig.side-right .slit { width: 8px; height: 2px; margin: -1px 0 0 -8px; }
 body.editing .holo-rig.selected .holo-base { outline: 1px dashed var(--ui-accent); outline-offset: 2px; }
 /* The projected widget itself. Its content sits in an inner wrapper that fades toward the base (a mask on the root
-   would clip the frame glow and the selection outline) and carries the per-frame opacity envelope, so the
-   .offline rule on the root keeps dimming disconnected widgets. isolation keeps the Full tier's fringe blend inside. */
+   would clip the frame glow and the selection outline) and carries the opacity ripple, so the .offline rule on the
+   root keeps dimming disconnected widgets. isolation keeps the Full tier's fringe blend inside. */
 .widget.holo { isolation: isolate; contain: layout paint style; }
 .widget.holo .holo-in { will-change: opacity; }
+/* Subtle and Full: the ripple on the content and the idle float on the whole widget are compositor animations (the
+   keyframes are built in script, see holoKeyframes); a dropout swaps the ripple for its dip and slips the widget 1px. */
+.widget.holo.live .holo-in { animation: holo-env 7.4s linear infinite; animation-delay: var(--holo-delay, 0s); }
+.widget.holo.live.float { animation: holo-float 36s linear infinite; animation-delay: var(--holo-fdelay, 0s); }
+.widget.holo.live.drop .holo-in { animation: none; opacity: var(--holo-dip, 0.8); }
+.widget.holo.live.drop { margin-top: 1px; }
 /* The falloff toward the base is on the drawn faces only: readouts and titles stay fully legible, like the Gladius labels. */
 /* --holo-fall-a is what's left at the base end: 1 - Fade Toward Base. */
 .widget.holo .holo-in > canvas, .widget.holo .holo-in .bars { -webkit-mask-image: linear-gradient(var(--holo-mask-dir, 180deg), #000 0 60%, rgba(0,0,0,var(--holo-fall-a, 0.5)) 100%); mask-image: linear-gradient(var(--holo-mask-dir, 180deg), #000 0 60%, rgba(0,0,0,var(--holo-fall-a, 0.5)) 100%); }
@@ -158,7 +164,7 @@ body.editing .holo-rig.selected .holo-base { outline: 1px dashed var(--ui-accent
 /* A projected Button's press flashes the base's core for 120 ms. */
 .holo-base .core { transition: transform 120ms, opacity 120ms; }
 .holo-rig.pulse .core { opacity: 1; transform: scale(1.6, 2); }
-@media (prefers-reduced-motion: reduce) { .widget.holo .holo-roll i, .holo-dust, .holo-photon { display: none; } .holo-rig.full .holo-base { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .widget.holo .holo-roll i, .holo-dust, .holo-photon { display: none; } .holo-rig.full .holo-base, .widget.holo.live .holo-in, .widget.holo.live.float { animation: none; } }
 .looks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem; margin: 0.3rem 0 0.4rem; }
 .look-tile { display: flex; flex-direction: column; align-items: center; gap: 0.35rem; padding: 0.5rem 0.2rem 0.4rem; min-height: 0; font-size: 0.8rem; font-weight: 600; line-height: 1.2; text-align: center; white-space: nowrap; }
 .look-tile[aria-pressed=true] { border-color: var(--ui-accent); box-shadow: inset 0 0 0 1px var(--ui-accent); }
@@ -1276,15 +1282,16 @@ function applyProjection(root, w) {
     root.style.boxShadow = `0 0 ${(4 + 16 * g).toFixed(1)}px ${hexA(accent, 0.4 * g)}, inset 0 0 ${(6 + 18 * g).toFixed(1)}px ${hexA(accent, 0.2 * g)}`;
   }
 }
-// idle: the Projector's float {tx, ty, rx}. A projected widget that moves keeps a transform (and its promoted layer)
-// even when every angle is 0, and the float sits between perspective() and rotateX() so holoMatrix() can mirror it.
-function applyPerspective(root, w, idle) {
-  const p = w.persp, live = !!idle;
+// A projected widget that moves (Subtle, Full) keeps a transform (and its promoted layer) even when every angle is 0.
+// Its idle float is the holo-float animation, which writes this same transform with the float between perspective()
+// and the rotations; --holo-pre and --holo-post hand it the two halves.
+function applyPerspective(root, w) {
+  const p = w.persp, h = holoOf(w), live = h.on && holoTier(h) !== "static";
   const flat = !live && (!p || (!p.rx && !p.ry && !p.rz && !p.sx && !p.sy));
   root.classList.toggle("tilted", !flat);
-  const q = p || {}, t = idle || HOLO_STILL;
-  root.style.transform = flat ? "" :
-    `perspective(${q.d || 900}px) ${live ? `translate(${t.tx.toFixed(2)}px, ${t.ty.toFixed(2)}px) ` : ""}rotateX(${(q.rx || 0) + t.rx}deg) rotateY(${q.ry || 0}deg) rotateZ(${q.rz || 0}deg) skew(${q.sx || 0}deg, ${q.sy || 0}deg)`;
+  const q = p || {}, pre = `perspective(${q.d || 900}px)`, post = `rotateX(${q.rx || 0}deg) rotateY(${q.ry || 0}deg) rotateZ(${q.rz || 0}deg) skew(${q.sx || 0}deg, ${q.sy || 0}deg)`;
+  root.style.transform = flat ? "" : pre + (live ? " translate(0.00px, 0.00px) " : " ") + post;
+  if (live && h.float) { root.style.setProperty("--holo-pre", pre); root.style.setProperty("--holo-post", post); }
 }
 function positionWidget(w) {
   const rt = runtime[w.id]; if (!rt || !rt.root) return;
@@ -1317,7 +1324,7 @@ function buildWidget(w, grow) {
   styleWidget(root, w);
   applyProjection(root, w);
   const holo = holoOf(w);
-  applyPerspective(root, w, holo.on && holoTier(holo) !== "static" ? HOLO_STILL : undefined);
+  applyPerspective(root, w);
   const rt = getRt(w); rt.root = root; rt.spans = {};
   // A new canvas is blank: inNew draws it on the next pass, and the cached input and pad lookup start over.
   rt.axIdx = w.axes ? Object.values(w.axes) : [];
@@ -1410,6 +1417,14 @@ function buildWidget(w, grow) {
     root.style.setProperty("--holo-mask-dir", { below: "180deg", above: "0deg", left: "270deg", right: "90deg" }[holo.base.side] || "180deg");
     const tier = holoTier(holo), bright = holo.footage === "bright";
     root.classList.toggle("live", tier !== "static"); root.classList.toggle("bright", bright);
+    if (tier !== "static") {
+      // The ripple and the float run as CSS animations (holoKeyframes), each widget at its own phase so they never
+      // flicker in unison. --holo-env is the ripple's depth: half its amplitude (3 %, Full 6 %) times Intensity.
+      const k = clamp(holo.intensity / 70, 0, 1.43), ph = rt.holoPhase = rt.holoPhase ?? Math.random() * 100;
+      root.style.setProperty("--holo-env", ((tier === "full" ? 0.06 : 0.03) / 2 * k).toFixed(4));
+      root.style.setProperty("--holo-delay", -(ph % HOLO_ENV_S).toFixed(2) + "s");
+      if (holo.float) { root.classList.add("float"); root.style.setProperty("--holo-k", k.toFixed(3)); root.style.setProperty("--holo-fdelay", -(ph % HOLO_FLOAT_S).toFixed(2) + "s"); }
+    }
     // A radar disc has no frame in the Gladius: its rectangle fades out with Background fade and loses the frame glow.
     const fade = w.type === "stick" && w.face === "radar" ? clamp(({ ...PROJ_DEFAULT, ...(w.proj || {}) }).fade / 100, 0, 1) : 0;
     if (fade) root.style.boxShadow = "none";
@@ -1449,7 +1464,7 @@ function setHoloVars(e, d, h) {
 }
 const svgEl = (tag, attrs = {}) => { const e = document.createElementNS("http://www.w3.org/2000/svg", tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; };
 // The same matrix applyPerspective() writes (origin 50% 50%, perspective, float, rotateX/Y/Z, skew), so the rays
-// land on the real edge. Reading getBoundingClientRect() instead would lose the trapezoid and force layout.
+// land on the real edge. The rays aim at the float's rest position: it drifts by 2 px at most. Reading getBoundingClientRect() instead would lose the trapezoid and force layout.
 function holoMatrix(w, rt, idle) {
   const W = rt.W, H = rt.H, p = { ...PERSP_DEFAULT, ...(w.persp || {}) };
   let m = new DOMMatrix().translate(W / 2, H / 2);
@@ -1479,7 +1494,6 @@ function attachHolo(w, rt) {
   // A radar disc takes its rays on the rim, like the Gladius; everything else on the edge facing the base.
   rt.holoDisc = w.type === "stick" && w.face === "radar" && rt.canvas ? { x: rt.canvas.offsetLeft + rt.canvas._w / 2, y: rt.canvas.offsetTop + rt.canvas._h / 2, r: rt.canvas._w / 2 } : null;
   if (rt.holoDisc) Object.assign(rt.roll.style, { left: (rt.holoDisc.x - rt.holoDisc.r) + "px", top: (rt.holoDisc.y - rt.holoDisc.r) + "px", width: rt.holoDisc.r * 2 + "px", height: rt.holoDisc.r * 2 + "px", borderRadius: "50%" });
-  rt.holoPhase = rt.holoPhase ?? Math.random() * 100;   // so widgets never flicker in unison
   const rig = el("div", { class: "holo-rig", "data-for": w.id });
   setHoloVars(rig, rt.holoColors, h);
   const svg = svgEl("svg", { class: "holo-rays", "aria-hidden": "true" });
@@ -1544,7 +1558,7 @@ function noiseTile() {
 }
 // Full tier, during a dropout: two copies of the main canvas, shifted ±dx and tinted with the fringe colors, on the
 // screen-blended fringe canvas. Cleared and hidden the moment dx is 0 again, so it costs nothing between dropouts.
-function holoFringe(w, rt, dx) {
+function holoFringe(rt, dx) {
   if (dx === rt.fringeDx && !(dx && rt.dirty)) return;
   rt.fringeDx = dx;
   const fc = rt.fringe, g = fc._g, W = fc._w, H = fc._h;
@@ -1659,11 +1673,15 @@ function aimRays(w, rt, pts) {
     l.setAttribute("x2", f(q.x + ox)); l.setAttribute("y2", f(q.y + oy)); rt.rayBloom[i].setAttribute("x2", f(q.x + ox)); rt.rayBloom[i].setAttribute("y2", f(q.y + oy));
   });
 }
-// Projected widgets in Subtle or Full: the only ones holoTick() visits. Empty means it is skipped entirely.
+// Projected widgets in Subtle or Full. Every rebuild comes through here, so it also restarts their dropout timers.
 let holoAnim = [];
+const holoDrops = new Set();   // runtimes with a dropout timer
 function syncHoloList() {
   holoAnim = profile.widgets.map(w => [w, runtime[w.id]]).filter(([w, rt]) => rt && rt.rig && holoTier(holoOf(w)) !== "static");
   for (const [w, rt] of holoAnim) { rt.holoCfg = holoOf(w); rt.holoTierNow = holoTier(rt.holoCfg); }
+  for (const rt of holoDrops) { clearTimeout(rt.dropT); if (rt.dropOn) endDrop(rt, false); }
+  holoDrops.clear();
+  for (const [, rt] of holoAnim) if (rt.holoCfg.flicker) { holoDrops.add(rt); scheduleDrop(rt); }
 }
 
 function rebuildAll() {
@@ -1955,21 +1973,28 @@ function drawFailed(rt, w, err) {
   rt.failed = true; console.error(`Stay On Target: widget "${w.label || w.id}" failed to draw`, err);
 }
 // The loop runs only while something on screen can change: input widgets with a device connected, the setup wizard
-// listening for a move, readout text still due, a moving Projector, or the Projector's frame-time check. Otherwise
+// listening for a move, readout text still due, or the Projector's frame-time check (its motion is CSS). Otherwise
 // it stops, and a device connecting, a rebuild, edit mode or the page coming back wakes it. It also stops while the
 // page is hidden or OBS reports the source hidden or off the air; editing keeps it running, since OBS's Interact
 // window can show a source that isn't on air.
-let rafId = 0, passDue = true, redrawAll = true, hasInputs = false, idleT = 0, checkAt = 0;
+// While inputs move it runs on requestAnimationFrame, in step with the display. Once nothing has moved for IDLE_MS
+// it polls on a 16 ms timer instead: the page then asks for no frames of its own, so the browser does no per-frame
+// work for it and the Projector's CSS animations stay on the compositor. A movement seen by the timer is drawn
+// straight away and switches back.
+const IDLE_MS = 500, POLL_MS = 16;
+let rafId = 0, tickT = 0, passDue = true, redrawAll = true, hasInputs = false, idleT = 0, checkAt = 0, movedAt = 0;
 const obsState = { visible: true, active: true };
 const loopPaused = () => document.hidden || (!editing && (!obsState.visible || !obsState.active));
-const loopNeeded = () => passDue || (hasInputs && padList.length > 0) || (editing && !!wiz) || textQueue.length > 0 || holoAnim.length > 0 || perfPending();
+const loopNeeded = () => passDue || (hasInputs && padList.length > 0) || (editing && !!wiz) || textQueue.length > 0 || perfPending();
 // all: repaint every widget on the next pass, not only those whose input changed.
 function wake(all) {
   passDue = true; if (all) redrawAll = true;
-  if (rafId || loopPaused()) return;
+  if (rafId || tickT || loopPaused()) return;
   clearTimeout(idleT); lastFrame = 0;
   rafId = requestAnimationFrame(frame);
 }
+function stopLoop() { cancelAnimationFrame(rafId); clearTimeout(tickT); rafId = tickT = 0; }
+const tick = () => { tickT = 0; frame(performance.now(), true); };
 // Asleep with input widgets but no device: browsers announce a device with gamepadconnected, and a slow check
 // covers one that doesn't.
 function idleCheck() {
@@ -1982,10 +2007,10 @@ window.addEventListener("gamepaddisconnected", () => wake());
 document.addEventListener("visibilitychange", () => wake());
 window.addEventListener("obsSourceVisibleChanged", e => { obsState.visible = !(e.detail && e.detail.visible === false); wake(); });
 window.addEventListener("obsSourceActiveChanged", e => { obsState.active = !(e.detail && e.detail.active === false); wake(); });
-function frame(now) {
+function frame(now, timed) {
   // Next frame first: an error below skips this frame's work, never the overlay.
-  rafId = requestAnimationFrame(frame);
-  if (loopPaused()) { cancelAnimationFrame(rafId); rafId = 0; return; }
+  if (timed) tickT = setTimeout(tick, POLL_MS); else rafId = requestAnimationFrame(frame);
+  if (loopPaused()) { stopLoop(); return; }
   const dt = lastFrame ? Math.min(0.1, (now - lastFrame) / 1000) : 0; lastFrame = now;
   heatClock += dt;
   const moved = pollPads();
@@ -2007,51 +2032,57 @@ function frame(now) {
         // Only repaint a widget's canvases when its input (or the visible heatmap) changed.
         // A still stick costs no drawing at all, which keeps OBS's browser source light.
         const changed = inputChanged(w, rt, pad);
+        if (changed) movedAt = now;
         if (changed || heatDue) heatCredit(w, rt, pad);
         rt.dirty = changed || heatDue || all;
         if (rt.dirty) drawWidget(w, rt, pad);
+        if (rt.dirty && rt.dropOn && rt.fringe) holoFringe(rt, rt.dropDx);   // a dropout's color split follows the new frame
       } catch (err) { drawFailed(rt, w, err); }   // one broken widget leaves the others drawing
     }
   }
   flushText(now);
-  if (holoAnim.length) holoTick(now);
   holoPerf(now, dt);
-  if (!loopNeeded()) { cancelAnimationFrame(rafId); rafId = 0; if (!padList.length) idleCheck(); }
+  if (!loopNeeded()) { stopLoop(); if (!padList.length) idleCheck(); return; }
+  const smooth = now - movedAt < IDLE_MS || perfPending();   // the frame-time check needs real frames
+  if (smooth && timed) { clearTimeout(tickT); tickT = 0; rafId = requestAnimationFrame(frame); }
+  else if (!smooth && !timed) { cancelAnimationFrame(rafId); rafId = 0; tickT = setTimeout(tick, POLL_MS); }
 }
 // ---------- projector motion ----------
-// One shared envelope per frame, applied to each moving projected widget with its own phase. Seconds-based, so
-// 30, 60 and 144 FPS look the same. Only opacity (inner wrapper) and transform (root) are written per frame; the
-// rays follow the float at most every 50 ms. Everything else in the rig is CSS animation or static.
-// Multi-frequency ripple (max 1.45 Hz, far below any flash threshold); the dropout is applied by the caller.
-function envelopeAt(t, ph, tier) {
-  const amp = tier === "full" ? 0.06 : 0.03;
-  return 1 - amp * 0.5 + amp * 0.5 * (0.5 * Math.sin(t * 1.7 + ph) + 0.33 * Math.sin(t * 4.3 + ph * 1.3) + 0.17 * Math.sin(t * 9.1 + ph * 2.7));
-}
-const dropGap = full => full ? 4 + Math.random() * 10 : 10 + Math.random() * 4;   // seconds between dropouts
-function holoTick(now) {
-  const t = now / 1000;
-  for (const [w, rt] of holoAnim) try { holoTickOne(w, rt, now, t); } catch (err) { drawFailed(rt, w, err); }
-}
-function holoTickOne(w, rt, now, t) {
-  const h = rt.holoCfg, tier = rt.holoTierNow, full = tier === "full", k = clamp(h.intensity / 70, 0, 1.43), ph = rt.holoPhase;
-  let e = 1 - (1 - envelopeAt(t, ph, tier)) * k, dy = 0, dx = 0;
-  // Dropouts: every 4-14 s (Subtle: 10-14 s), 50-130 ms long, 20-50 % deep (Subtle: 20 %). While one runs the
-  // hologram dips, slips down 1 px and, in Full, splits its colors and may tear on the next input-driven redraw.
-  if (h.flicker) {
-    if (rt.dropNext == null) rt.dropNext = t + dropGap(full);
-    if (t >= rt.dropNext) {
-      if (!rt.dropEnd) { rt.dropEnd = t + 0.05 + Math.random() * 0.08; rt.dropDepth = full ? 0.2 + Math.random() * 0.3 : 0.2; rt.tear = full ? 1 + Math.round(Math.random()) : 0; rt.dropDx = full ? 1 + Math.round(Math.random() * 0.6) : 0; }
-      if (t < rt.dropEnd) { e *= 1 - rt.dropDepth * Math.min(1, k); dy = 1; dx = rt.dropDx; }
-      else { rt.dropEnd = 0; rt.tear = 0; rt.dropNext = t + dropGap(full); }
-    }
+// Subtle and Full move without script: the opacity ripple and the idle float are CSS keyframes, built here once and
+// looped, and each widget picks its phase with a negative animation-delay (buildWidget). The ripple is the old
+// multi-frequency envelope (max 1.5 Hz, far below any flash threshold) with frequencies rounded to whole cycles of
+// HOLO_ENV_S, so it loops seamlessly; the float is likewise periodic over HOLO_FLOAT_S. Values scale per widget
+// through --holo-env (ripple depth) and --holo-k (Intensity).
+const HOLO_ENV_S = 7.4, HOLO_FLOAT_S = 36;
+const envWave = t => { const a = 2 * Math.PI * t / HOLO_ENV_S; return 0.5 * Math.sin(2 * a) + 0.33 * Math.sin(5 * a + 1.3) + 0.17 * Math.sin(11 * a + 2.7); };   // -1..1
+(function holoKeyframes() {
+  const f = v => +v.toFixed(4), env = [], flt = [];
+  for (let i = 0, n = 120; i <= n; i++) env.push(`${f(i * 100 / n)}% { opacity: calc(1 - var(--holo-env) * ${f(1 - envWave(i / n * HOLO_ENV_S))}); }`);
+  for (let i = 0, n = 72; i <= n; i++) {
+    const a = 2 * Math.PI * i / n;
+    flt.push(`${f(i * 100 / n)}% { transform: var(--holo-pre) translate(calc(var(--holo-k) * ${f(2 * Math.sin(2 * a))}px), calc(var(--holo-k) * ${f(1.5 * Math.sin(3 * a))}px)) rotateX(calc(var(--holo-k) * ${f(0.6 * Math.sin(2 * a + 0.5))}deg)) var(--holo-post); }`);
   }
-  rt.dropOn = dy > 0;
-  let idle = dy ? { tx: 0, ty: dy, rx: 0 } : HOLO_STILL;
-  if (h.float) idle = { tx: 2 * Math.sin(0.35 * t + ph) * k, ty: 1.5 * Math.sin(0.52 * t + ph) * k + dy, rx: 0.6 * Math.sin(0.3 * t + ph) * k };
-  applyPerspective(rt.root, w, idle);
-  const op = e.toFixed(3); if (rt._op !== op) { rt._op = op; rt.inner.style.opacity = op; }
-  if (h.float && now - (rt.rayAt || 0) >= 50) { rt.rayAt = now; aimRays(w, rt, rayTargets(w, rt, holoMatrix(w, rt, idle))); }
-  if (rt.fringe) holoFringe(w, rt, dx);   // Full tier only: the fringe canvas exists only there
+  document.head.append(el("style", {}, `@keyframes holo-env { ${env.join(" ")} } @keyframes holo-float { ${flt.join(" ")} }`));
+})();
+// Dropouts: every 4-14 s (Subtle: 10-14 s), 50-130 ms long, 20-50 % deep (Subtle: 20 %). While one runs the
+// hologram dips and slips down 1 px (.drop) and, in Full, splits its colors and may tear on the next input-driven
+// redraw. One timer per widget, so nothing runs between dropouts.
+const dropGap = full => full ? 4 + Math.random() * 10 : 10 + Math.random() * 4;   // seconds between dropouts
+function scheduleDrop(rt) { rt.dropT = setTimeout(() => startDrop(rt), dropGap(rt.holoTierNow === "full") * 1000); }
+function startDrop(rt) {
+  const full = rt.holoTierNow === "full", k = clamp(rt.holoCfg.intensity / 70, 0, 1.43);
+  const len = 0.05 + Math.random() * 0.08, depth = full ? 0.2 + Math.random() * 0.3 : 0.2;
+  rt.dropOn = true; rt.tear = full ? 1 + Math.round(Math.random()) : 0; rt.dropDx = full ? 1 + Math.round(Math.random() * 0.6) : 0;
+  rt.root.style.setProperty("--holo-dip", (1 - depth * Math.min(1, k)).toFixed(3));
+  rt.root.classList.add("drop");
+  if (rt.fringe) holoFringe(rt, rt.dropDx);   // Full tier only: the fringe canvas exists only there
+  rt.dropT = setTimeout(() => endDrop(rt, true), len * 1000);
+}
+function endDrop(rt, next) {
+  rt.dropOn = false; rt.tear = 0;
+  rt.root.classList.remove("drop");
+  if (rt.fringe) holoFringe(rt, 0);
+  if (next) scheduleDrop(rt);
 }
 // Frame-time check for the Full tier. An absolute threshold would misfire (an OBS source capped at 30 FPS always
 // shows ~33 ms), so compare medians: 2 s before the first Full widget runs, 3 s after. If frames got 1.5x slower,
