@@ -70,12 +70,18 @@ Select a widget (or several). **Size** sits at the top of the side panel: drag t
 Buttons and pedals also get **Width scale** and **Height scale** (25 to 400%, slider or typed), which stretch the box on one axis without changing the text size. A very narrow button cuts off its label. **Reset Layout** puts both back to 100%.
 
 Then use **Layout**:
+- **Width** and **Height** in pixels: type a value, or drag one of the four corner handles on the selected widget (the opposite corner stays put, the dragged edge snaps to the grid, Alt turns snapping off). The content stays centered in the box. A box can't go smaller than its content, so use **Size** to shrink the content itself. **Fit to Content** clears it.
+- **Match Width**, **Match Height** and **Match Both** (several widgets selected) make every selected widget as wide and/or as tall as the largest one.
 - **Padding** and **Corner radius**. The stick's inner box uses the same corner radius as the widget, so the corners match.
 - **Show name**, **Show values (%)** and **Show axis labels** switch those parts on or off. On pedals with axis labels off, the rudder value is anchored to the widget's center: 0% sits dead center, right rudder grows the number to the right and left rudder grows it to the left, with the brake values under their bars.
 - **3D depth** (0 to 100%) gives the panel a beveled, raised edge, sinks the stick gate into the panel, and turns the stick's ball into a lit sphere with a shadow. It's drawn once with CSS shadows and gradients, so it adds no per-frame cost in OBS.
 - **Bar direction:** throttles and single axes can be **Vertical** (default) or **Horizontal**. On pedals, **Rudder bar** stands the rudder upright between the brakes or lays it flat (default).
 - **Inner sizes:** stick area for sticks (always a square 4×4 gate before any perspective), bar thickness and length for throttles and single axes, and rudder and brake bar sizes for pedals. These are in pixels before the **Size** slider, which still scales the whole widget.
 - **Reset Layout** puts them back to the defaults.
+
+Every slider's value is clickable: click it, type a number and press Enter (Escape keeps the old one).
+
+**Arrange in Grid** (under **Arrange**, several widgets selected) lines them up in rows and columns from the group's top-left corner. **Columns: Auto** keeps the rows your widgets already roughly sit in, so a loose layout tidies up the way it looks; 1 to 6 sets the columns, filled in reading order. Each column is as wide as its widest widget and every widget is centered in its cell, using the **Gap between** value (Auto uses the grid size). Match the sizes first for perfectly even cells. It runs once on click, so it costs nothing while you stream.
 
 Widgets keep a fixed size while you fly. The % values reserve room for their widest reading, so moving a stick never resizes anything.
 
@@ -88,22 +94,22 @@ Most themes are sampled from that manufacturer's in-game power management screen
 
 ## Cockpit Look (perspective and projection)
 Select a widget (or several) and use **Cockpit Look** in the side panel to make it sit naturally in your cockpit, either on an angled screen or projected like a hologram. Widgets start Flat; the looks are optional.
-- **Presets** (click a tile), in three groups. **Screens:** Flat, Left, Right, Dash, Low Left, Low Right, Overhead. **Holograms:** Facing You, Visor HUD, Canopy Glass, Left Wall, Right Wall. **Projectors:** the Projector looks described in the next section. Hover a tile for its full name and a short description; the section header shows which preset is active.
-- **Fine-Tune** (collapsed under the presets): Tilt, Turn, Rotate, Skew X, Skew Y and Perspective (lower is stronger), plus Glow (a halo in your highlight color, so it follows the theme), Background fade (lets the scene show through) and Scanlines.
+- **Style:** **Flat** or **Projector** comes first. Flat shows the **Screens** presets (Flat, Left, Right, Dash, Low Left, Low Right, Overhead) and **Holograms** (Facing You, Visor HUD, Canopy Glass, Left Wall, Right Wall); Projector shows the Projector presets described in the next section. Hover a tile for its full name and a short description; the section header shows the style and the active preset.
+- Under the presets, for both styles and always visible: **Angle** (Tilt, Turn, Rotate, Skew X, Skew Y and Perspective, lower is stronger) and **Light and Background**: Glow (a halo in your highlight color, so it follows the theme), Background fade (lets the scene show through; the line under it says what the background actually shows at, from Background opacity in **Colors** and the fade) and Scanlines (off unless you turn them on).
 - **Reset to Flat** undoes all of it.
 - Snapping and alignment use the widget's flat footprint, so the tilted corners can sit slightly outside the guides.
 
 Perspective is a single CSS 3D transform per widget, which the GPU composites, and the projection effects are painted once. They cost nothing per frame, and flat widgets skip them entirely.
 
 ## Projector look
-Projector makes a widget look like a hologram emitted from a small projector base on your dashboard, the way the Gladius cockpit's center radar is: a disc of light floating above a dark pedestal, held up by a fan of thin rays, in your ship manufacturer's colors. It's off by default, and a widget that never turns it on looks exactly as before.
+Projector makes a widget look like a hologram emitted from a small projector base on your dashboard, the way the Gladius cockpit's center radar is: a disc of light floating above a dark pedestal, held up by thin rays reaching every corner, in your ship manufacturer's colors. It's off by default, and a widget that never turns it on looks exactly as before.
 
 ![Dash Radar in Aegis, Drake and AVS colors over the Gladius cockpit](docs/projector.png)
 
-- **Turn it on:** select a widget and pick one of the **Projectors** tiles under **Cockpit Look** (**Dash Radar**, **Dash**, **Left**, **Right**, **Overhead**), or flip the switch in the **Projector** section header; its controls appear once it is on. Switching it on also fades the background, adds scanlines and gives a Stick its **Radar** face; switching it off puts those back.
+- **Turn it on:** select a widget and choose **Projector** as the **Style** under **Cockpit Look**, then pick a preset (**Dash Radar**, **Dash**, **Left**, **Right**, **Overhead**) if you like; the **Projector** section with its own controls appears below. Switching it on gives a Stick its **Radar** face and leaves your background and scanlines as they were; switching back to Flat puts the face back. Motion, Float, Flicker and Color Fringe all start off, so you add the effects one at a time.
 - **Face** (Sticks, in the **Layout** section): **Square** is the usual gate with a grid, **Radar** a round disc with rings and rim ticks. Radar works with or without Projector, with the heatmap too.
 - **Motion:** **Still** paints everything once and costs nothing per frame. **Subtle** adds a slow float and a rare, gentle dropout. **Full** adds a color split and tear during dropouts, photons riding the rays, dust in the beam and a breathing base. If your system asks for reduced motion, Projector stays Still. If Full makes frames noticeably slower, it drops to Subtle for that session and tells you.
-- **Basics:** Motion, **Intensity**, and **Scene**. **Base & Beams:** **Projector position** (Below, Above, Left, Right), **Base size**, **Move left or right** and **Move up or down** (where the base sits), **Rays** (0 hides them) and **Cone**. **Effects:** **Float**, **Flicker** and **Color Fringe**, which need Subtle or Full motion.
+- **Basics:** Motion, **Intensity**, and **Scene**. **Base & Beams:** **Projector position** (Below, Above, Left, Right), **Base size**, **Move left or right** and **Move up or down** (where the base sits), **Rays reach** (**Every Corner**, the default: one ray to each corner of the widget and any more spread around its outline, drawn over the widget like light through the hologram; or **Near Edge**: the older fan along the edge facing the base), **Rays** (0 hides them) and **Cone**. **Effects:** **Fade toward base** (how much the drawn face dims toward the base; 0 keeps it even, readouts and titles always stay full strength), then **Float**, **Flicker** and **Color Fringe**, which need Subtle or Full motion.
 - **Scene: Dark / Bright.** Over planet glare, clouds or a bright sky, low-alpha light disappears. **Bright** brightens the base, rays and cone, turns the scanlines into lines of your highlight color and firms up the border so readouts stay legible.
 - **Project From One Base** (with several widgets selected) aims every selected widget at one base under the group. Dragging the group keeps them together; moving one widget on its own breaks the group, and you can press it again.
 - **Reset Projector** turns it off for the selected widgets; **Reset to Flat** removes it along with the rest of the look. While Projector is on, **3D depth** has no effect.
