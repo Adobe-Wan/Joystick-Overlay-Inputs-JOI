@@ -1804,7 +1804,9 @@ function drawGrid() {
   g.fillStyle = "rgba(255,255,255,0.35)";
   for (let x = 0; x <= W; x += step * 4) for (let y = 0; y <= H; y += step * 4) g.fillRect(Math.round(x) - 1, Math.round(y) - 1, 3, 3);
 }
-window.addEventListener("resize", () => rebuildAll());
+// Dragging a window edge fires resize many times a frame; one rebuild per frame keeps up with it.
+let resizeRaf = 0;
+window.addEventListener("resize", () => { if (!resizeRaf) resizeRaf = requestAnimationFrame(() => { resizeRaf = 0; rebuildAll(); }); });
 
 function heatColor(t, accent) {
   t = clamp(t, 0, 1);
