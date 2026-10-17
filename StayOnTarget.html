@@ -888,9 +888,9 @@ function buildWidget(w) {
   root.style.left = w.x + "px"; root.style.top = w.y + "px";
   styleWidget(root, w);
   applyProjection(root, w);
-  applyPerspective(root, w);
-  const rt = getRt(w); rt.root = root; rt.spans = {}; rt._key = null;
   const holo = holoOf(w);
+  applyPerspective(root, w, holo.on && holoTier(holo) !== "static" ? HOLO_STILL : undefined);
+  const rt = getRt(w); rt.root = root; rt.spans = {}; rt._key = null;
   rt.holo = holo.on; rt.sprite = null;
   if (holo.on) { root.classList.add("holo"); setHoloVars(root, rt.holoColors = holoColorsOf(w), holo); }   // the rig itself comes in attachHolo
   const k = (w.size || 1) * SIZE_BASE, D = dimsOf(w);
@@ -955,7 +955,7 @@ function buildWidget(w) {
     // Hologram treatment on top of the Cockpit Look: the content moves into a wrapper that fades toward the base,
     // a scan-roll band on top, and a firm border so readouts stay legible over bright footage.
     const inner = el("div", { class: "holo-in" }); inner.append(...root.childNodes);
-    root.append(inner, el("i", { class: "holo-roll" }));
+    root.append(inner, el("i", { class: "holo-roll" })); rt.inner = inner;
     root.style.setProperty("--holo-mask-dir", { below: "180deg", above: "0deg", left: "270deg", right: "90deg" }[holo.base.side] || "180deg");
     const tier = holoTier(holo), bright = holo.footage === "bright";
     root.classList.toggle("live", tier !== "static"); root.classList.toggle("bright", bright);
@@ -967,9 +967,11 @@ function buildWidget(w) {
   if (selected.has(w.id)) root.classList.add("selected");
   return root;
 }
-// The tier that actually runs: reduced motion and Intensity 0 both mean Static.
+// The tier that actually runs: reduced motion and Intensity 0 both mean Static, and a session that proved too
+// slow for Full (holoSlow, set by the frame-time check in frame()) runs Full widgets as Subtle.
 const REDUCED_MOTION = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-const holoTier = h => REDUCED_MOTION || !(h.intensity > 0) ? "static" : h.tier;
+let holoSlow = false;
+const holoTier = h => REDUCED_MOTION || !(h.intensity > 0) ? "static" : h.tier === "full" && holoSlow ? "subtle" : h.tier;
 // Glow sprite: a radial falloff rendered once per widget and color, drawn under the dot or bar tip with "lighter"
 // instead of shadowBlur (which would blur on every repaint). It fades to the same RGB at alpha 0, never to
 // transparent, which would leave a dark premultiplied fringe.
@@ -1070,15 +1072,7 @@ function layoutHolo(w, rt, idle = HOLO_STILL) {
   else bx = Math.max(edge[0].x, edge[1].x) + gap;
   rt.holoBase0 = { x: bx, y: by };   // where the base lands without offsets; Project From One Base measures from here
   bx += h.base.dx || 0; by += h.base.dy || 0;
-  // Ray targets: evenly spaced along the facing edge (plus the two far corners), or around the radar rim starting
-  // at the point nearest the base. Untransformed points go through the same matrix as the corners.
-  const n = clamp(Math.round(h.rays), 0, 15), d = rt.holoDisc, pts = [];
-  const a0 = { below: Math.PI / 2, above: -Math.PI / 2, left: Math.PI, right: 0 }[side];
-  for (let i = 0; i < n; i++) {
-    if (d) { const a = a0 + i * 2 * Math.PI / n; pts.push(P(d.x + Math.cos(a) * d.r, d.y + Math.sin(a) * d.r)); }
-    else { const t = n === 1 ? 0.5 : i / (n - 1); pts.push(vert ? P(W * t, side === "below" ? H : 0) : P(side === "left" ? 0 : W, H * t)); }
-  }
-  if (n && !d) pts.push(...({ below: [c[0], c[1]], above: [c[3], c[2]], left: [c[1], c[2]], right: [c[0], c[3]] }[side]));
+  const pts = rayTargets(w, rt, m);
   // The rig box is the union of the corners and the base, padded for the glows; everything inside is relative to it.
   const pad = 14, xs = [...c.map(q => q.x), bx - bw / 2, bx + bw / 2], ys = [...c.map(q => q.y), by - bh / 2, by + bh / 2];
   const x0 = Math.floor(Math.min(...xs)) - pad, y0 = Math.floor(Math.min(...ys)) - pad, x1 = Math.ceil(Math.max(...xs)) + pad, y1 = Math.ceil(Math.max(...ys)) + pad;
@@ -1086,14 +1080,12 @@ function layoutHolo(w, rt, idle = HOLO_STILL) {
   Object.assign(rt.rig.style, { left: (w.x + x0) + "px", top: (w.y + y0) + "px", width: (x1 - x0) + "px", height: (y1 - y0) + "px" });
   rt.raySvg.setAttribute("width", x1 - x0); rt.raySvg.setAttribute("height", y1 - y0); rt.raySvg.setAttribute("viewBox", `0 0 ${x1 - x0} ${y1 - y0}`);
   const ox = -x0, oy = -y0, f = v => v.toFixed(1);
+  rt.holoGeom = { bx, by, ox, oy };   // aimRays() and the Full tier's photons reuse these
   Object.assign(rt.baseEl.style, { left: f(bx - bw / 2 + ox) + "px", top: f(by - bh / 2 + oy) + "px", width: f(bw) + "px", height: f(bh) + "px" });
   let far = 1; for (const q of pts) far = Math.max(far, Math.hypot(q.x - bx, q.y - by));
   for (const [k, v] of [["cx", bx + ox], ["cy", by + oy], ["fx", bx + ox], ["fy", by + oy], ["r", far]]) rt.rayGrad.setAttribute(k, f(v));
-  rt.rayLines.forEach((l, i) => {
-    const q = pts[i]; if (!q) return;
-    for (const e of [l, rt.rayBloom[i]]) { e.setAttribute("x1", f(bx + ox)); e.setAttribute("y1", f(by + oy)); e.setAttribute("x2", f(q.x + ox)); e.setAttribute("y2", f(q.y + oy)); }
-    rt.rayTicks[i].setAttribute("cx", f(q.x + ox)); rt.rayTicks[i].setAttribute("cy", f(q.y + oy));
-  });
+  for (const e of [...rt.rayLines, ...rt.rayBloom]) { e.setAttribute("x1", f(bx + ox)); e.setAttribute("y1", f(by + oy)); }
+  aimRays(w, rt, pts);
   if (rt.debugDots) rt.debugDots.forEach((e, i) => { e.setAttribute("cx", f(c[i].x + ox)); e.setAttribute("cy", f(c[i].y + oy)); });
   // Cone: a trapezoid from the base's rim to the two ends of the facing edge, clipped on an element sized to its own bounds.
   const nr = vert ? [{ x: bx - bw * 0.3, y: by }, { x: bx + bw * 0.3, y: by }] : [{ x: bx, y: by - bh * 0.3 }, { x: bx, y: by + bh * 0.3 }];
@@ -1105,6 +1097,34 @@ function layoutHolo(w, rt, idle = HOLO_STILL) {
   rt.coneEl.style.setProperty("--holo-mdir", vert ? "90deg" : "180deg");
   rt.rig.classList.toggle("side-left", side === "left"); rt.rig.classList.toggle("side-right", side === "right");
 }
+// Ray targets: evenly spaced along the edge facing the base (plus the two far corners at half alpha), or around
+// the radar rim starting at the point nearest the base. Untransformed points go through the same matrix as the corners.
+function rayTargets(w, rt, m) {
+  const h = holoOf(w), side = h.base.side, W = rt.W, H = rt.H, P = (x, y) => projectPt(m, x, y);
+  const n = clamp(Math.round(h.rays), 0, 15), d = rt.holoDisc, vert = side === "below" || side === "above", pts = [];
+  const a0 = { below: Math.PI / 2, above: -Math.PI / 2, left: Math.PI, right: 0 }[side];
+  for (let i = 0; i < n; i++) {
+    if (d) { const a = a0 + i * 2 * Math.PI / n; pts.push(P(d.x + Math.cos(a) * d.r, d.y + Math.sin(a) * d.r)); }
+    else { const t = n === 1 ? 0.5 : i / (n - 1); pts.push(vert ? P(W * t, side === "below" ? H : 0) : P(side === "left" ? 0 : W, H * t)); }
+  }
+  if (n && !d) pts.push(...({ below: [[0, 0], [W, 0]], above: [[0, H], [W, H]], left: [[W, 0], [W, H]], right: [[0, 0], [0, H]] }[side]).map(([x, y]) => P(x, y)));
+  return pts;
+}
+// The cheap per-tick path for the idle float: only the ray ends and their ticks move (the base end stays put).
+function aimRays(w, rt, pts) {
+  const { ox, oy } = rt.holoGeom, f = v => v.toFixed(1);
+  rt.rayLines.forEach((l, i) => {
+    const q = pts[i]; if (!q) return;
+    l.setAttribute("x2", f(q.x + ox)); l.setAttribute("y2", f(q.y + oy)); rt.rayBloom[i].setAttribute("x2", f(q.x + ox)); rt.rayBloom[i].setAttribute("y2", f(q.y + oy));
+    rt.rayTicks[i].setAttribute("cx", f(q.x + ox)); rt.rayTicks[i].setAttribute("cy", f(q.y + oy));
+  });
+}
+// Projected widgets in Subtle or Full: the only ones holoTick() visits. Empty means it is skipped entirely.
+let holoAnim = [];
+function syncHoloList() {
+  holoAnim = profile.widgets.map(w => [w, runtime[w.id]]).filter(([w, rt]) => rt && rt.rig && holoTier(holoOf(w)) !== "static");
+  for (const [w, rt] of holoAnim) { rt.holoCfg = holoOf(w); rt.holoTierNow = holoTier(rt.holoCfg); }
+}
 
 function rebuildAll() {
   applySettings();
@@ -1113,6 +1133,7 @@ function rebuildAll() {
   for (const id in runtime) if (!profile.widgets.find(w => w.id === id)) delete runtime[id];
   for (const w of profile.widgets) stage.append(buildWidget(w));
   for (const w of profile.widgets) attachHolo(w, runtime[w.id]);   // needs the roots attached: it measures them
+  syncHoloList();
   adaptLayout();
   renderPanel();
   updateOffscreenNote();
@@ -1377,8 +1398,64 @@ function frame(now) {
     rt.dirty = key !== rt._key; rt._key = key;
     drawWidget(w, rt, pad, dt);
   }
+  if (holoAnim.length) holoTick(now);
+  holoPerf(now, dt);
   requestAnimationFrame(frame);
 }
+// ---------- projector motion ----------
+// One shared envelope per frame, applied to each moving projected widget with its own phase. Seconds-based, so
+// 30, 60 and 144 FPS look the same. Only opacity (inner wrapper) and transform (root) are written per frame; the
+// rays follow the float at most every 50 ms. Everything else in the rig is CSS animation or static.
+// Multi-frequency ripple (max 1.45 Hz, far below any flash threshold); the dropout is applied by the caller.
+function envelopeAt(t, ph, tier) {
+  const amp = tier === "full" ? 0.06 : 0.03;
+  return 1 - amp * 0.5 + amp * 0.5 * (0.5 * Math.sin(t * 1.7 + ph) + 0.33 * Math.sin(t * 4.3 + ph * 1.3) + 0.17 * Math.sin(t * 9.1 + ph * 2.7));
+}
+const dropGap = full => full ? 4 + Math.random() * 10 : 10 + Math.random() * 4;   // seconds between dropouts
+function holoTick(now) {
+  const t = now / 1000;
+  for (const [w, rt] of holoAnim) {
+    const h = rt.holoCfg, tier = rt.holoTierNow, full = tier === "full", k = clamp(h.intensity / 70, 0, 1.43), ph = rt.holoPhase;
+    let e = 1 - (1 - envelopeAt(t, ph, tier)) * k, dy = 0, dx = 0;
+    // Dropouts: every 4-14 s (Subtle: 10-14 s), 50-130 ms long, 20-50 % deep (Subtle: 20 %). While one runs the
+    // hologram dips, slips down 1 px and, in Full, splits its colors and may tear on the next input-driven redraw.
+    if (h.flicker) {
+      if (rt.dropNext == null) rt.dropNext = t + dropGap(full);
+      if (t >= rt.dropNext) {
+        if (!rt.dropEnd) { rt.dropEnd = t + 0.05 + Math.random() * 0.08; rt.dropDepth = full ? 0.2 + Math.random() * 0.3 : 0.2; rt.tear = full ? 1 + Math.round(Math.random()) : 0; }
+        if (t < rt.dropEnd) { e *= 1 - rt.dropDepth * Math.min(1, k); dy = 1; dx = full ? 1 + Math.round(Math.random() * 0.6) : 0; }
+        else { rt.dropEnd = 0; rt.tear = 0; rt.dropNext = t + dropGap(full); }
+      }
+    }
+    rt.dropOn = dy > 0;
+    let idle = dy ? { tx: 0, ty: dy, rx: 0 } : HOLO_STILL;
+    if (h.float) idle = { tx: 2 * Math.sin(0.35 * t + ph) * k, ty: 1.5 * Math.sin(0.52 * t + ph) * k + dy, rx: 0.6 * Math.sin(0.3 * t + ph) * k };
+    applyPerspective(rt.root, w, idle);
+    const op = e.toFixed(3); if (rt._op !== op) { rt._op = op; rt.inner.style.opacity = op; }
+    if (h.float && now - (rt.rayAt || 0) >= 50) { rt.rayAt = now; aimRays(w, rt, rayTargets(w, rt, holoMatrix(w, rt, idle))); }
+    if (rt.fringe) holoFringe(w, rt, dx);   // Full tier only: the fringe canvas exists only there
+  }
+}
+// Frame-time check for the Full tier. An absolute threshold would misfire (an OBS source capped at 30 FPS always
+// shows ~33 ms), so compare medians: 2 s before the first Full widget runs, 3 s after. If frames got 1.5x slower,
+// Full widgets fall back to Subtle for this session only, with one toast.
+const perf = { base: null, buf: [], since: null, done: false };
+function holoPerf(now, dt) {
+  if (perf.done) return;
+  const fullOn = holoAnim.some(([, rt]) => rt.holoTierNow === "full");
+  if (perf.base == null) {
+    if (fullOn) { perf.done = true; return; }   // Full was on from boot: there is no clean baseline to compare with
+    perf.buf.push(dt); if (perf.buf.length >= 120) { perf.base = median(perf.buf); perf.buf = []; }
+    return;
+  }
+  if (!fullOn) { if (perf.since != null) { perf.since = null; perf.buf = []; } return; }
+  if (perf.since == null) perf.since = now;
+  perf.buf.push(dt);
+  if (now - perf.since < 3000) return;
+  perf.done = true;
+  if (median(perf.buf) > perf.base * 1.5) { holoSlow = true; rebuildAll(); toast("Projector set to Subtle to keep the overlay smooth"); }
+}
+const median = a => { const s = [...a].sort((x, y) => x - y); return s[s.length >> 1]; };
 
 // ---------- selection ----------
 function setSelection(ids, mode) {
@@ -1860,7 +1937,7 @@ function tilesIn(obj, key, options, after, label) {
 }
 function refreshWidget(w) {
   const rt = runtime[w.id]; if (!rt || !rt.root) return;
-  rt.root.replaceWith(buildWidget(w)); attachHolo(w, rt);
+  rt.root.replaceWith(buildWidget(w)); attachHolo(w, rt); syncHoloList();
 }
 
 const ICONS = {
