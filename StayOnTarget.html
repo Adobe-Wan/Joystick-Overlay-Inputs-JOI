@@ -92,12 +92,13 @@ body.preview:not(.editing).has-widgets #preview-chip { display: flex; }
   -webkit-mask-image: radial-gradient(ellipse 58% 100% at var(--holo-mpos, 50% 100%), #000, rgba(0,0,0,0.45) 40%, transparent 92%); mask-image: radial-gradient(ellipse 58% 100% at var(--holo-mpos, 50% 100%), #000, rgba(0,0,0,0.45) 40%, transparent 92%); }
 .holo-rays { left: 0; top: 0; overflow: visible; }
 .holo-rays stop { stop-color: var(--holo-rays); }
-.holo-rays stop.a { stop-opacity: calc(0.45 * var(--holo-i) + var(--holo-b)); }
-.holo-rays stop.b { stop-opacity: calc(0.05 * var(--holo-i) + var(--holo-b)); }
+/* Sampled from the Gladius radar (16:9 reference): its beams add only about 0.1 brightness over the dark
+   cockpit, read as soft bands rather than hard lines, and are nearly gone by the disc. */
+.holo-rays stop.a { stop-opacity: calc(0.3 * var(--holo-i) + var(--holo-b)); }
+.holo-rays stop.b { stop-opacity: calc(0.02 * var(--holo-i) + 0.5 * var(--holo-b)); }
 .holo-rays line { fill: none; stroke-linecap: round; }
 .holo-rays .rays line { stroke-width: 1; }
-.holo-rays .bloom line { stroke-width: 3; opacity: 0.1; }
-.holo-rays .ticks circle { fill: var(--holo-core); opacity: calc(0.9 * var(--holo-i) + var(--holo-b)); }
+.holo-rays .bloom line { stroke-width: 6; opacity: 0.14; }
 .holo-rays .debug circle { fill: none; stroke: var(--guide); stroke-width: 1; }
 .holo-base { border-radius: 50%; background: rgba(var(--holo-ped-rgb), 0.55); border: 1px solid rgba(var(--holo-acc-rgb), calc(0.9 * var(--holo-i) + var(--holo-b)));
   box-shadow: 0 0 6px rgba(var(--holo-acc-rgb), calc(0.6 * var(--holo-i))), inset 0 0 8px rgba(var(--holo-acc-rgb), calc(0.3 * var(--holo-i))); }
@@ -928,7 +929,7 @@ function deriveHolo({ accent, border, bg }) {
   return {
     core: hsvToHex(h, s * 0.45, Math.min(v + 0.35, 0.98)),
     glow: hsvToHex(h, s, Math.min(v + 0.1, 1)),
-    rays: hsvToHex(h, s, Math.min(v + 0.05, 1)),
+    rays: hsvToHex(h, s * 0.85, Math.min(v + 0.05, 1)),   // a touch less saturated than the accent, like the Gladius beams
     pedestal: hsvToHex(b.h, b.s, Math.min(b.v, 0.25)),   // always dark hardware, whatever the custom color
     fringeA: low ? "#ff2a5a" : hsvToHex((h + 210) % 360, 0.9, 0.95),
     fringeB: low ? "#2ad7ff" : hsvToHex((h + 150) % 360, 0.9, 0.95),
@@ -1147,18 +1148,19 @@ function attachHolo(w, rt) {
   const grad = svgEl("radialGradient", { id, gradientUnits: "userSpaceOnUse" });
   grad.append(svgEl("stop", { offset: "0", class: "a" }), svgEl("stop", { offset: "1", class: "b" }));
   const defs = svgEl("defs"); defs.append(grad);
-  const bloom = svgEl("g", { class: "bloom" }), lines = svgEl("g", { class: "rays" }), ticks = svgEl("g", { class: "ticks" });
-  rt.rayLines = []; rt.rayBloom = []; rt.rayTicks = []; rt.rayGrad = grad;
+  // No dot where a ray lands: the Gladius beams just fade into the hologram (Alex: the end dots read too heavy).
+  const bloom = svgEl("g", { class: "bloom" }), lines = svgEl("g", { class: "rays" });
+  rt.rayLines = []; rt.rayBloom = []; rt.rayGrad = grad;
   const n = clamp(Math.round(h.rays), 0, 15), edgeFan = !rt.holoDisc && h.rayMode === "edge";
   const count = !n ? 0 : rt.holoDisc ? n : edgeFan ? n + 2 : Math.max(n, 4);
   rig.classList.toggle("over", !rt.holoDisc && !edgeFan && n > 0);
   for (let i = 0; i < count; i++) {
-    const l = svgEl("line", { stroke: `url(#${id})` }), b = svgEl("line", { stroke: `url(#${id})` }), c = svgEl("circle", { r: 1.5 });
+    const l = svgEl("line", { stroke: `url(#${id})` }), b = svgEl("line", { stroke: `url(#${id})` });
     if (!edgeFan && !rt.holoDisc && i >= 4) { l.setAttribute("opacity", "0.6"); b.setAttribute("opacity", "0.6"); }   // corners lead, the outline rays fill
     if (edgeFan && i >= n) { l.setAttribute("opacity", "0.5"); b.setAttribute("opacity", "0.5"); }   // far corners: held in the beam, not standing on it
-    lines.append(l); bloom.append(b); ticks.append(c); rt.rayLines.push(l); rt.rayBloom.push(b); rt.rayTicks.push(c);
+    lines.append(l); bloom.append(b); rt.rayLines.push(l); rt.rayBloom.push(b);
   }
-  svg.append(defs, bloom, lines, ticks);
+  svg.append(defs, bloom, lines);
   if (HOLO_DEBUG) { const g = svgEl("g", { class: "debug" }); rt.debugDots = [0, 1, 2, 3].map(() => { const c = svgEl("circle", { r: 3 }); g.append(c); return c; }); svg.append(g); }
   const cone = el("div", { class: "holo-cone" }, el("i", { class: "holo-dust" }));
   const base = el("div", { class: "holo-base" }, el("i", { class: "ring" }), el("i", { class: "core" }), el("i", { class: "slit" }));
@@ -1311,13 +1313,12 @@ function rayTargets(w, rt, m) {
   if (n && !d) pts.push(...({ below: [[0, 0], [W, 0]], above: [[0, H], [W, H]], left: [[W, 0], [W, H]], right: [[0, 0], [0, H]] }[side]).map(([x, y]) => C(x, y)));
   return pts;
 }
-// The cheap per-tick path for the idle float: only the ray ends and their ticks move (the base end stays put).
+// The cheap per-tick path for the idle float: only the ray ends move (the base end stays put).
 function aimRays(w, rt, pts) {
   const { ox, oy } = rt.holoGeom, f = v => v.toFixed(1);
   rt.rayLines.forEach((l, i) => {
     const q = pts[i]; if (!q) return;
     l.setAttribute("x2", f(q.x + ox)); l.setAttribute("y2", f(q.y + oy)); rt.rayBloom[i].setAttribute("x2", f(q.x + ox)); rt.rayBloom[i].setAttribute("y2", f(q.y + oy));
-    rt.rayTicks[i].setAttribute("cx", f(q.x + ox)); rt.rayTicks[i].setAttribute("cy", f(q.y + oy));
   });
 }
 // Projected widgets in Subtle or Full: the only ones holoTick() visits. Empty means it is skipped entirely.
@@ -1467,7 +1468,10 @@ function drawStick(w, rt, pad, dt) {
     }
   }
   light();
-  g.strokeStyle = hexA(ink, 0.16); g.lineWidth = 1;
+  // Projected, the gate's structure (grid, rings, rim) is drawn in the beam's hue rather than the text color, the
+  // way every line on the Gladius radar is one cyan: dim rings, a brighter rim, bright ticks.
+  const line = holo ? rt.holoColors.rays : ink;
+  g.strokeStyle = hexA(line, holo ? 0.22 : 0.16); g.lineWidth = 1;
   if (radar) for (const f of [1 / 3, 2 / 3]) { g.beginPath(); g.arc(R, R, (R - 0.5) * f, 0, Math.PI * 2); g.stroke(); }
   else for (let k = 1; k < 4; k++) { const p = Math.round(S * k / 4) + 0.5; g.beginPath(); g.moveTo(p, 0); g.lineTo(p, S); g.moveTo(0, p); g.lineTo(S, p); g.stroke(); }
   const depth = depthOf(w);
@@ -1481,11 +1485,11 @@ function drawStick(w, rt, pad, dt) {
   }
   g.restore(); light();
   if (holo && radar) { g.strokeStyle = hexA(rt.holoColors.glow, 0.3); g.lineWidth = 3; face(); g.stroke(); }   // rim bloom: the rim is the brightest part
-  g.strokeStyle = hexA(ink, 0.4); g.lineWidth = 1; face(); g.stroke();
+  g.strokeStyle = hexA(line, holo ? 0.5 : 0.4); g.lineWidth = 1; face(); g.stroke();
   if (radar) {   // 36 rim ticks every 10°, the four cardinal ones longer and in the highlight color
     for (let i = 0; i < 36; i++) {
       const a = i * Math.PI / 18, card = i % 9 === 0, len = card ? 7 : 3.5;
-      g.strokeStyle = card ? accent : holo ? hexA(rt.holoColors.core, 0.7) : hexA(ink, 0.45);
+      g.strokeStyle = card ? accent : holo ? hexA(rt.holoColors.glow, 0.75) : hexA(ink, 0.45);
       g.beginPath(); g.moveTo(R + Math.cos(a) * (R - 1), R + Math.sin(a) * (R - 1)); g.lineTo(R + Math.cos(a) * (R - 1 - len), R + Math.sin(a) * (R - 1 - len)); g.stroke();
     }
   } else if (depth > 0) { g.strokeStyle = `rgba(255,255,255,${0.14 * depth})`; g.beginPath(); g.moveTo(rad, S - 1.5); g.lineTo(S - rad, S - 1.5); g.stroke(); }
