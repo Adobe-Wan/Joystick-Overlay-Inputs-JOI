@@ -1,15 +1,15 @@
-# Stay On Target
+# Joystick Overlay Inputs (JOI)
 
 An OBS overlay for Star Citizen pilots. It shows your sticks, throttle, pedals and buttons live on stream and in recordings, so you can watch replays back and see what your hands and feet were doing. It's a single HTML file with no install and no internet needed.
 
-![Stay On Target widgets over the Star Citizen HUD](docs/overlay.png)
+![JOI widgets over the Star Citizen HUD](docs/overlay.png)
 
 ## Download
 
-**[Download StayOnTarget.zip (latest version)](https://github.com/Adobe-Wan/stay-on-target/releases/latest/download/StayOnTarget.zip)**
+**[Download JOI.zip (latest version)](https://github.com/Adobe-Wan/stay-on-target/releases/latest/download/JOI.zip)**
 
-1. Click the link above. Your browser saves `StayOnTarget.zip`.
-2. Right-click the zip and choose **Extract All…** Put the folder somewhere permanent, for example `Documents\Stay On Target`. Don't run it from inside the zip or from your Downloads folder if you clean that out.
+1. Click the link above. Your browser saves `JOI.zip`.
+2. Right-click the zip and choose **Extract All…** Put the folder somewhere permanent, for example `Documents\Joystick Overlay Inputs`. Don't run it from inside the zip or from your Downloads folder if you clean that out.
 3. Follow **Set up in OBS** below.
 
 Every version, with its change notes, is on the [Releases page](https://github.com/Adobe-Wan/stay-on-target/releases).
@@ -17,14 +17,16 @@ Every version, with its change notes, is on the [Releases page](https://github.c
 **Requirements:** Windows, a recent OBS Studio, and any joystick, throttle, pedals or button box that Windows sees as a game controller. Nothing else to install.
 
 ### Updating
-Download the new zip and replace `StayOnTarget.html` in your folder. Keep your `profile.js`: your layout comes back automatically. You don't need to change anything in OBS.
+Download the new zip and replace `JOI.html` in your folder. Keep your `profile.js`: your layout comes back automatically. You don't need to change anything in OBS.
+
+**Coming from Stay On Target?** The app was renamed Joystick Overlay Inputs (JOI), and its file is now `JOI.html`. Put `JOI.html` in your existing folder next to your `profile.js`, then in OBS open the Browser source's properties and pick `JOI.html` as the local file. Your saved layout and settings carry over on their own.
 
 ## Set up in OBS
-1. [Download](#download) and extract the zip. The folder holds `StayOnTarget.html`, the `Background Images for Edit Mode` sample screenshots, this README with its images and the license. Keep them together.
-2. In OBS, add a **Browser** source, check **Local file** and pick `StayOnTarget.html`.
+1. [Download](#download) and extract the zip. The folder holds `JOI.html`, the `Background Images for Edit Mode` sample screenshots, this README with its images and the license. Keep them together.
+2. In OBS, add a **Browser** source, check **Local file** and pick `JOI.html`.
    - **Width / Height:** use your OBS canvas size (Settings → Video → Base Canvas, usually **1920 × 1080**). The overlay then maps 1:1 to your screen, and you position widgets by dragging them in step 4 rather than by moving the source.
    - **FPS:** check **Use custom frame rate** and set **60**.
-3. Right-click the source and choose **Interact**. The first time, Stay On Target opens in edit mode with a **Getting Started** dialog. Move a stick so the browser sees your controllers. (Later, press **E** or click **Open Editor** to return.)
+3. Right-click the source and choose **Interact**. The first time, JOI opens in edit mode with a **Getting Started** dialog. Move a stick so the browser sees your controllers. (Later, press **E** or click **Open Editor** to return.)
 4. Click **Get Started**. A dialog in the middle of the screen walks you through it:
    1. **Choose a Reference Screenshot:** pick the sample screenshot that matches your screen, or **Load My Own Screenshot**. It shows only while editing, so you can place widgets around the in-game HUD instead of on top of it.
    2. **What Are You Adding?** Stick, Pedals, Button, Throttle, Single Axis or Label.
@@ -34,7 +36,7 @@ Download the new zip and replace `StayOnTarget.html` in your folder. Keep your `
    New widgets line up along the bottom middle of the screen, where most streamers keep their inputs. The round **+** button (bottom right, or press **A**) adds more at any time.
 5. Drag the widgets where you want them (see *Positioning* below). Click one to change its name, size or colors.
 6. Switch **Edit Mode** off in the top bar (or press **E**). The reference screenshot disappears with the editor.
-7. **Save and Share → Download profile.js**, and save it in the same folder as `StayOnTarget.html`. This keeps the setup safe if OBS clears its cache.
+7. **Save and Share → Download profile.js**, and save it in the same folder as `JOI.html`. This keeps the setup safe if OBS clears its cache.
 
 ## Opening it in a normal browser
 Outside OBS the page shows a dark preview background with a note that it's transparent in OBS. In OBS it stays fully transparent. If another streaming app shows the dark background, add `?transparent` to the end of the file URL. Add `?edit` to open straight into the editor.
@@ -54,7 +56,7 @@ Layouts are designed on a 1920×1080 canvas and **fit to the screen size** autom
 - Grid size, safe margin, and turning guides or the grid off are in **Settings**.
 
 ## Sample backgrounds
-Sample screenshots live in the `Background Images for Edit Mode` folder next to `StayOnTarget.html`. The download includes 16:9 and 21:9 ultrawide samples. The editor uses whichever sample best matches your screen shape, as long as the files keep these exact names:
+Sample screenshots live in the `Background Images for Edit Mode` folder next to `JOI.html`. The download includes 16:9 and 21:9 ultrawide samples. The editor uses whichever sample best matches your screen shape, as long as the files keep these exact names:
 
 | File | Screen shape |
 |---|---|
@@ -157,17 +159,17 @@ The single-key shortcuts work when no button or field has focus: click an empty 
 | Alt (while dragging) | Turn snapping off |
 
 ## Session heatmap
-Stay On Target records where every stick, throttle and pedal spends its time. Press **H** to see it, for example which way you strafe most this session. Press **R** to start fresh.
+JOI records where every stick, throttle and pedal spends its time. Press **H** to see it, for example which way you strafe most this session. Press **R** to start fresh.
 
 ## Two identical sticks (for example, 2× VIRPIL Alpha Prime)
-They report the same hardware name, so Stay On Target tells them apart by the controller slot each one was set up in, which Windows normally keeps stable. If left and right ever come up reversed, click either stick widget and press **Swap with Identical Device**.
+They report the same hardware name, so JOI tells them apart by the controller slot each one was set up in, which Windows normally keeps stable. If left and right ever come up reversed, click either stick widget and press **Swap with Identical Device**.
 For a permanent fix, give one stick a different USB Product ID in VPC Configurator, then re-add that stick.
 
 ## Starting over
 **Reset All** (on the editor's home panel, and in **Settings → Start Over**) asks for confirmation, then removes every widget and returns all settings, colors and the reference screenshot to their defaults. It can't be undone, so use **Save and Share** first if you might want the layout back.
 
 ## A device isn't showing up
-Open the editor and click **Check Devices** on the home panel. It lists every controller your browser is passing to Stay On Target, live, and which widgets are still waiting for theirs.
+Open the editor and click **Check Devices** on the home panel. It lists every controller your browser is passing to JOI, live, and which widgets are still waiting for theirs.
 - **Wake it up.** Browsers hide controllers until you use them after the page opens. Pedals have no buttons, so push a pedal or a toe brake all the way once.
 - **Four controllers at most.** Browsers and OBS show no more than 4 game controllers at a time. If all 4 slots are taken, a fifth device (often the pedals) gets left out. Unplug or disable what you don't need on stream: a spare throttle, a wheel, an Xbox pad, or virtual controllers from Steam, vJoy or similar tools. Win+R, `joy.cpl` lists everything Windows sees.
 - **Different browsers.** A layout made in OBS also works in Chrome, Edge or Firefox; devices are matched by their USB ids.
@@ -175,13 +177,13 @@ Open the editor and click **Check Devices** on the home panel. It lists every co
 - Still missing? Close other apps that read controllers, unplug the device and plug it back in, then refresh.
 
 ## Sharing a layout
-In **Save and Share**, click **Download .json** and send that file (plus `StayOnTarget.html` if they don't have it yet). They open the editor and choose **Import a Profile**. With the same hardware it works right away. With different hardware they remove the widgets and use **+ Device** for their own.
+In **Save and Share**, click **Download .json** and send that file (plus `JOI.html` if they don't have it yet). They open the editor and choose **Import a Profile**. With the same hardware it works right away. With different hardware they remove the widgets and use **+ Device** for their own.
 
-Don't send your `profile.js`, and never use one someone else sent you. It's a personal backup that sits next to your own `StayOnTarget.html`, and it runs as a script when the overlay loads (see `SECURITY.md`). A `.json` is only data.
+Don't send your `profile.js`, and never use one someone else sent you. It's a personal backup that sits next to your own `JOI.html`, and it runs as a script when the overlay loads (see `SECURITY.md`). A `.json` is only data.
 
 ## License and credits
-- **License:** MIT (see `LICENSE`). Anyone can use, share and modify Stay On Target for free, as long as the license notice stays with it.
-- **Third-party code:** none. Stay On Target uses no libraries, frameworks, web fonts, analytics or online services. It's one HTML file using built-in browser features (Gamepad API, Canvas, CSS), and text uses the fonts already on the viewer's computer. Nothing is downloaded and nothing about you or your inputs leaves your PC.
+- **License:** MIT (see `LICENSE`). Anyone can use, share and modify JOI for free, as long as the license notice stays with it.
+- **Third-party code:** none. JOI uses no libraries, frameworks, web fonts, analytics or online services. It's one HTML file using built-in browser features (Gamepad API, Canvas, CSS), and text uses the fonts already on the viewer's computer. Nothing is downloaded and nothing about you or your inputs leaves your PC.
 - **Design:** the editor's layout borrows from Material Design (MUI), re-created in plain CSS. No MUI code is included.
 - **Color themes:** fan-made approximations of in-game MFD colors. They're not official assets.
 - **Sample screenshots:** captured from Star Citizen. Game imagery belongs to Cloud Imperium.

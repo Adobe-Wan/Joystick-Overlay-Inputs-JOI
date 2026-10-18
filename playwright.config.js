@@ -1,4 +1,4 @@
-// Playwright config for the StayOnTarget.html test suite. The page is opened straight from disk (file://);
+// Playwright config for the JOI.html test suite. The page is opened straight from disk (file://);
 // there is no server. `npm test` runs everything except the @soak test; `npm run test:soak` runs only that.
 const { defineConfig, devices } = require("@playwright/test");
 

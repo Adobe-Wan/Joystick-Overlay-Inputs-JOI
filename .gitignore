@@ -3,6 +3,7 @@ dist/
 Thumbs.db
 # Personal profiles saved from the app (Save / Share). They hold your device names and layout.
 profile.js
+joi-profile*.json
 stayontarget-profile*.json
 # Test and tooling output
 node_modules/

@@ -1,4 +1,4 @@
-// Shared test fixture for StayOnTarget.html.
+// Shared test fixture for JOI.html.
 //
 // `test` is Playwright's test with an `app` fixture. Every page gets:
 //   - the fake Gamepad API (fixtures/fake-gamepad.js), driven per animation frame,
@@ -15,10 +15,10 @@ const base = require("@playwright/test");
 const { expect } = base;
 const { frames, play } = require("./gamepad");
 
-const APP_PATH = process.env.APP ? path.resolve(process.env.APP) : path.resolve(__dirname, "..", "..", "StayOnTarget.html");
+const APP_PATH = process.env.APP ? path.resolve(process.env.APP) : path.resolve(__dirname, "..", "..", "JOI.html");
 const APP_URL = pathToFileURL(APP_PATH).href;
 const FAKE_GAMEPAD = path.join(__dirname, "fake-gamepad.js");
-const STORE_KEY = "stayontarget.profile";
+const STORE_KEY = "joi.profile";
 const LOCAL = /^(file|data|blob|about):/;
 
 const test = base.test.extend({
@@ -39,13 +39,13 @@ const test = base.test.extend({
       // Seed devices and storage, then load the page. Storage is seeded once per test (not on reloads), so a
       // reload sees whatever the app itself stored.
       //   devices: fake-gamepad specs plugged before the page loads
-      //   profile: object or string written to localStorage["stayontarget.profile"]
+      //   profile: object or string written to localStorage["joi.profile"]
       //   storage: extra localStorage keys
       //   tips: mark the coach tips as seen (default true) so they don't cover the stage
       async open({ devices = [], gestureGate = false, maxSlots = 4, query = "", profile = null, storage = {}, tips = true } = {}) {
         const seed = { ...storage };
         if (profile != null) seed[STORE_KEY] = typeof profile === "string" ? profile : JSON.stringify(profile);
-        if (tips) seed["stayontarget.tips"] = JSON.stringify({ groups: true });
+        if (tips) seed["joi.tips"] = JSON.stringify({ groups: true });
         await page.addInitScript(([devs, cfg, seed]) => {
           window.__fakeGP.config(cfg);
           for (const d of devs) window.__fakeGP.plug(d);

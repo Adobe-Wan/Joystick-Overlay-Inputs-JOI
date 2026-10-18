@@ -1,4 +1,4 @@
-// ESLint 9 flat config. Lints the inline <script> blocks of StayOnTarget.html (via eslint-plugin-html) as browser
+// ESLint 9 flat config. Lints the inline <script> blocks of JOI.html (via eslint-plugin-html) as browser
 // code, and the test suite as Node code. Run with `npm run lint`.
 const js = require("@eslint/js");
 const html = require("eslint-plugin-html");
@@ -16,7 +16,7 @@ module.exports = [
       globals: {
         ...globals.browser,
         // Set by the optional profile.js next to the page, and by OBS's browser source.
-        STAYONTARGET_PROFILE: "readonly", JOYVIZ_PROFILE: "readonly", obsstudio: "readonly"
+        JOI_PROFILE: "readonly", STAYONTARGET_PROFILE: "readonly", JOYVIZ_PROFILE: "readonly", obsstudio: "readonly"
       }
     },
     rules: {

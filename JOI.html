@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; base-uri 'none'; form-action 'none'; object-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Stay On Target</title>
+<title>Joystick Overlay Inputs (JOI)</title>
 <style>
 :root {
   --ui-accent: #4fd1ff;
@@ -568,7 +568,7 @@ body:not(.editing):not(.has-widgets) #enter-edit { display: flex; }
   <div id="resize" aria-hidden="true"><i class="edge" data-c="n"></i><i class="edge" data-c="e"></i><i class="edge" data-c="s"></i><i class="edge" data-c="w"></i><i data-c="nw"></i><i data-c="ne"></i><i data-c="se"></i><i data-c="sw"></i></div>
 </div>
 <div id="marquee"></div>
-<div id="enter-edit"><div class="card paper" role="region" aria-label="Stay On Target">
+<div id="enter-edit"><div class="card paper" role="region" aria-label="Joystick Overlay Inputs">
   <button class="primary" id="enter-edit-btn">Open Editor</button>
   <p>or press <kbd>E</kbd> at any time</p>
 </div></div>
@@ -577,7 +577,7 @@ body:not(.editing):not(.has-widgets) #enter-edit { display: flex; }
 
 <div id="welcome" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
   <div class="dialog paper">
-    <h2 id="welcome-title">Welcome to Stay On Target</h2>
+    <h2 id="welcome-title">Welcome to Joystick Overlay Inputs</h2>
     <p class="lead">Show your sticks, throttle and pedals on stream, then watch your replays to see what your hands and feet were doing.</p>
     <ol>
       <li><button class="wstep" data-welcome="bg"><span class="num">1</span><span><b>Choose a Reference Screenshot</b>
@@ -638,9 +638,9 @@ body:not(.editing):not(.has-widgets) #enter-edit { display: flex; }
 
 <script>
 "use strict";
-/* Stay On Target. MIT License, see LICENSE. No third-party code. */
+/* Joystick Overlay Inputs (JOI). MIT License, see LICENSE. No third-party code. */
 /*
- * Stay On Target — an OBS input overlay for Star Citizen pilots: see your sticks,
+ * Joystick Overlay Inputs (JOI), formerly Stay On Target — an OBS input overlay for Star Citizen pilots: see your sticks,
  * throttle and pedals in your recordings and learn from your replays.
  *
  * Every widget remembers its device by hardware name (the Gamepad id) plus its order
@@ -653,9 +653,19 @@ body:not(.editing):not(.has-widgets) #enter-edit { display: flex; }
  * multi-select, arrow-key nudging, and align / distribute / place-on-screen buttons.
  */
 
-const STORE_KEY = "stayontarget.profile";
-const OLD_STORE_KEY = "joyviz2.v2.profile";   // JoyViz 2, the app's former name: still read so those setups load
-const REF_KEY = "stayontarget.reference";
+const STORE_KEY = "joi.profile";
+const OLD_STORE_KEY = "joyviz2.v2.profile";   // JoyViz 2, the app's first name: still read so those setups load
+const REF_KEY = "joi.reference";
+// Stay On Target, the app's previous name, saved under "stayontarget.*". Each such key moves once to "joi.*" (never
+// over a newer one), so existing layouts and settings load. Removed before writing, so a big screenshot still fits.
+try {
+  for (const k of Object.keys(localStorage)) {
+    if (!k.startsWith("stayontarget.")) continue;
+    const v = localStorage.getItem(k), nk = "joi." + k.slice(13);
+    localStorage.removeItem(k);
+    try { if (localStorage.getItem(nk) === null) localStorage.setItem(nk, v); } catch (e) { localStorage.setItem(k, v); }
+  }
+} catch (e) {}
 const SNAP_PX = 6;                            // smart-guide snap distance, screen pixels
 const DESIGN_W = 1920, DESIGN_H = 1080;       // the canvas layouts are designed on
 const BASE_FONT_PX = 14;                      // the editor's rem at 100% (html font-size in the CSS)
@@ -965,9 +975,9 @@ function loadProfile() {
 }
 // A saved layout that can't be read or built would stop the app on every load, with Reset All out of reach. It moves
 // to BACKUP_KEY, where it can still be recovered by hand, and the app starts with an empty layout.
-const BACKUP_KEY = "stayontarget.profile.unreadable";
+const BACKUP_KEY = "joi.profile.unreadable";
 function setAsideSavedProfile(err) {
-  console.error("Stay On Target: the saved layout couldn't be loaded", err);
+  console.error("JOI: the saved layout couldn't be loaded", err);
   try {
     const raw = localStorage.getItem(STORE_KEY) || localStorage.getItem(OLD_STORE_KEY);
     // Removed first, so the copy fits in the room the original took.
@@ -1046,19 +1056,19 @@ function download(name, text, type) {
 function exportProfile(asScript) {
   profile.savedAt = Date.now(); stampLayout();
   const json = JSON.stringify(profile, null, 2);
-  const note = "// Stay On Target profile: a personal backup. Keep it next to StayOnTarget.html. It runs as a script, so don't share it; share the .json instead.";
-  if (asScript) download("profile.js", note + "\nwindow.STAYONTARGET_PROFILE = " + json + ";\n", "text/javascript");
-  else download("stayontarget-profile.json", json, "application/json");
+  const note = "// Joystick Overlay Inputs (JOI) profile: a personal backup. Keep it next to JOI.html. It runs as a script, so don't share it; share the .json instead.";
+  if (asScript) download("profile.js", note + "\nwindow.JOI_PROFILE = " + json + ";\n", "text/javascript");
+  else download("joi-profile.json", json, "application/json");
 }
 // A real profile is a few kilobytes; anything near this is not one, and parsing it would only cost memory.
 const IMPORT_MAX = 1024 * 1024;
-const IMPORT_FAILED = "Couldn't read that file. Choose a .json or profile.js saved from Stay On Target.";
+const IMPORT_FAILED = "Couldn't read that file. Choose a .json or profile.js saved from JOI or Stay On Target.";
 // A .js profile is never run: the object is cut out of it and parsed as JSON. Saved only once it has built, so a
 // file that fails leaves the current layout as it was. Building first also lets adaptLayout() read the screen the
 // file was made on before save() stamps the current one.
 function importProfileText(text) {
   if (text.length > IMPORT_MAX) throw new Error("file too large");
-  const m = /window\.(?:STAYONTARGET|JOYVIZ)_PROFILE\s*=\s*([\s\S]*?);?\s*$/.exec(text);
+  const m = /window\.(?:JOI|STAYONTARGET|JOYVIZ)_PROFILE\s*=\s*([\s\S]*?);?\s*$/.exec(text);
   const next = normalize(JSON.parse(m ? m[1] : text)), prev = profile;
   profile = next;
   try { rebuildAll(); } catch (err) { profile = prev; rebuildAll(); throw err; }
@@ -1097,7 +1107,7 @@ function closeWizard() {
 }
 // ---------- one-time tips ----------
 // Shown once per browser. "groups": after setup ends with two or more widgets, point at editing them together.
-const TIPS_KEY = "stayontarget.tips";
+const TIPS_KEY = "joi.tips";
 let tipsSeen = {}; try { tipsSeen = JSON.parse(localStorage.getItem(TIPS_KEY) || "{}") || {}; } catch (e) {}
 function maybeTip(id) {
   if (tipsSeen[id] || !editing) return;
@@ -2263,7 +2273,7 @@ function inputChanged(w, rt, pad) {
 // Reports a widget that failed to draw once, so the console isn't flooded at 60 FPS.
 function drawFailed(rt, w, err) {
   if (rt.failed) return;
-  rt.failed = true; console.error(`Stay On Target: widget "${w.label || w.id}" failed to draw`, err);
+  rt.failed = true; console.error(`JOI: widget "${w.label || w.id}" failed to draw`, err);
 }
 // The loop runs only while something on screen can change: input widgets with a device connected, the setup wizard
 // listening for a move, readout text still due, or the Projector's frame-time check (its motion is CSS). Otherwise
@@ -3078,7 +3088,7 @@ function tilesIn(obj, key, options, after, label) {
 }
 // Collapsible panel sections. Which ones are open is remembered per browser (never in the profile) and falls back
 // to the defaults when storage is unavailable. Returns the body to fill; `extra` sits in the header beside the title.
-const SEC_KEY = "stayontarget.sections";
+const SEC_KEY = "joi.sections";
 let secState = null;
 function secOpen(key, def) {
   if (!secState) { try { secState = JSON.parse(localStorage.getItem(SEC_KEY) || "{}") || {}; } catch (e) { secState = {}; } }
@@ -3447,7 +3457,7 @@ function renderWiz() {
     for (const sm of availableSamples) tile(SAMPLE_DIR + sm.file, sm.label, refImage === SAMPLE_DIR + sm.file, () => { useSample(sm); renderWiz(); });
     if (refImage && refImage.startsWith("data:")) tile(refImage, "Your Screenshot", true, () => {});
     if (g.children.length) b.append(g);
-    else b.append(el("p", { class: "warn" }, `No sample screenshots found. Put them in a folder called "${SAMPLE_DIR.slice(0, -1)}" next to StayOnTarget.html, or load your own.`));
+    else b.append(el("p", { class: "warn" }, `No sample screenshots found. Put them in a folder called "${SAMPLE_DIR.slice(0, -1)}" next to JOI.html, or load your own.`));
     b.append(el("div", { class: "actions", style: "justify-content:flex-start;margin-top:0.6rem" },
       el("button", { onclick: () => $("#ref-in").click() }, "Load My Own Screenshot"),
       refImage ? el("button", { onclick: () => { clearReference(); renderWiz(); } }, "No Screenshot") : null));
@@ -3646,7 +3656,7 @@ function colorSection(p, ws) {
 // Width and Height of the stick, bar or rudder as it sits on screen, in px or as a percent of its default (the choice
 // is remembered per browser). A bar's thickness and length, or a rudder's, swap with its direction. Under Fill the box
 // decides the length: that slider shows the size Fill worked out, dimmed, and dragging it takes over from Fill.
-const UNITS_KEY = "stayontarget.units";
+const UNITS_KEY = "joi.units";
 let unitMode = null;
 function unitsIn() {
   if (!unitMode) { try { unitMode = localStorage.getItem(UNITS_KEY) === "pct" ? "pct" : "px"; } catch (e) { unitMode = "px"; } }
@@ -3954,7 +3964,7 @@ function renderMultiPanel(p) {
 const PAD_SLOTS = 4;   // Chrome, Edge and OBS hand a page at most 4 game controllers
 function renderDevicesPanel(p) {
   p.append(el("h3", {}, "Check Devices"));
-  p.append(el("div", { class: "hint" }, "Every device your browser is passing to Stay On Target, updated live. Move or press something on each device to see it light up."));
+  p.append(el("div", { class: "hint" }, "Every device your browser is passing to JOI, updated live. Move or press something on each device to see it light up."));
   // The list refreshes five times a second, so it is not a live region; only connects and disconnects are announced.
   const body = el("div", { id: "dev-body" }), news = el("div", { class: "sr-only", "aria-live": "polite" });
   body._news = news;
@@ -4034,7 +4044,7 @@ function renderSettingsPanel(p) {
   heat.append(el("div", { class: "hint small" }, "Shows where each stick, throttle and pedal spent its time this session, for example, which way you strafe most. Toggle with H, reset with R."));
   heat.append(el("div", { class: "actions" }, el("button", { onclick: toggleHeat }, showHeat ? "Hide Heatmap" : "Show Heatmap"), el("button", { class: "subtle", onclick: resetHeat }, "Reset Heatmap")));
   const about = section(p, "About", { key: "s-about", open: false });
-  about.append(el("div", { class: "hint" }, "Stay On Target is free, open-source software under the MIT License. It uses no third-party libraries, fonts, trackers or online services: everything runs offline from this one file."));
+  about.append(el("div", { class: "hint" }, "Joystick Overlay Inputs (JOI) is free, open-source software under the MIT License. It uses no third-party libraries, fonts, trackers or online services: everything runs offline from this one file."));
   about.append(el("div", { class: "hint" }, "This is an unofficial Star Citizen fan project, not affiliated with the Cloud Imperium group of companies. "
     + "Star Citizen®, Roberts Space Industries® and Cloud Imperium® are trademarks of Cloud Imperium Rights LLC. "
     + "Manufacturer names are used only to describe fan-made color themes."));
@@ -4046,7 +4056,7 @@ function renderSettingsPanel(p) {
 function renderExportPanel(p) {
   p.append(el("h3", {}, "Save and Share"));
   p.append(el("div", { class: "hint" }, "Your setup saves automatically. For a personal backup that survives OBS clearing its cache, "
-    + "download profile.js and put it in the same folder as StayOnTarget.html. It's for your own computer only: don't share it."));
+    + "download profile.js and put it in the same folder as JOI.html. It's for your own computer only: don't share it."));
   p.append(el("div", { class: "actions" }, el("button", { class: "primary", onclick: () => exportProfile(true) }, "Download profile.js")));
   p.append(el("h4", {}, "Share With Another Pilot"));
   p.append(el("div", { class: "hint" }, "Download .json and send that file. The other pilot opens the editor and chooses Import a Profile. With the same hardware it works right away; otherwise they remove the widgets and add their own devices."));
@@ -4064,20 +4074,20 @@ resetHistory();
 if (new URLSearchParams(location.search).has("edit")) setEditing(true);
 wake(true);
 // First run (no saved setup and no profile.js): open the editor with the getting-started dialog.
-window.addEventListener("load", () => { if (firstRun && !window.STAYONTARGET_PROFILE && !window.JOYVIZ_PROFILE) { setEditing(true); openWelcome(); } });
+window.addEventListener("load", () => { if (firstRun && !window.JOI_PROFILE && !window.STAYONTARGET_PROFILE && !window.JOYVIZ_PROFILE) { setEditing(true); openWelcome(); } });
 </script>
 <!-- Optional saved profile; ignored if the file doesn't exist. -->
 <script src="profile.js"></script>
 <script>
 // profile.js goes through the same checks as an import. If it can't be built, the layout saved in this browser stays.
-const fileProfile = window.STAYONTARGET_PROFILE || window.JOYVIZ_PROFILE;
+const fileProfile = window.JOI_PROFILE || window.STAYONTARGET_PROFILE || window.JOYVIZ_PROFILE;
 if (fileProfile) {
   const prev = profile;
   try {
     const next = normalize(fileProfile);
     if (next.savedAt > (+prev.savedAt || 0)) { profile = next; rebuildAll(); resetHistory(); }
   } catch (err) {
-    console.error("Stay On Target: profile.js couldn't be loaded", err);
+    console.error("JOI: profile.js couldn't be loaded", err);
     profile = prev; rebuildAll(); resetHistory();
     toast("profile.js couldn't be loaded, so the layout saved in this browser is shown.", 6000);
   }

@@ -1,7 +1,7 @@
 {
-  "name": "stay-on-target",
+  "name": "joystick-overlay-inputs",
   "private": true,
-  "description": "Tests and lint for StayOnTarget.html, the single-file OBS joystick overlay.",
+  "description": "Tests and lint for JOI.html (Joystick Overlay Inputs), the single-file OBS joystick overlay.",
   "license": "SEE LICENSE IN LICENSE",
   "scripts": {
     "test": "playwright test --grep-invert @soak",

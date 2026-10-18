@@ -1,7 +1,8 @@
 // Profiles saved by every earlier release still load. The fixtures in fixtures/profiles/ were made by running each
-// tagged release's own StayOnTarget.html (see tools/make-old-profiles.js); each records the layout that release
-// stored and where it drew every widget. The current page must load each one, from this browser's storage (an
-// upgrade) and through Import (a shared .json), without errors, with every widget, and with every widget where it was.
+// tagged release's own StayOnTarget.html, the file's name before JOI (see tools/make-old-profiles.js); each records
+// the layout that release stored and where it drew every widget. The current page must load each one, from this
+// browser's storage under the old "stayontarget.profile" key (an upgrade) and through Import (a shared .json),
+// without errors, with every widget, and with every widget where it was.
 const fs = require("fs");
 const path = require("path");
 const { test, expect, fixturePath } = require("./fixtures/app");
@@ -52,7 +53,7 @@ for (const file of FIXTURES) {
     }
 
     test("loads from this browser's storage", async ({ app, page }) => {
-      await app.open({ devices: DEVICES, profile: saved, query: "?transparent" });
+      await app.open({ devices: DEVICES, storage: { "stayontarget.profile": JSON.stringify(saved) }, query: "?transparent" });
       await check(app, page);
       await app.reload("?edit");
       await check(app, page);
@@ -67,3 +68,16 @@ for (const file of FIXTURES) {
     });
   });
 }
+
+// Stay On Target's keys move to JOI's once: settings come along, a newer JOI value is never overwritten, and
+// nothing is left behind for Reset All to bring back.
+test("settings saved under Stay On Target's keys move to JOI's", async ({ app, page }) => {
+  await app.open({ query: "?edit", tips: false, storage: {
+    "stayontarget.units": "pct", "stayontarget.tips": JSON.stringify({ groups: true }),
+    "joi.sections": "{}", "stayontarget.sections": JSON.stringify({ layout: true }) } });
+  const st = await page.evaluate(() => Object.fromEntries(Object.keys(localStorage).sort().map(k => [k, localStorage.getItem(k)])));
+  expect(Object.keys(st).filter(k => k.startsWith("stayontarget."))).toEqual([]);
+  expect(st["joi.units"]).toBe("pct");
+  expect(st["joi.tips"]).toBe(JSON.stringify({ groups: true }));
+  expect(st["joi.sections"]).toBe("{}");
+});

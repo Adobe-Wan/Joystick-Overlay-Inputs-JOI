@@ -1,4 +1,4 @@
-# Builds StayOnTarget.zip and publishes a GitHub Release.
+# Builds JOI.zip and publishes a GitHub Release.
 # Runs when a version tag (v1.0.0, v1.1.0, ...) is pushed, or by hand from the Actions tab
 # ("Release" → "Run workflow", type the version), which creates the tag for you.
 # The README's download link always points at the newest release's zip.
@@ -39,22 +39,22 @@ jobs:
         run: |
           [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Version must look like v1.2.3, got '$TAG'"; exit 1; }
 
-      - name: Build StayOnTarget.zip
+      - name: Build JOI.zip
         run: |
-          mkdir -p "dist/Stay On Target"
-          cp StayOnTarget.html README.md LICENSE "dist/Stay On Target/"
-          if [ -d "Background Images for Edit Mode" ]; then cp -r "Background Images for Edit Mode" "dist/Stay On Target/"; fi
-          cp -r docs "dist/Stay On Target/"   # the README's images
-          cd dist && zip -r -X StayOnTarget.zip "Stay On Target"
-          sha256sum StayOnTarget.zip > SHA256SUMS.txt
+          mkdir -p "dist/Joystick Overlay Inputs"
+          cp JOI.html README.md LICENSE "dist/Joystick Overlay Inputs/"
+          if [ -d "Background Images for Edit Mode" ]; then cp -r "Background Images for Edit Mode" "dist/Joystick Overlay Inputs/"; fi
+          cp -r docs "dist/Joystick Overlay Inputs/"   # the README's images
+          cd dist && zip -r -X JOI.zip "Joystick Overlay Inputs"
+          sha256sum JOI.zip > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
       - name: Publish release
         run: |
           # A release made by hand on GitHub already exists for this tag: just attach the zip to it.
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" dist/StayOnTarget.zip dist/SHA256SUMS.txt --clobber
+            gh release upload "$TAG" dist/JOI.zip dist/SHA256SUMS.txt --clobber
           else
-            gh release create "$TAG" dist/StayOnTarget.zip dist/SHA256SUMS.txt --target "$GITHUB_SHA" \
-              --title "Stay On Target $TAG" --generate-notes --latest
+            gh release create "$TAG" dist/JOI.zip dist/SHA256SUMS.txt --target "$GITHUB_SHA" \
+              --title "Joystick Overlay Inputs (JOI) $TAG" --generate-notes --latest
           fi

@@ -83,14 +83,14 @@ test.describe("hostile profile planted in localStorage", () => {
   test("unparseable JSON is set aside and the app starts empty", async ({ app, page }) => {
     await app.open({ query: "?edit", profile: "{broken" });
     await assertHealthy(app);
-    const st = await page.evaluate(() => ({ backup: localStorage.getItem("stayontarget.profile.unreadable"), widgets: profile.widgets.length }));
+    const st = await page.evaluate(() => ({ backup: localStorage.getItem("joi.profile.unreadable"), widgets: profile.widgets.length }));
     expect(st.backup).toBe("{broken");
     expect(st.widgets).toBe(0);
   });
 
   test("reference image string that breaks out of url(\"...\")", async ({ app, page }) => {
     await app.open({ query: "?edit", profile: payload("good.json"),
-      storage: { "stayontarget.reference": 'x"), url("http://127.0.0.1:8998/ref-beacon.png' } });
+      storage: { "joi.reference": 'x"), url("http://127.0.0.1:8998/ref-beacon.png' } });
     await assertHealthy(app);
     expect(await page.evaluate(() => getComputedStyle(document.body).backgroundImage)).not.toContain("127.0.0.1");
   });
@@ -128,7 +128,7 @@ test.describe("imports that must be refused", () => {
   test("profile.js with code around the object is parsed, never run", async ({ app }) => {
     await app.open({ query: "?edit" });
     await app.importFile({ name: "profile.js", mimeType: "text/javascript",
-      buffer: Buffer.from('window.__pwned = 1;\nwindow.STAYONTARGET_PROFILE = {"savedAt":1,"widgets":[{"id":"a","type":"label","label":"x"}]};\n') });
+      buffer: Buffer.from('window.__pwned = 1;\nwindow.JOI_PROFILE = {"savedAt":1,"widgets":[{"id":"a","type":"label","label":"x"}]};\n') });
     await assertHealthy(app);
   });
 });
@@ -175,8 +175,8 @@ test.describe("storage quota", () => {
     await app.open({ query: "?edit" });
     await page.evaluate(() => {
       let lo = 0, hi = 6e6;
-      while (hi - lo > 1000) { const m = (lo + hi) >> 1; try { localStorage.setItem("stayontarget.reference", "data:image/png;base64," + "A".repeat(m)); lo = m; } catch (e) { hi = m; } }
-      localStorage.setItem("stayontarget.reference", "data:image/png;base64," + "A".repeat(lo - 200));
+      while (hi - lo > 1000) { const m = (lo + hi) >> 1; try { localStorage.setItem("joi.reference", "data:image/png;base64," + "A".repeat(m)); lo = m; } catch (e) { hi = m; } }
+      localStorage.setItem("joi.reference", "data:image/png;base64," + "A".repeat(lo - 200));
     });
     await app.importJSON(payload("rich.json"));
     await app.flushSave();
