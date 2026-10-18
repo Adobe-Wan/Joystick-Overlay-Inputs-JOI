@@ -44,6 +44,23 @@ test.describe("visual", () => {
       save(); rebuildAll();
     });
   });
+  // A radar face is the widget's edge, like the Gladius radar: nothing square behind the disc, Flat or Projector,
+  // whatever the Background opacity; the disc carries the background instead.
+  for (const projector of [false, true]) {
+    test(`radar face has no box (${projector ? "Projector" : "Flat"})`, async ({ app, page }) => {
+      await app.open({ profile: PROFILE, devices: DEVICES, maxSlots: 5, query: "?transparent" });
+      const st = await page.evaluate(on => {
+        const w = profile.widgets.find(x => x.type === "stick");
+        setProjector([w], on); w.face = "radar"; w.bgAlpha = 88; w.proj = { ...w.proj, scan: true }; save(); rebuildAll();
+        const root = runtime[w.id].root, rs = getComputedStyle(root), cs = getComputedStyle(runtime[w.id].canvas);
+        return { bg: rs.backgroundColor, img: rs.backgroundImage, border: rs.borderTopColor, shadow: rs.boxShadow,
+          scan: root.classList.contains("scan"), radius: cs.borderTopLeftRadius, disc: cs.backgroundColor };
+      }, projector);
+      expect(st).toMatchObject({ bg: "rgba(0, 0, 0, 0)", img: "none", border: "rgba(0, 0, 0, 0)", shadow: "none", scan: false, radius: "50%" });
+      expect(st.disc).toMatch(/^rgba\(14, 30, 39, 0\.88/);
+      expect(app.consoleErrors).toEqual([]);
+    });
+  }
   test("Flat on every widget", async ({ app, page }) => {
     await shot(app, page, "flat", () => {
       const l = LOOK_PRESETS.find(x => x.name === "Flat");
