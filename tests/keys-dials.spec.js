@@ -127,6 +127,8 @@ test.describe("keyboard keys", () => {
     const xbox = DEV.xbox();
     await app.open({ devices: [xbox], profile, query: "?edit" });
     await page.evaluate(() => startRemap(profile.widgets[0]));
+    // Press only once the step is listening: a button already held when it opens counts only after a release.
+    await expect.poll(() => page.evaluate(() => !!(wiz && wiz.det))).toBe(true);
     await page.evaluate(() => window.__fakeGP.set(0, { buttons: { 2: true } }));
     await expect.poll(() => page.evaluate(() => profile.widgets[0].match || null), { timeout: 10_000 }).toBe(xbox.id);
     await page.evaluate(() => window.__fakeGP.set(0, { buttons: { 2: false } }));
