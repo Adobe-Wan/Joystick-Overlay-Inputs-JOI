@@ -723,10 +723,19 @@ function connectedPads() {
   const count = {};
   return list.map(p => { const key = devKey(p.id); return { pad: p, id: p.id, key, nth: count[key] = (count[key] ?? -1) + 1 }; });
 }
-function padFor(w, pads) {
+function padFor(w, pads) { const d = twinFor(w, pads); return d ? d.pad : null; }
+// Identical devices (same USB ids) are told apart by the slot the widget was bound in. If that slot is gone, the
+// widget takes the one twin no other widget claims, or nth (order among the twins) once they are all connected;
+// otherwise it shows offline rather than the other device's input. Profiles from before slots use nth alone.
+function twinFor(w, pads) {
   if (!w.match) return null;
-  const key = devKey(w.match), hit = pads.find(d => d.key === key && d.nth === (w.nth || 0));
-  return hit ? hit.pad : null;
+  const key = devKey(w.match), n = w.nth || 0, twins = pads.filter(d => d.key === key);
+  if (!twins.length) return null;
+  if (w.slot != null) { const d = twins.find(t => t.pad.index === w.slot); if (d) return d; }
+  const sibs = profile.widgets.filter(o => o.match && devKey(o.match) === key);
+  const claimed = new Set(sibs.filter(o => (o.nth || 0) !== n && o.slot != null && twins.some(t => t.pad.index === o.slot)).map(o => o.slot));
+  if (w.slot != null && claimed.size) { const free = twins.filter(t => !claimed.has(t.pad.index)); return free.length === 1 ? free[0] : null; }
+  return twins.length > Math.max(0, ...sibs.map(o => o.nth || 0)) ? twins.find(t => t.nth === n) || null : null;
 }
 // The loop's view of the pads, in connectedPads()'s order and form. The list is rebuilt only when a slot changes
 // (connect, disconnect, re-plug); between those, pollPads() refreshes each entry's pad from getGamepads() and
@@ -757,15 +766,17 @@ function pollPads() {
 function padOf(w, rt) {
   if (rt.padGen !== padsGen) {
     rt.padGen = padsGen;
-    const key = devKey(w.match), n = w.nth || 0;
-    rt.padEntry = w.match ? padList.find(d => d.key === key && d.nth === n) || null : null;
+    rt.padEntry = twinFor(w, padList);
   }
   return rt.padEntry ? rt.padEntry.pad : null;
 }
 function twinsOf(w, pads) { const key = devKey(w.match); return pads.filter(d => d.key === key).length; }
 function swapTwins(match) {
-  const key = devKey(match), n = Math.max(2, connectedPads().filter(d => d.key === key).length);
-  for (const w of profile.widgets) if (devKey(w.match) === key) w.nth = ((w.nth || 0) + 1) % n;
+  const key = devKey(match), twins = connectedPads().filter(d => d.key === key), n = Math.max(2, twins.length);
+  for (const w of profile.widgets) if (devKey(w.match) === key) {
+    w.nth = ((w.nth || 0) + 1) % n;
+    const d = twins.find(t => t.nth === w.nth); if (d) w.slot = d.pad.index; else delete w.slot;
+  }
   save(); rebuildAll(); toast("Swapped identical devices");
 }
 
@@ -807,7 +818,7 @@ const HOLO_CHECK = { on: optBool, tier: v => oneOf(v, ["static", "subtle", "full
   // What Projector replaced, so switching back to Flat restores it.
   prev: v => isObj(v) ? pickFields(v, { proj: p => isObj(p) ? pickFields(p, PROJ_CHECK) : undefined, face: f => oneOf(f, ["square", "radar"]) }) : undefined };
 const WIDGET_CHECK = {
-  label: textMax(200), match: textMax(256), nth: intRange(0, 15), button: intRange(0, 127),
+  label: textMax(200), match: textMax(256), nth: intRange(0, 15), slot: intRange(0, 15), button: intRange(0, 127),
   x: numRange(-10000, 10000), y: numRange(-10000, 10000), size: numRange(0.25, 4), scaleW: numRange(0.25, 4), scaleH: numRange(0.25, 4),
   boxW: numRange(0, 4000), boxH: numRange(0, 4000), fill: optBool, orient: v => oneOf(v, ["h", "v"]), face: v => oneOf(v, ["square", "radar"]),
   pad: numRange(0, 100), radius: numRange(0, 100), depth: numRange(0, 100),
@@ -1025,7 +1036,7 @@ function startRemap(w) {
 function finishRemap() {
   const w = profile.widgets.find(o => o.id === wiz.remap), d = wiz.dev;
   if (w && d) {
-    Object.assign(w, { match: d.id, nth: d.nth });
+    Object.assign(w, { match: d.id, nth: d.nth, slot: d.pad.index });
     if (wiz.kind === "button") w.button = wiz.button; else { w.axes = wiz.axes; w.inv = wiz.inv; }
     save(); rebuildAll();
   }
@@ -1153,7 +1164,7 @@ function buttonTick(pads, now) {
 function wizFinish() {
   if (wiz.remap) return finishRemap();
   const d = wiz.dev, s = profile.settings;
-  const w = { id: uid(), x: 0, y: 0, label: wiz.name, match: d.id, nth: d.nth,
+  const w = { id: uid(), x: 0, y: 0, label: wiz.name, match: d.id, nth: d.nth, slot: d.pad.index,
     accent: s.accent, text: s.text, bg: s.panel, bgAlpha: s.panelAlpha, border: s.border || undefined, theme: s.theme || undefined, size: 1 };
   if (wiz.kind === "button") Object.assign(w, { type: "button", button: wiz.button });
   else Object.assign(w, { type: wiz.type, axes: wiz.axes, inv: wiz.inv });
@@ -3631,7 +3642,7 @@ function renderDevicesPanel(p) {
 function fillDevices(body) {
   const pads = connectedPads(), raw = navigator.getGamepads ? [...navigator.getGamepads()] : [];
   const slots = Math.max(raw.length, pads.length);
-  const used = w => profile.widgets.filter(x => x.match && devKey(x.match) === w.key && (x.nth || 0) === w.nth).map(x => x.label || x.type);
+  const used = d => profile.widgets.filter(x => padFor(x, pads) === d.pad).map(x => x.label || x.type);
   const missing = profile.widgets.filter(w => w.match && !padFor(w, pads));
   const key = slots + "|" + pads.map(d => d.pad.index + d.id + d.nth + "," + d.pad.axes.length + "," + d.pad.buttons.length).join("|") + "|" + missing.map(w => w.id).join();
   if (body._key === key) {
