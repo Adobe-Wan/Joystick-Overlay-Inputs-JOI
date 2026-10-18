@@ -50,7 +50,7 @@ Layouts are designed on a 1920×1080 canvas and **fit to the screen size** autom
 - **Select several:** drag a box on empty space, or Shift+click widgets. Ctrl+A selects all. Drag any selected widget to move them together.
 - **Align and place:** with a selection, use the panel's align buttons (left, center, right, top, middle, bottom). *Snap to Center*, *Center Horizontally*, *Bottom Center* and *Snap to Bottom* move the selection as one block.
 - **Spacing:** with 2+ selected, type a **Gap between, px** (for example 16) and press **Space Evenly ↔** or **↕** to set them exactly that far apart. Leave the gap on *Auto* to spread 3+ widgets evenly across their current width or height.
-- **Nudge** with the arrow keys (Shift = 10px). **Tab** hides the side panel so you can see the whole screen.
+- **Nudge** with the arrow keys (Shift = 10px). **P** hides the side panel so you can see the whole screen.
 - Grid size, safe margin, and turning guides or the grid off are in **Settings**.
 
 ## Sample backgrounds
@@ -133,6 +133,8 @@ Every color in the effect comes from the widget's theme, so switching the theme 
 - Set the Browser Source FPS to 60. Going higher only adds load.
 
 ## Keys (in edit mode or OBS Interact)
+The single-key shortcuts work when no button or field has focus: click an empty part of the screen first.
+
 | Key | Action |
 |---|---|
 | E, double-click, or the Edit Mode switch | Open / close the editor |
@@ -143,7 +145,7 @@ Every color in the effect comes from the widget's theme, so switching the theme 
 | Arrows / Shift+arrows | Nudge 1px / 10px |
 | Ctrl+A / Ctrl+D | Select all / duplicate |
 | Ctrl+Z / Ctrl+Y | Undo / redo (also Ctrl+Shift+Z; the small buttons above the + do the same) |
-| Tab | Hide / show the side panel |
+| P | Hide / show the side panel |
 | Alt (while dragging) | Turn snapping off |
 
 ## Session heatmap

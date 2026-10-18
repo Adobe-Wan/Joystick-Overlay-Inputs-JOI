@@ -14,6 +14,7 @@
   --text: #e8f1f8;
   --muted: #8a9aab;
   --hot: #ff5d73;
+  --edge: rgba(255, 255, 255, 0.32);      /* control borders: 3:1 against the panel (WCAG 1.4.11) */
   --font: "Segoe UI", "Inter", system-ui, -apple-system, Roboto, sans-serif;
   --mono: "Cascadia Mono", "Consolas", "SF Mono", ui-monospace, monospace;
 }
@@ -242,7 +243,7 @@ body.panel-hidden #toolbar { left: 50%; max-width: calc(100vw - 1.5rem); }
 #toolbar .divider { width: 1px; align-self: stretch; background: rgba(255,255,255,0.12); margin: 0 0.25rem; }
 button, select, input[type=text], input[type=number] {
   font: 500 1rem/1.4 var(--font); color: var(--text); background: transparent;
-  border: 1px solid rgba(255,255,255,0.23); border-radius: 0.3rem; padding: 0.4rem 0.9rem; min-height: 2.5rem;
+  border: 1px solid var(--edge); border-radius: 0.3rem; padding: 0.4rem 0.9rem; min-height: 2.5rem;
 }
 select, input[type=text], input[type=number] { background: rgba(255,255,255,0.06); }
 /* Native dropdown lists: dark menu with light text. Without this, Windows draws the open list
@@ -296,10 +297,10 @@ input[type=checkbox] { accent-color: var(--ui-accent); width: 1.3rem; height: 1.
 /* MUI-style switch */
 .switch { display: inline-flex; align-items: center; gap: 0.6rem; cursor: pointer; font-weight: 600; font-size: 1rem; padding: 0.2rem 0.4rem; border-radius: 0.3rem; }
 .switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
-.switch .track { width: 2.6rem; height: 1.1rem; border-radius: 1rem; background: rgba(255,255,255,0.3); position: relative; transition: background 150ms; }
+.switch .track { width: 2.6rem; height: 1.1rem; border-radius: 1rem; background: rgba(255,255,255,0.4); position: relative; transition: background 150ms; }
 .switch .thumb { position: absolute; top: 50%; left: -0.1rem; width: 1.45rem; height: 1.45rem; border-radius: 50%; background: #e0e0e0;
   transform: translateY(-50%); transition: left 150ms, background 150ms; box-shadow: 0 0.1rem 0.25rem rgba(0,0,0,0.5); }
-.switch input:checked + .track { background: rgba(79,209,255,0.5); }
+.switch input:checked + .track { background: rgba(79,209,255,0.35); }
 .switch input:checked + .track .thumb { left: 1.25rem; background: var(--ui-accent); }
 #panel {
   position: fixed; top: 0.75rem; right: 0.75rem; bottom: 0.75rem; width: 22rem; z-index: 20; overflow-y: auto; padding: 1.1rem;
@@ -317,22 +318,26 @@ input[type=checkbox] { accent-color: var(--ui-accent); width: 1.3rem; height: 1.
 #panel .p-foot button { flex: 1; }
 /* Figma-style fields: the label sits inside the box, right next to its value, and X/Y and W/H pair up two to a row. */
 #panel .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin: 0.6rem 0; }
-#panel .fld { display: flex; align-items: center; gap: 0.5rem; min-width: 0; height: 2.25rem; padding: 0 0.6rem; border: 1px solid rgba(255,255,255,0.14);
+#panel .fld { display: flex; align-items: center; gap: 0.5rem; min-width: 0; height: 2.25rem; padding: 0 0.6rem; border: 1px solid var(--edge);
   border-radius: 0.35rem; background: rgba(255,255,255,0.03); color: #8a9aab; cursor: text; }
-#panel .fld:hover { border-color: rgba(255,255,255,0.28); }
+#panel .fld:hover { border-color: rgba(255,255,255,0.5); }
 #panel .fld:focus-within { border-color: var(--ui-accent); box-shadow: 0 0 0 1px var(--ui-accent); }
 #panel .fld.wide { grid-column: 1 / -1; }
 #panel .fld > .k { flex: none; font-size: 0.85rem; font-weight: 600; letter-spacing: 0.02em; }
 #panel .fld > .u { flex: none; font-size: 0.85rem; }
-#panel .fld input { flex: 1; min-width: 0; width: auto; height: 100%; min-height: 0; margin: 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none;
+#panel .fld input { flex: 0 1 auto; min-width: 0; width: 7ch; height: 100%; min-height: 0; margin: 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none;
   color: var(--text); font: inherit; font-variant-numeric: tabular-nums; outline: none; }
-#panel .fld input::placeholder { color: #6f7f90; }
+#panel .fld input[type=number] { -moz-appearance: textfield; appearance: textfield; }   /* no spinner: the box sizes to the number */
+#panel .fld input::-webkit-inner-spin-button, #panel .fld input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+#panel .fld input:last-child { flex: 1 1 auto; }   /* no unit after it (Name): the value takes the box */
+#panel .fld > .u { margin-right: auto; }
+#panel .fld input::placeholder { color: var(--muted); }
 /* Color swatches two to a row, each with its name right above it, so a name never drifts away from its color. */
 #panel .cgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem 0.5rem; margin: 0.6rem 0; }
 #panel .cgrid label, #panel .cgrid .ccell { display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; color: #b6c3d1; font-size: 0.9rem; }
 #panel .cgrid .cpick { width: 100%; min-width: 0; }
 #panel h4 { margin: 1.4rem 0 0.6rem; font-size: 0.85rem; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600; }
-#panel .row { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; margin: 0.5rem 0; }
+#panel .row { display: flex; align-items: center; gap: 0.6rem; margin: 0.5rem 0; }
 #panel .row > span { color: #b6c3d1; }
 #panel .row select, #panel .row input[type=text], #panel .row input[type=number] { width: 11rem; }
 #panel .hint { color: #a9b6c4; line-height: 1.5; margin: 0.6rem 0; }
@@ -348,21 +353,22 @@ input[type=checkbox] { accent-color: var(--ui-accent); width: 1.3rem; height: 1.
 .sec-t .sum + .chev { margin-left: 0; }
 .sec-t[aria-expanded=false] .chev { transform: rotate(-90deg); }
 .sec-h .switch { flex: none; padding: 0.2rem 0.3rem; }
+.trow .switch { flex: none; padding-left: 0; }
 .sec-b { padding: 0.1rem 0 0.5rem; }
 #panel h5 { margin: 1rem 0 0.35rem; font-size: 0.8rem; color: #b6c3d1; font-weight: 600; letter-spacing: 0.04em; }
 #panel h5 + .hint.small { margin-top: -0.1rem; }
-/* Slider row: label and value on one line, the slider full width underneath, so labels never wrap. */
+/* Slider row: the value right after its label, the slider full width underneath, so labels never wrap. */
 .srow { margin: 0.6rem 0; }
-.srow .top { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; }
+.srow .top { display: flex; align-items: center; gap: 0.25rem; }
 .srow .top > span:first-child { color: #b6c3d1; }
-.srow .val { font: inherit; font-variant-numeric: tabular-nums; min-width: 3.2rem; min-height: 0; padding: 0.1rem 0.35rem; text-align: right; color: inherit;
+.srow .val { font: inherit; font-variant-numeric: tabular-nums; min-width: 3.2rem; min-height: 0; padding: 0.1rem 0.35rem; text-align: left; color: inherit;
   background: none; border: 1px solid transparent; border-radius: 0.3rem; cursor: text; }
 .srow .val:hover, .srow .val:focus-visible { border-color: rgba(255,255,255,0.25); background: rgba(255,255,255,0.06); }
 .srow input.val-in { width: 5.2rem; min-height: 1.8rem; padding: 0.1rem 0.4rem; text-align: right; }
 .srow input[type=range] { display: block; width: 100%; margin: 0.05rem 0 0; }
 .srow input[type=number] { width: 5.2rem; min-height: 2rem; padding: 0.2rem 0.5rem; text-align: right; }
-/* Toggle row: label and a short description left, the switch right. */
-.trow { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; margin: 0.35rem 0; }
+/* Toggle row: the switch, then its label and a short description. */
+.trow { display: flex; align-items: center; gap: 0.6rem; margin: 0.35rem 0; }
 .trow .lab { color: #b6c3d1; min-width: 0; }
 .trow .lab small { display: block; color: #8a9aab; font-size: 0.86rem; line-height: 1.4; }
 /* Choice row: a label, a full-width tile group, and the chosen tile's one-line description under it. */
@@ -453,6 +459,7 @@ body.panel-hidden #coach::after { display: none; }
 #welcome li b { display: block; }
 #welcome li small { color: #a9b6c4; font-size: 0.93rem; }
 #welcome .foot { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; flex-wrap: wrap; color: #a9b6c4; }
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 kbd { font: 600 0.9em var(--mono); padding: 0.1em 0.45em; border: 1px solid rgba(255,255,255,0.35); border-bottom-width: 2px; border-radius: 0.3em; background: rgba(255,255,255,0.08); color: #fff; }
 /* Setup wizard: walks through each device in the middle of the screen */
 #wizard { position: fixed; inset: 0; z-index: 50; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.4); }
@@ -467,7 +474,7 @@ kbd { font: 600 0.9em var(--mono); padding: 0.1em 0.45em; border: 1px solid rgba
 #wizard .kicker { display: flex; align-items: center; gap: 0.7rem; color: var(--ui-accent); font-size: 0.85rem; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 700; }
 /* Step tracker: earlier steps are buttons you can jump back to. */
 #wizard .wsteps { display: flex; flex-wrap: wrap; gap: 0.35rem; list-style: none; padding: 0; margin: 0 0 0.7rem; font-size: 0.85rem; }
-#wizard .wsteps > li > * { display: inline-flex; align-items: center; gap: 0.35rem; min-height: 0; padding: 0.25rem 0.7rem; border-radius: 1rem;
+#wizard .wsteps > li > * { display: inline-flex; align-items: center; gap: 0.35rem; min-height: 0; padding: 0.25rem 0.7rem; border-radius: 1rem; font: inherit;
   border: 1px solid rgba(255,255,255,0.18); color: #8a98a8; font-weight: 600; letter-spacing: 0.02em; }
 #wizard .wsteps button { color: var(--ui-accent); border-color: rgba(79,209,255,0.45); }
 #wizard .wsteps button:hover { background: rgba(79,209,255,0.12); }
@@ -577,7 +584,7 @@ body:not(.editing):not(.has-widgets) #enter-edit { display: flex; }
 
 <div id="ui">
   <div id="toolbar" class="paper">
-    <label class="switch" title="Leave edit mode (E)"><input type="checkbox" id="edit-switch" checked><span class="track"><span class="thumb"></span></span>Edit Mode</label>
+    <label class="switch" title="Leave edit mode (E)"><input type="checkbox" role="switch" id="edit-switch" checked><span class="track"><span class="thumb"></span></span>Edit Mode</label>
     <span class="divider"></span>
     <button class="primary" data-act="add-device">+ Device</button>
     <button data-act="add-button">+ Button</button>
@@ -586,11 +593,11 @@ body:not(.editing):not(.has-widgets) #enter-edit { display: flex; }
     <button data-act="settings">Settings</button>
     <button data-act="export">Save / Share</button>
     <button data-act="help">Getting Started</button>
-    <button data-act="panel" title="Show / hide the side panel (Tab)">Panel</button>
+    <button data-act="panel" title="Show / hide the side panel (P)" aria-keyshortcuts="P">Panel</button>
   </div>
   <div id="panel" class="paper" role="complementary" aria-label="Editor panel"></div>
   <div id="fab-wrap">
-    <div id="fab-menu" role="menu" aria-label="Add to Overlay"></div>
+    <div id="fab-menu" role="menu" aria-label="Add to Overlay" inert></div>
     <button id="fab" class="primary" aria-haspopup="menu" aria-expanded="false" aria-controls="fab-menu" aria-label="Add to Overlay" aria-keyshortcuts="A" data-tip="Add (A)"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
     <div id="undo-row">
       <button id="undo-btn" class="fab-mini" aria-label="Undo" aria-keyshortcuts="Control+Z" data-tip="Undo (Ctrl+Z)" disabled><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
@@ -1121,7 +1128,8 @@ function wizardTick(pads) {
       lead = Math.max(lead, Math.abs(r[r.length - 1]));
     });
   }
-  const live = $("#wiz-live"); if (live) live.style.width = clamp(lead / 0.8, 0, 1) * 100 + "%";
+  const live = $("#wiz-live");
+  if (live) { const pc = Math.round(clamp(lead / 0.8, 0, 1) * 100); live.style.width = pc + "%"; live.parentNode.setAttribute("aria-valuenow", pc); }
   if (!det.pick) {
     if (!det.armedAt) {
       if (wiz.dev && !pads.some(d => sameDev(d, wiz.dev))) wizHint("The device disconnected. Plug it back in to continue.");
@@ -2574,15 +2582,17 @@ document.addEventListener("pointerup", () => {
 document.addEventListener("keydown", e => {
   if (e.target.matches("input, select, textarea") || $("#welcome").classList.contains("open") || wiz) return;
   if (e.target.closest("#fab-menu, .tsel")) return;   // the + menu and theme dropdown handle their own keys
-  const k = e.key.toLowerCase();
-  if (k === "e" && !e.ctrlKey && !e.metaKey) setEditing(!editing);
-  else if (k === "a" && editing && !e.ctrlKey && !e.metaKey) openFab();
-  else if (k === "h" && !e.ctrlKey) toggleHeat();
-  else if (k === "r" && !e.ctrlKey) resetHeat();
+  const k = e.key.toLowerCase(), mod = e.ctrlKey || e.metaKey;
+  // Single-key shortcuts act only with nothing focused (WCAG 2.1.4): on a focused button, E or Escape belongs to it.
+  const onCanvas = e.target === document.body || e.target === document.documentElement || !!e.target.closest("#stage");
+  if (onCanvas && !mod && !e.altKey && k === "e") setEditing(!editing);
+  else if (onCanvas && !mod && !e.altKey && k === "h") toggleHeat();
+  else if (onCanvas && !mod && !e.altKey && k === "r") resetHeat();
   else if (!editing) return;
+  else if (onCanvas && !mod && !e.altKey && k === "a") openFab();
+  else if (onCanvas && !mod && !e.altKey && k === "p") document.body.classList.toggle("panel-hidden");
   else if ((e.key === "Delete" || e.key === "Backspace") && selected.size) deleteSelected();
-  else if (e.key === "Escape") { if (selected.size) setSelection([]); else setEditing(false); }
-  else if (e.key === "Tab" && !e.target.closest("#ui")) { e.preventDefault(); document.body.classList.toggle("panel-hidden"); }   // inside the panel, Tab moves focus as usual
+  else if (e.key === "Escape") { if (selected.size) setSelection([]); else if (onCanvas) setEditing(false); }
   else if (k === "a" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); setSelection(profile.widgets.map(w => w.id)); }
   else if (k === "d" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); if (selected.size) duplicateSelected(); }
   else if ((k === "z" && e.shiftKey || k === "y") && (e.ctrlKey || e.metaKey)) { e.preventDefault(); redo(); }
@@ -2687,11 +2697,21 @@ $("#edit-switch").addEventListener("change", e => setEditing(e.target.checked));
 $("#enter-edit-btn").addEventListener("click", () => setEditing(true));
 
 // ---------- first-run / getting-started dialog ----------
+// Closing hands focus back to what opened the dialog, or to Getting Started when it opened on its own (first run,
+// Reset All). A step that opens the wizard moves focus on again from there.
+let welcomeBack = null;
 function openWelcome() {
+  welcomeBack = document.activeElement;
   $("#welcome").classList.add("open");
   setTimeout(() => $("#welcome [data-welcome=device]").focus(), 0);
 }
-function closeWelcome() { $("#welcome").classList.remove("open"); }
+function closeWelcome() {
+  const w = $("#welcome"); if (!w.classList.contains("open")) return;
+  w.classList.remove("open");
+  const back = welcomeBack && welcomeBack !== document.body && welcomeBack.isConnected ? welcomeBack : $("#toolbar [data-act=help]");
+  welcomeBack = null;
+  if (editing) back.focus();
+}
 
 // Small confirm dialog. Resolves true only on the confirm button; Cancel, Escape and the backdrop all cancel.
 function confirmDialog({ title, body, ok }) {
@@ -2769,7 +2789,14 @@ $("#file-in").addEventListener("change", async e => {
 const row = (label, input) => el("div", { class: "row" }, el("span", {}, label), input);
 // A labeled field box (see .fld): key = the short label inside the box, unit = what follows the value.
 const ccell = (label, btn) => el("div", { class: "ccell" }, el("span", { "aria-hidden": "true" }, label), btn);
-const fld = (key, input, unit, wide) => el("label", { class: "fld" + (wide ? " wide" : "") }, el("span", { class: "k" }, key), input, unit ? el("span", { class: "u" }, unit) : null);
+// A value with a unit sizes to its text, so the unit sits right after the number.
+function fld(key, input, unit, wide) {
+  if (unit) {
+    const fit = () => { input.style.width = Math.max(2, (input.value || input.placeholder).length) + 1 + "ch"; };
+    input.addEventListener("input", fit); input.addEventListener("change", fit); fit();
+  }
+  return el("label", { class: "fld" + (wide ? " wide" : "") }, el("span", { class: "k" }, key), input, unit ? el("span", { class: "u" }, unit) : null);
+}
 function textIn(obj, key, after) {
   const i = el("input", { type: "text" }); i.value = obj[key] ?? "";
   i.addEventListener("input", () => { obj[key] = i.value; save(); after && after(); });
@@ -2820,7 +2847,8 @@ function openColorPop(anchor, label, start, onChange) {
   closeColorPop();
   let { h, s, v } = hexToHsv(start), cur = start;
   const knob = el("div", { class: "knob" });
-  const sv = el("div", { class: "sv", tabindex: "0", role: "slider", "aria-label": "Saturation and brightness. Arrow keys adjust, Shift for bigger steps." }, knob);
+  const sv = el("div", { class: "sv", tabindex: "0", role: "slider", "aria-valuemin": "0", "aria-valuemax": "100",
+    "aria-label": "Saturation and brightness. Arrow keys adjust, Shift for bigger steps." }, knob);
   const hue = el("input", { type: "range", class: "hue", min: 0, max: 359, step: 1, "aria-label": "Hue" });
   const now = el("div", { class: "now" });
   const hexIn = el("input", { type: "text", class: "hexin", maxlength: 7, spellcheck: "false", "aria-label": "Hex color" });
@@ -2835,6 +2863,7 @@ function openColorPop(anchor, label, start, onChange) {
     knob.style.left = s * 100 + "%"; knob.style.top = (1 - v) * 100 + "%";
     hue.value = Math.round(h); now.style.background = cur;
     if (document.activeElement !== hexIn) hexIn.value = cur.toUpperCase();
+    sv.setAttribute("aria-valuenow", Math.round(s * 100));
     sv.setAttribute("aria-valuetext", `Saturation ${Math.round(s * 100)}%, brightness ${Math.round(v * 100)}%`);
     for (const pb of presets.children) pb.setAttribute("aria-pressed", pb.dataset.c === cur ? "true" : "false");
   };
@@ -2861,7 +2890,8 @@ function openColorPop(anchor, label, start, onChange) {
     else if (e.key === "Enter" && e.target === hexIn) { setHex(hexIn.value); closeColorPop(true); }
     e.stopPropagation();   // keep arrow keys etc. away from the editor's widget shortcuts
   });
-  ($("#ui") || document.body).append(pop);
+  // Right after its swatch, so Tab moves on from the popover into the rest of the panel; position: fixed places it.
+  anchor.after(pop);
   // Place beside the swatch, kept on screen (prefer left of the side panel, else below).
   const a = anchor.getBoundingClientRect(), pw = pop.offsetWidth, ph = pop.offsetHeight, m = 8;
   let x = a.left - pw - m, y = a.top - ph / 3;
@@ -2869,6 +2899,8 @@ function openColorPop(anchor, label, start, onChange) {
   y = Math.max(m, Math.min(window.innerHeight - ph - m, y));
   pop.style.left = x + "px"; pop.style.top = y + "px";
   const onDoc = e => { if (!pop.contains(e.target) && !anchor.contains(e.target)) closeColorPop(); };
+  // Focus leaving for another control closes it; a click on the popover's own background moves focus nowhere.
+  pop.addEventListener("focusout", e => { if (e.relatedTarget && !pop.contains(e.relatedTarget) && e.relatedTarget !== anchor) closeColorPop(); });
   document.addEventListener("pointerdown", onDoc, true);
   colorPop = { pop, anchor, onDoc };
   anchor.setAttribute("aria-expanded", "true");
@@ -2876,7 +2908,7 @@ function openColorPop(anchor, label, start, onChange) {
 }
 // MUI-style switch, the same markup as the Edit Mode switch in the toolbar.
 function switchIn(obj, key, after, label) {
-  const c = el("input", { type: "checkbox", "aria-label": label || key }); c.checked = !!obj[key];
+  const c = el("input", { type: "checkbox", role: "switch", "aria-label": label || key }); c.checked = !!obj[key];
   c.addEventListener("change", () => { obj[key] = c.checked; after && after(); save(); });
   return el("label", { class: "switch" }, c, el("span", { class: "track" }, el("span", { class: "thumb" })));
 }
@@ -2917,8 +2949,11 @@ function section(p, title, { key, open = true, summary, extra, sub } = {}) {
 function sliderRow(p, label, obj, key, min, max, unit, after, { hint, fmt } = {}) {
   const show = () => fmt ? fmt(obj[key]) : obj[key] + unit;
   const out = el("button", { type: "button", class: "val", title: "Click to type a value", "aria-label": label + ": " + show() + ". Click to type a value" }, show());
-  const r = rangeIn(obj, key, min, max, () => { out.textContent = show(); out.setAttribute("aria-label", label + ": " + show() + ". Click to type a value"); after && after(); });
-  r.style.width = "100%"; r.setAttribute("aria-label", label);
+  const r = rangeIn(obj, key, min, max, () => {
+    out.textContent = show(); out.setAttribute("aria-label", label + ": " + show() + ". Click to type a value"); r.setAttribute("aria-valuetext", show());
+    after && after();
+  });
+  r.style.width = "100%"; r.setAttribute("aria-label", label); r.setAttribute("aria-valuetext", show());
   out.addEventListener("click", () => {
     const n = el("input", { type: "number", min, max, step: 1, class: "val-in", "aria-label": label + (unit.trim() ? " in " + ({ "%": "percent", "px": "pixels", "°": "degrees" }[unit.trim()] || unit.trim()) : "") });
     n.value = obj[key];
@@ -2940,7 +2975,7 @@ function sliderRow(p, label, obj, key, min, max, unit, after, { hint, fmt } = {}
 }
 // On/off as a switch, with an optional one-line description under the label.
 function toggleRow(p, label, obj, key, after, hint) {
-  const t = el("div", { class: "trow" }, el("span", { class: "lab" }, label, hint ? el("small", {}, hint) : null), switchIn(obj, key, after, label));
+  const t = el("div", { class: "trow" }, switchIn(obj, key, after, label), el("span", { class: "lab" }, label, hint ? el("small", {}, hint) : null));
   p.append(t); return t;
 }
 // A small choice as a full-width tile group, with the chosen tile's description under it.
@@ -3020,7 +3055,7 @@ function panelFoot(p, removeLabel) {
 function syncPositionFields(ws, bs) {
   if (!ws.length) return;
   const ub = unionBox(ws, bs);
-  for (const n of document.querySelectorAll("#ui input[data-pos]")) if (document.activeElement !== n) n.value = Math.round(ub[n.dataset.pos]);
+  for (const n of document.querySelectorAll("#ui input[data-pos]")) if (document.activeElement !== n) { n.value = Math.round(ub[n.dataset.pos]); n.dispatchEvent(new Event("input")); }
 }
 function positionSection(p, ws) {
   p = section(p, "Position and Size", { key: "pos" });
@@ -3142,8 +3177,8 @@ function renderHome(p) {
     refImage ? el("button", { onclick: clearReference }, "No Background") : null));
   if (profile.widgets.length) {
     p.append(el("h4", {}, "On Screen"));
-    for (const w of profile.widgets) p.append(el("div", { class: "row" }, el("span", {}, w.label || w.type),
-      el("button", { onclick: () => setSelection([w.id]) }, "Edit")));
+    for (const w of profile.widgets) p.append(el("div", { class: "row" },
+      el("button", { "aria-label": "Edit " + (w.label || w.type), onclick: () => setSelection([w.id]) }, "Edit"), el("span", {}, w.label || w.type)));
   }
 }
 
@@ -3231,7 +3266,7 @@ function renderWiz() {
     const steps = TYPES[wiz.type].steps, cur = steps[wiz.step];
     head(...st(2, TYPES[wiz.type].name), cur.ask.charAt(0) + cur.ask.slice(1).toLowerCase() + (cur.optional ? " (if you have it)" : ""),
       (steps.length > 1 ? `Movement ${wiz.step + 1} of ${steps.length}. ` : "") + (wiz.step === 0 ? "Start with everything at rest, then move it all the way and let go." : "Move it all the way and let go."));
-    b.append(el("div", { class: "live", role: "progressbar", "aria-label": "Movement detected" }, el("i", { id: "wiz-live" })));
+    b.append(el("div", { class: "live", role: "progressbar", "aria-label": "Movement detected", "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": "0" }, el("i", { id: "wiz-live" })));
     if (steps.length > 1) steps.forEach((s, i) => b.append(el("div", { class: i < wiz.step ? "step done" : i === wiz.step ? "step active" : "step" }, s.ask.charAt(0) + s.ask.slice(1).toLowerCase())));
     if (wiz.dev) b.append(el("p", { class: "tip" }, "Device: " + devName(wiz.dev)));
     b.append(el("p", { class: "tip", id: "wiz-hint", "aria-live": "polite" }), noPad());
@@ -3269,7 +3304,7 @@ const FAB_LAYOUT = { stick: [7, 180], pedals: [7, 225], button: [7, 270], thrott
   const m = $("#fab-menu");
   ADD_ITEMS.forEach((it, i) => {
     const [r, deg] = FAB_LAYOUT[it.key], a = deg * Math.PI / 180;
-    const btn = el("button", { role: "menuitem", tabindex: "-1", title: it.name, "aria-label": "Add " + it.name.toLowerCase(),
+    const btn = el("button", { role: "menuitem", tabindex: "-1", title: it.name, "aria-label": "Add " + it.name,
       style: `--x:${(r * Math.cos(a)).toFixed(2)}rem;--y:${(r * Math.sin(a)).toFixed(2)}rem;--d:${i * 25}ms`,
       html: `<svg viewBox="0 0 24 24">${it.icon}</svg><span>${it.short}</span>` });
     btn.addEventListener("click", () => wizChooseType(it.key));
@@ -3278,12 +3313,13 @@ const FAB_LAYOUT = { stick: [7, 180], pedals: [7, 225], button: [7, 270], thrott
 })();
 function openFab() {
   if (!editing) return;
-  $("#fab-menu").classList.add("open"); $("#fab").setAttribute("aria-expanded", "true");
+  const m = $("#fab-menu"); m.inert = false;   // closed, its items are out of the tab order and the accessibility tree
+  m.classList.add("open"); $("#fab").setAttribute("aria-expanded", "true");
   setTimeout(() => $("#fab-menu button").focus(), 0);
 }
 function closeFab(refocus) {
   if (!$("#fab-menu").classList.contains("open")) return;
-  $("#fab-menu").classList.remove("open"); $("#fab").setAttribute("aria-expanded", "false");
+  const m = $("#fab-menu"); m.classList.remove("open"); m.inert = true; $("#fab").setAttribute("aria-expanded", "false");
   if (refocus) $("#fab").focus();
 }
 $("#fab").addEventListener("click", () => $("#fab-menu").classList.contains("open") ? closeFab() : openFab());
@@ -3330,7 +3366,7 @@ function themeSection(p, ws, all) {
   const tiles = el("div", { class: "themes", role: "group", "aria-label": "Featured color themes" });
   for (const t of FEATURED_THEMES) {
     const c = t.colors;
-    const prev = el("span", { class: "theme-prev", style: `background:${c.background};border-color:${t.border || hexA(c.primary, 0.3)};color:${c.primary}` },
+    const prev = el("span", { class: "theme-prev", "aria-hidden": "true", style: `background:${c.background};border-color:${t.border || hexA(c.primary, 0.3)};color:${c.primary}` },
       el("span", { class: "sq", style: `border-color:${hexA(c.primary, 0.55)}` }, el("i", { style: `background:${c.accent};box-shadow:0 0 6px ${c.accent}` })),
       el("span", { class: "col" }, el("b", {}, t.name), el("span", { class: "bar", style: `background:${hexA(c.primary, 0.18)}` }, el("i", { style: `background:${c.accent}` }))));
     tiles.append(el("button", { class: "theme-tile", "aria-pressed": common === t.id ? "true" : "false", title: t.title || t.name,
@@ -3674,8 +3710,10 @@ const PAD_SLOTS = 4;   // Chrome, Edge and OBS hand a page at most 4 game contro
 function renderDevicesPanel(p) {
   p.append(el("h3", {}, "Check Devices"));
   p.append(el("div", { class: "hint" }, "Every game controller your browser is passing to Stay On Target, updated live. Move or press something on each device to see it light up."));
-  const body = el("div", { id: "dev-body", "aria-live": "polite" });
-  p.append(body, el("div", { class: "actions" }, el("button", { onclick: () => setSelection([]) }, "Back")));
+  // The list refreshes five times a second, so it is not a live region; only connects and disconnects are announced.
+  const body = el("div", { id: "dev-body" }), news = el("div", { class: "sr-only", "aria-live": "polite" });
+  body._news = news;
+  p.append(body, news, el("div", { class: "actions" }, el("button", { onclick: () => setSelection([]) }, "Back")));
   fillDevices(body);
   devTimer = setInterval(() => fillDevices(body), 200);   // only while this panel is open: renderPanelView clears it
 }
@@ -3696,6 +3734,12 @@ function fillDevices(body) {
     return;
   }
   body._key = key; body._rows = [];
+  const names = pads.map(d => devName(d));
+  if (body._names) {
+    const said = [...names.filter(n => !body._names.includes(n)).map(n => n + " connected"), ...body._names.filter(n => !names.includes(n)).map(n => n + " disconnected")];
+    if (said.length) body._news.textContent = said.join(". ") + ".";
+  }
+  body._names = names;
   const frag = document.createDocumentFragment();
   frag.append(el("h4", {}, `Seen by the browser (${pads.length}${slots ? " of " + slots + " slots" : ""})`));
   if (!pads.length) frag.append(el("div", { class: "hint", style: "color:#ffb547" }, "Nothing yet. Browsers hide controllers until you press a button or move an axis fully after the page opens."));
