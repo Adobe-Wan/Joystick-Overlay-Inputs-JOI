@@ -1039,7 +1039,6 @@ function closeTip(id) {
   $("#coach").classList.remove("open");
   tipsSeen[id] = true; try { localStorage.setItem(TIPS_KEY, JSON.stringify(tipsSeen)); } catch (e) {}
 }
-const cancelWizard = closeWizard;
 function wizChooseType(t) {
   closeFab(); closeWelcome();
   if (t === "button") return startButtonWizard();
@@ -1384,7 +1383,6 @@ const HOLO_DEFAULT = { on: false, tier: "static", intensity: 70, base: { side: "
 // dash seen almost edge-on), growing by 0.22 × sin(tilt) as the widget lies back. Dash Radar (62°) lands on 0.47,
 // the ratio of the Gladius disc.
 const HOLO_SQUASH = [0.28, 0.22];
-const HOLO_STILL = { tx: 0, ty: 0, rx: 0 };   // the idle float at rest
 const holoFalloff = (w, h) => h.falloff ?? (isRadar(w) ? 30 : 50);
 // Intensity 70% is the reference strength (gain 1); 100% gives about 1.43.
 const HOLO_I_REF = 70;
@@ -1623,26 +1621,21 @@ function setHoloVars(e, d, h) {
   for (const k in v) e.style.setProperty("--holo-" + k, v[k]);
 }
 const svgEl = (tag, attrs = {}) => { const e = document.createElementNS("http://www.w3.org/2000/svg", tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; };
-// The same matrix applyPerspective() writes (origin 50% 50%, perspective, float, rotateX/Y/Z, skew), so the rays
-// land on the real edge. The rays aim at the float's rest position: it drifts by 2 px at most. Reading getBoundingClientRect() instead would lose the trapezoid and force layout.
-function holoMatrix(w, rt, idle) {
+// The same matrix applyPerspective() writes (origin 50% 50%, perspective, rotateX/Y/Z, skew), so the rays land on
+// the real edge. They aim at the float's rest position: it drifts by 2 px at most. Reading getBoundingClientRect()
+// instead would lose the trapezoid and force layout.
+function holoMatrix(w, rt) {
   const W = rt.W, H = rt.H, p = perspOf(w);
   let m = new DOMMatrix().translate(W / 2, H / 2);
   const persp = new DOMMatrix(); persp.m34 = -1 / (p.d || PERSP_DEFAULT.d); m = m.multiply(persp);
-  m = m.translate(idle.tx, idle.ty);
   // CSS applies rotateX, then rotateY, then rotateZ; DOMMatrix.rotate(x, y, z) would apply them Z, Y, X, so one axis at a time.
-  m = m.rotate((p.rx || 0) + idle.rx, 0, 0).rotate(0, p.ry || 0, 0).rotate(0, 0, p.rz || 0);
+  m = m.rotate(p.rx || 0, 0, 0).rotate(0, p.ry || 0, 0).rotate(0, 0, p.rz || 0);
   // CSS skew(sx, sy) is one matrix [1 tan(sx); tan(sy) 1], not skewX() times skewY().
   const rad = a => (a || 0) * Math.PI / 180;
   m = m.multiply(new DOMMatrix([1, Math.tan(rad(p.sy)), Math.tan(rad(p.sx)), 1, 0, 0]));
   return m.translate(-W / 2, -H / 2);
 }
 const projectPt = (m, x, y) => { const q = m.transformPoint(new DOMPoint(x, y, 0, 1)); return { x: q.x / q.w, y: q.y / q.w }; };
-// The widget's four projected corners, relative to its own left/top.
-function projectedCorners(w, rt, idle = HOLO_STILL) {
-  const m = holoMatrix(w, rt, idle);
-  return [[0, 0], [rt.W, 0], [rt.W, rt.H], [0, rt.H]].map(([x, y]) => projectPt(m, x, y));
-}
 // What attachHolo reads from the laid-out root, split out so a batch of widgets is measured in one layout before
 // any rig goes in (each inserted rig would force the next read to lay out again).
 function measureHolo(rt) {
@@ -1691,7 +1684,7 @@ function attachHolo(w, rt, measured) {
   if (holoTier(h) === "full") {
     rig.classList.add("full");
     cone.firstChild.style.backgroundImage = `url(${noiseTile()})`;
-    rt.photons = [0, 1, 2].slice(0, Math.min(3, count)).map(i => { const ph = el("i", { class: "holo-photon" }); rig.append(ph); return ph; });
+    rt.photons = Array.from({ length: Math.min(3, count) }, () => { const ph = el("i", { class: "holo-photon" }); rig.append(ph); return ph; });
     if (rt.canvas && h.fringe) {
       const fc = makeCanvas(rt.canvas._w, rt.canvas._h); fc.className = "holo-fringe";
       fc.style.left = rt.canvasAt.x + "px"; fc.style.top = rt.canvasAt.y + "px";
@@ -1747,9 +1740,9 @@ function tearStrip(c, rt) {
   g.drawImage(c, 0, y * k, c.width, h * k, dx, y, c._w, h);
 }
 // Lays the rig out from the cached size and the projected corners: a few style and attribute writes and no layout
-// reads, so a Base Offset scrub or the idle-float tick can call it directly.
-function layoutHolo(w, rt, idle = HOLO_STILL) {
-  const h = holoOf(w), side = h.base.side, W = rt.W, H = rt.H, m = holoMatrix(w, rt, idle);
+// reads, so a Base Offset scrub can call it directly.
+function layoutHolo(w, rt) {
+  const h = holoOf(w), side = h.base.side, W = rt.W, H = rt.H, m = holoMatrix(w, rt);
   const P = (x, y) => projectPt(m, x, y), p = perspOf(w);
   const c = rt.holoCorners = [[0, 0], [W, 0], [W, H], [0, H]].map(([x, y]) => P(x, y));
   const vert = side === "below" || side === "above";
@@ -1832,7 +1825,7 @@ function rayTargets(w, rt, m) {
   if (n && !d) pts.push(...({ below: [[0, 0], [W, 0]], above: [[0, H], [W, H]], left: [[W, 0], [W, H]], right: [[0, 0], [0, H]] }[side]).map(([x, y]) => C(x, y)));
   return pts;
 }
-// The cheap per-tick path for the idle float: only the ray ends move (the base end stays put).
+// Points each ray from the base (its start, set in layoutHolo) to its target.
 function aimRays(rt, pts) {
   const { ox, oy } = rt.holoGeom, f = v => v.toFixed(1);
   rt.rayLines.forEach((l, i) => {
@@ -2811,7 +2804,6 @@ $("#file-in").addEventListener("change", async e => {
 });
 
 // ---------- side panel ----------
-const row = (label, input) => el("div", { class: "row" }, el("span", {}, label), input);
 // A labeled field box (see .fld): key = the short label inside the box, unit = what follows the value.
 const ccell = (label, btn) => el("div", { class: "ccell" }, el("span", { "aria-hidden": "true" }, label), btn);
 // A value with a unit sizes to its text, so the unit sits right after the number.
@@ -2880,7 +2872,7 @@ function openColorPop(anchor, label, start, onChange) {
   const presets = el("div", { class: "presets", role: "group", "aria-label": "Preset colors" });
   const line = el("div", { class: "line" }, now, hexIn);
   if (window.EyeDropper) line.append(el("button", { type: "button", class: "drop", title: "Pick a color from the screen", "aria-label": "Pick a color from the screen",
-    onclick: async () => { try { const r = await new EyeDropper().open(); setHex(r.sRGBHex, true); } catch (e) {} } }, "Pick"));
+    onclick: async () => { try { const r = await new EyeDropper().open(); setHex(r.sRGBHex); } catch (e) {} } }, "Pick"));
   const pop = el("div", { class: "cpop paper", role: "dialog", "aria-label": (label || "Color") + " picker" },
     el("div", { style: "font-weight:600;font-size:0.95rem" }, label || "Color"), sv, hue, line, presets);
   const paint = () => {
@@ -2893,7 +2885,7 @@ function openColorPop(anchor, label, start, onChange) {
     for (const pb of presets.children) pb.setAttribute("aria-pressed", pb.dataset.c === cur ? "true" : "false");
   };
   const emit = () => { const x = hsvToHex(h, s, v); if (x !== cur) { cur = x; onChange(cur); } paint(); };
-  const setHex = (x, fromOutside) => { const n = normHex(x); if (!n) return; const t = hexToHsv(n); s = t.s; v = t.v; if (t.s && t.v) h = t.h; cur = n; onChange(n); paint(); };
+  const setHex = x => { const n = normHex(x); if (!n) return; const t = hexToHsv(n); s = t.s; v = t.v; if (t.s && t.v) h = t.h; cur = n; onChange(n); paint(); };
   for (const c of COLOR_PRESETS) presets.append(el("button", { type: "button", "data-c": c, style: "background:" + c, "aria-label": c.toUpperCase(), onclick: () => setHex(c) }));
   const fromPointer = e => {
     const r = sv.getBoundingClientRect();
@@ -3472,9 +3464,9 @@ function layoutSection(p, ws) {
     const face = new Proxy({}, { get: () => w0.face || "square", set: (_, k, v) => { for (const w of ws) w.face = v; return true; } });
     choiceRow(p, "Face", face, "v", [["square", "Square", "A square gate with a grid."], ["radar", "Radar", "A round radar disc with rings and rim ticks."]], upd, { aria: "Stick face" });
   }
-  slider("Padding", all((w, k) => w.pad ?? PAD, (w, k, v) => { w.pad = v; }), "v", 0, 48);
-  slider("Corner radius", all((w, k) => w.radius ?? RADIUS, (w, k, v) => { w.radius = v; }), "v", 0, 32);
-  slider("3D depth", all((w, k) => w.depth || 0, (w, k, v) => { w.depth = v; }), "v", 0, 100, "%", ws.some(w => holoOf(w).on) ? "Off while Projector is on: a hologram has no bezel." : null);
+  slider("Padding", all(w => w.pad ?? PAD, (w, k, v) => { w.pad = v; }), "v", 0, 48);
+  slider("Corner radius", all(w => w.radius ?? RADIUS, (w, k, v) => { w.radius = v; }), "v", 0, 32);
+  slider("3D depth", all(w => w.depth || 0, (w, k, v) => { w.depth = v; }), "v", 0, 100, "%", ws.some(w => holoOf(w).on) ? "Off while Projector is on: a hologram has no bezel." : null);
   if (ws.every(w => isBar(w) || w.type === "pedals")) {
     const def = w => w.orient || (w.type === "pedals" ? "h" : "v");
     const o = all(w => def(w), (w, k, v) => { w.orient = v; });
