@@ -807,7 +807,9 @@ const numRange = (lo, hi) => v => inRange(v, lo, hi);
 const intRange = (lo, hi) => v => { const n = inRange(v, lo, hi); return n === undefined ? undefined : Math.round(n); };
 const idText = v => typeof v === "string" && /^[\w-]{0,32}$/.test(v) ? v : undefined;
 const textMax = max => v => typeof v === "string" || typeof v === "number" ? String(v).slice(0, max) : undefined;
-const AXIS_MAP = v => { const o = {}; if (isObj(v)) for (const k in v) if (/^[a-z]{1,2}$/.test(k) && Number.isInteger(v[k]) && v[k] >= 0 && v[k] < 64) o[k] = v[k]; return o; };
+// An axis index of BTN_AXIS or more is an analog button read as an axis (a standard-mapping gamepad's triggers).
+const BTN_AXIS = 64;
+const AXIS_MAP = v => { const o = {}; if (isObj(v)) for (const k in v) if (/^[a-z]{1,2}$/.test(k) && Number.isInteger(v[k]) && v[k] >= 0 && v[k] < BTN_AXIS + 128) o[k] = v[k]; return o; };
 const BOOL_MAP = v => { const o = {}; if (isObj(v)) for (const k in v) if (/^[a-z]{1,2}$/.test(k)) o[k] = !!v[k]; return o; };
 const PERSP_CHECK = { rx: numRange(-180, 180), ry: numRange(-180, 180), rz: numRange(-180, 180), sx: numRange(-60, 60), sy: numRange(-60, 60), d: numRange(100, 10000) };
 const PROJ_CHECK = { glow: numRange(0, 100), fade: numRange(0, 100), scan: optBool };
@@ -818,7 +820,7 @@ const HOLO_CHECK = { on: optBool, tier: v => oneOf(v, ["static", "subtle", "full
   // What Projector replaced, so switching back to Flat restores it.
   prev: v => isObj(v) ? pickFields(v, { proj: p => isObj(p) ? pickFields(p, PROJ_CHECK) : undefined, face: f => oneOf(f, ["square", "radar"]) }) : undefined };
 const WIDGET_CHECK = {
-  label: textMax(200), match: textMax(256), nth: intRange(0, 15), slot: intRange(0, 15), button: intRange(0, 127),
+  label: textMax(200), match: textMax(256), nth: intRange(0, 15), slot: intRange(0, 15), button: intRange(0, 127), hat: intRange(0, 63), hatDir: intRange(0, 7),
   x: numRange(-10000, 10000), y: numRange(-10000, 10000), size: numRange(0.25, 4), scaleW: numRange(0.25, 4), scaleH: numRange(0.25, 4),
   boxW: numRange(0, 4000), boxH: numRange(0, 4000), fill: optBool, orient: v => oneOf(v, ["h", "v"]), face: v => oneOf(v, ["square", "radar"]),
   pad: numRange(0, 100), radius: numRange(0, 100), depth: numRange(0, 100),
@@ -845,6 +847,7 @@ function normalizeWidget(src) {
   w.x ??= 0; w.y ??= 0;
   if (AXIS_TYPES.has(w.type)) { w.axes ??= {}; w.inv ??= {}; } else { delete w.axes; delete w.inv; }
   if (w.type === "button") w.button ??= 0;
+  if (w.type !== "button" || w.hat == null) { delete w.hat; delete w.hatDir; } else w.hatDir ??= 0;
   return w;
 }
 function normalize(p) {
@@ -1037,7 +1040,7 @@ function finishRemap() {
   const w = profile.widgets.find(o => o.id === wiz.remap), d = wiz.dev;
   if (w && d) {
     Object.assign(w, { match: d.id, nth: d.nth, slot: d.pad.index });
-    if (wiz.kind === "button") w.button = wiz.button; else { w.axes = wiz.axes; w.inv = wiz.inv; }
+    if (wiz.kind === "button") Object.assign(w, buttonFields()); else { w.axes = wiz.axes; w.inv = wiz.inv; }
     save(); rebuildAll();
   }
   closeWizard();
@@ -1062,6 +1065,15 @@ const DET = { ARM: 0.5, FRAMES: 3, GRACE_MS: 250, RATIO: 1.25, WAIT_MS: 1500, HA
 const detKey = d => d.pad.index + "|" + d.id;
 const restOf = v => Math.abs(v) >= DET.END ? v : 0;   // first seen mid-move: an axis rests at an end or in the middle
 const sameDev = (a, b) => a.key === b.key && a.nth === b.nth;
+// A button that ever reads strictly between 0 and 1 is analog (a trigger); the axis steps see it as an axis from -1
+// (released) to 1 (pulled), at BTN_AXIS + its index.
+function withAnalogButtons(pad, ps) {
+  pad.buttons.forEach((b, i) => { if (b.value > 0 && b.value < 1) ps.analog[i] = true; });
+  if (!ps.analog.length) return pad.axes;
+  const v = Array.from(pad.axes);
+  ps.analog.forEach((_, i) => { v[BTN_AXIS + i] = axisValue(pad, BTN_AXIS + i); });
+  return v;
+}
 function wizHint(text) {
   const h = $("#wiz-hint"); if (h && h.textContent !== text) h.textContent = text;
 }
@@ -1077,9 +1089,10 @@ function wizardTick(pads) {
   let lead = 0;
   for (const d of pads) {
     if (wiz.dev && !sameDev(d, wiz.dev)) continue;
-    const k = detKey(d), v = d.pad.axes;
-    const ps = det.pads[k] = det.pads[k] || { base: null, hist: [], peak: [], recent: [], hat: [], d };
+    const k = detKey(d);
+    const ps = det.pads[k] = det.pads[k] || { base: null, hist: [], peak: [], recent: [], hat: [], analog: [], d };
     ps.d = d;
+    const v = withAnalogButtons(d.pad, ps);
     v.forEach((x, i) => { if (Math.abs(x) > DET.HAT) ps.hat[i] = true; });
     if (v.length && v.every(x => x === 0)) { ps.unreported = true; continue; }
     if (ps.unreported || (!ps.base && !det.seen.has(k))) { ps.unreported = false; ps.base = v.map(restOf); wiz.rest[k] = wiz.rest[k] || ps.base.slice(); }
@@ -1087,6 +1100,7 @@ function wizardTick(pads) {
       if (wiz.rest[k]) ps.base = v.map(() => null);
       else { ps.base = v.slice(); wiz.rest[k] = v.slice(); }
     }
+    ps.analog.forEach((_, i) => { if (ps.base[BTN_AXIS + i] === undefined) ps.base[BTN_AXIS + i] = -1; });   // a trigger rests released
     if (ps.base.includes(null)) {
       ps.hist.push({ t: now, v: v.slice() });
       while (now - ps.hist[0].t > DET.STILL_MS) ps.hist.shift();
@@ -1126,7 +1140,7 @@ function wizardTick(pads) {
   const p = det.pick;
   let sign = Math.sign(p.e);
   if (step.stays) {   // a throttle stays where it is left, so where it settles says which end is forward
-    const x = p.ps.d.pad.axes[p.i];
+    const x = axisValue(p.ps.d.pad, p.i);
     if (p.last == null || Math.abs(x - p.last) > 0.01) { p.last = x; p.at = now; }
     if (now - p.at < DET.SETTLE_MS || Math.abs(x) < 0.8) { wizHint("Leave it at full forward."); return; }
     sign = Math.sign(x);
@@ -1144,14 +1158,22 @@ function buttonTick(pads, now) {
   const det = wiz.det = wiz.det || { t0: now, pads: {}, firstAt: 0, seen: new Set(pads.map(detKey)) };
   for (const d of pads) {
     const k = detKey(d);
-    const ps = det.pads[k] = det.pads[k] || { blocked: d.pad.buttons.map(b => det.seen.has(k) && (b.pressed || b.value > 0.5)), since: [], held: [] };
+    const ps = det.pads[k] = det.pads[k] || { blocked: d.pad.buttons.map(b => det.seen.has(k) && (b.pressed || b.value > 0.5)), since: [], held: [], hat: [] };
     ps.d = d;
-    d.pad.buttons.forEach((b, i) => {
-      const on = b.pressed || b.value > 0.5;
+    const track = (i, on) => {
       if (ps.blocked[i]) { if (!on) ps.blocked[i] = false; return; }
       if (!on) { ps.since[i] = 0; return; }
       ps.since[i] = ps.since[i] || now; ps.held[i] = now - ps.since[i];
       if (ps.held[i] >= DET.BTN_MS && !det.firstAt) det.firstAt = now;
+    };
+    d.pad.buttons.forEach((b, i) => track(i, b.pressed || b.value > 0.5));
+    // A hat reported as an axis is known once it has idled beyond ±1 (so one held when the step opened must return
+    // to center first). Each of its 8 directions is tracked like a button, after the real buttons.
+    d.pad.axes.forEach((x, a) => {
+      if (Math.abs(x) > DET.HAT) ps.hat[a] = true;
+      if (!ps.hat[a]) return;
+      const dir = hatDir(x);
+      for (let j = 0; j < 8; j++) track(HAT_KEY + a * 8 + j, dir === j);
     });
   }
   if (!det.firstAt) { wizHint(now - det.t0 < DET.HINT_MS ? "" : "Nothing pressed yet. A switch that stays on needs flipping off and on again."); return; }
@@ -1159,14 +1181,20 @@ function buttonTick(pads, now) {
   let best = null;
   for (const k in det.pads) { const ps = det.pads[k]; ps.held.forEach((t, i) => { if (t >= DET.BTN_MS && (!best || t > best.t)) best = { d: ps.d, i, t }; }); }
   if (!best) return;
-  wiz.dev = best.d; wiz.button = best.i; wiz.name = "Button " + (best.i + 1); wiz.stage = "name"; renderWiz();
+  wiz.dev = best.d;
+  if (best.i >= HAT_KEY) { const h = best.i - HAT_KEY; wiz.button = undefined; wiz.hat = { axis: h >> 3, dir: h & 7 }; wiz.name = "Hat " + HAT_DIRS[h & 7]; }
+  else { wiz.button = best.i; wiz.hat = null; wiz.name = "Button " + (best.i + 1); }
+  wiz.stage = "name"; renderWiz();
+}
+function buttonFields() {
+  return wiz.hat ? { button: 0, hat: wiz.hat.axis, hatDir: wiz.hat.dir } : { button: wiz.button, hat: undefined, hatDir: undefined };
 }
 function wizFinish() {
   if (wiz.remap) return finishRemap();
   const d = wiz.dev, s = profile.settings;
   const w = { id: uid(), x: 0, y: 0, label: wiz.name, match: d.id, nth: d.nth, slot: d.pad.index,
     accent: s.accent, text: s.text, bg: s.panel, bgAlpha: s.panelAlpha, border: s.border || undefined, theme: s.theme || undefined, size: 1 };
-  if (wiz.kind === "button") Object.assign(w, { type: "button", button: wiz.button });
+  if (wiz.kind === "button") Object.assign(w, { type: "button" }, buttonFields());
   else Object.assign(w, { type: wiz.type, axes: wiz.axes, inv: wiz.inv });
   addAndPlace(w);
   wizAdded.push(w.label || TYPES[w.type]?.name || "Button");
@@ -1213,10 +1241,24 @@ const HEAT = 24, HEAT1 = 40;
 // skips because nothing moved still count.
 let heatClock = 0;
 function getRt(w) { return runtime[w.id] = runtime[w.id] || { heat2: new Float32Array(HEAT * HEAT), heat1: {}, heatT: heatClock, hc2: -1, hc1: {} }; }
+function axisValue(pad, i) {
+  if (i < BTN_AXIS) return pad.axes[i];
+  const b = pad.buttons[i - BTN_AXIS];
+  return b ? b.value * 2 - 1 : undefined;
+}
+// Hats reported as one axis step through 8 directions, clockwise from Up at -1, and idle beyond ±1.
+const HAT_DIRS = ["Up", "Up-Right", "Right", "Down-Right", "Down", "Down-Left", "Left", "Up-Left"], HAT_KEY = 1000;
+const hatDir = v => Math.abs(v) > DET.HAT ? -1 : clamp(Math.round((v + 1) * 3.5), 0, 7);
+// A hat direction also reads as pressed on the two diagonals beside it, as a held Up does while it rolls to Up-Right.
+function buttonOn(w, pad) {
+  if (w.hat == null) { const b = pad.buttons[w.button]; return !!(b && (b.pressed || b.value > 0.5)); }
+  const d = hatDir(pad.axes[w.hat] ?? 2);
+  return d >= 0 && (d === w.hatDir || (w.hatDir % 2 === 0 && (d === (w.hatDir + 1) % 8 || d === (w.hatDir + 7) % 8)));
+}
 function readAxis(pad, w, key) {
-  const i = w.axes && w.axes[key];
-  if (pad == null || i == null || pad.axes[i] == null) return 0;
-  const v = clamp(pad.axes[i], -1, 1);
+  const i = w.axes && w.axes[key], x = pad == null || i == null ? undefined : axisValue(pad, i);
+  if (x == null) return 0;
+  const v = clamp(x, -1, 1);
   return w.inv && w.inv[key] ? -v : v;
 }
 const pct = (v, zero) => zero ? Math.round((v + 1) * 50) : Math.round(v * 100);
@@ -2094,7 +2136,7 @@ function drawWidget(w, rt, pad) {
     return;
   }
   if (w.type === "button") {
-    const b = pad && pad.buttons[w.button], on = !!(b && (b.pressed || b.value > 0.5));
+    const on = !!pad && buttonOn(w, pad);
     if (rt._on !== on) {
       rt._on = on; rt.root.classList.toggle("on", on);
       if (on && rt.rig) { rt.rig.classList.add("pulse"); clearTimeout(rt.pulseT); rt.pulseT = setTimeout(() => rt.rig.classList.remove("pulse"), 120); }   // the projector's core flashes with the press
@@ -2113,12 +2155,12 @@ function inputChanged(w, rt, pad) {
   if (s[0] !== on) { s[0] = on; c = true; }
   if (!pad) return c;
   if (w.type === "button") {
-    const b = pad.buttons[w.button], v = b && (b.pressed || b.value > 0.5) ? 1 : 0;
+    const v = buttonOn(w, pad) ? 1 : 0;
     if (s[1] !== v) { s[1] = v; c = true; }
     return c;
   }
   const ax = rt.axIdx;
-  for (let k = 0; k < ax.length; k++) { const v = Math.round((pad.axes[ax[k]] ?? 0) * 1000); if (s[k + 1] !== v) { s[k + 1] = v; c = true; } }
+  for (let k = 0; k < ax.length; k++) { const v = Math.round((axisValue(pad, ax[k]) ?? 0) * 1000); if (s[k + 1] !== v) { s[k + 1] = v; c = true; } }
   return c;
 }
 // Reports a widget that failed to draw once, so the console isn't flooded at 60 FPS.
@@ -3196,7 +3238,7 @@ function renderWiz() {
     actions(wiz.remap ? el("button", { onclick: closeWizard }, "Cancel") : el("button", { onclick: startDeviceWizard }, "Back"),
       cur.optional ? el("button", { class: "primary", "data-autofocus": "", onclick: wizSkip }, "Skip, I Don't Have This") : null);
   } else {
-    const devText = wiz.kind === "button" ? `${devName(wiz.dev)}, button ${wiz.button + 1}` : devName(wiz.dev);
+    const devText = wiz.kind === "button" ? `${devName(wiz.dev)}, ${wiz.hat ? "hat " + HAT_DIRS[wiz.hat.dir].toLowerCase() : "button " + (wiz.button + 1)}` : devName(wiz.dev);
     head(...st(3), "Name It", `Detected ${devText}. The name shows on the widget, for example "Left Stick".`);
     const name = textIn(wiz, "name"); name.classList.add("name-in"); name.setAttribute("aria-label", "Widget name"); name.dataset.autofocus = "";
     name.addEventListener("keydown", e => { if (e.key === "Enter") wizFinish(); });
