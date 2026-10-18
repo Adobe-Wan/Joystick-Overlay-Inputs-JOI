@@ -1,0 +1,2 @@
+/* Applied while taking visual baselines: hide the toast, which fades in and out and is not under test. */
+#toast { display: none !important; }

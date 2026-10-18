@@ -1,0 +1,469 @@
+{
+  "savedAt": 1792278706813,
+  "settings": {
+    "scaleMode": "auto",
+    "scale": 1,
+    "uiScale": "auto",
+    "background": "transparent",
+    "bgColor": "#00ff00",
+    "accent": "#e9a23b",
+    "text": "#f0c27a",
+    "panel": "#1e150d",
+    "panelAlpha": 100,
+    "border": "#8c6e4d",
+    "theme": "drake",
+    "spaceGap": "",
+    "gridSnap": true,
+    "gridSize": 16,
+    "smartGuides": true,
+    "centerLines": true,
+    "margin": 24,
+    "layoutW": 1920,
+    "layoutH": 1080
+  },
+  "widgets": [
+    {
+      "id": "1v1fcpy",
+      "x": 543,
+      "y": 582,
+      "label": "Left Stick",
+      "match": "VPC Alpha Prime R (Vendor: 3344 Product: 0138)",
+      "nth": 0,
+      "accent": "#e9a23b",
+      "text": "#f0c27a",
+      "bg": "#1e150d",
+      "bgAlpha": 100,
+      "border": "#8c6e4d",
+      "theme": "drake",
+      "size": 1,
+      "type": "stick",
+      "axes": {
+        "x": 0,
+        "y": 1
+      },
+      "inv": {
+        "x": false,
+        "y": true
+      },
+      "persp": {
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "sx": 0,
+        "sy": 0,
+        "d": 900
+      },
+      "proj": {
+        "glow": 0,
+        "fade": 0,
+        "scan": false
+      },
+      "holo": {
+        "on": true,
+        "tier": "static",
+        "intensity": 70,
+        "base": {
+          "side": "below",
+          "dx": 0,
+          "dy": 0,
+          "size": 100
+        },
+        "rays": 9,
+        "rayMode": "corners",
+        "falloff": null,
+        "cone": true,
+        "float": false,
+        "flicker": false,
+        "fringe": false,
+        "footage": "dark",
+        "prev": {
+          "proj": {
+            "glow": 0,
+            "fade": 0,
+            "scan": false
+          }
+        }
+      },
+      "face": "radar"
+    },
+    {
+      "id": "g0rsrii",
+      "x": 676,
+      "y": 822,
+      "label": "Right Stick",
+      "match": "VPC Alpha Prime R (Vendor: 3344 Product: 0138)",
+      "nth": 1,
+      "accent": "#e9a23b",
+      "text": "#f0c27a",
+      "bg": "#1e150d",
+      "bgAlpha": 100,
+      "border": "#8c6e4d",
+      "theme": "drake",
+      "size": 1.3,
+      "type": "stick",
+      "axes": {
+        "x": 0,
+        "y": 1
+      },
+      "inv": {
+        "x": false,
+        "y": true
+      },
+      "persp": {
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "sx": 0,
+        "sy": 0,
+        "d": 900
+      },
+      "proj": {
+        "glow": 0,
+        "fade": 0,
+        "scan": false
+      },
+      "holo": {
+        "on": false,
+        "tier": "static",
+        "intensity": 70,
+        "base": {
+          "side": "below",
+          "dx": 0,
+          "dy": 0,
+          "size": 100
+        },
+        "rays": 9,
+        "rayMode": "corners",
+        "falloff": null,
+        "cone": true,
+        "float": false,
+        "flicker": false,
+        "fringe": false,
+        "footage": "dark"
+      }
+    },
+    {
+      "id": "lfuz88v",
+      "x": 849,
+      "y": 890,
+      "label": "Throttle",
+      "match": "VPC MongoosT-50CM3 Throttle (Vendor: 3344 Product: 0194)",
+      "nth": 0,
+      "accent": "#e9a23b",
+      "text": "#f0c27a",
+      "bg": "#1e150d",
+      "bgAlpha": 100,
+      "border": "#8c6e4d",
+      "theme": "drake",
+      "size": 1,
+      "type": "throttle",
+      "axes": {
+        "t": 2
+      },
+      "inv": {
+        "t": false
+      },
+      "persp": {
+        "rx": 4,
+        "ry": 30
+      },
+      "proj": {
+        "glow": 20
+      },
+      "holo": {
+        "on": false,
+        "tier": "static",
+        "intensity": 70,
+        "base": {
+          "side": "below",
+          "dx": 0,
+          "dy": 0,
+          "size": 100
+        },
+        "rays": 9,
+        "rayMode": "corners",
+        "falloff": null,
+        "cone": true,
+        "float": false,
+        "flicker": false,
+        "fringe": false,
+        "footage": "dark"
+      }
+    },
+    {
+      "id": "4uicufl",
+      "x": 954,
+      "y": 941,
+      "label": "Pedals",
+      "match": "T-Rudder (Vendor: 231d Product: 011f)",
+      "nth": 0,
+      "accent": "#e9a23b",
+      "text": "#f0c27a",
+      "bg": "#1e150d",
+      "bgAlpha": 100,
+      "border": "#8c6e4d",
+      "theme": "drake",
+      "size": 1,
+      "type": "pedals",
+      "axes": {
+        "r": 5,
+        "bl": 0,
+        "br": 1
+      },
+      "inv": {
+        "r": false,
+        "bl": false,
+        "br": false
+      },
+      "persp": {
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "sx": 0,
+        "sy": 0,
+        "d": 900
+      },
+      "proj": {
+        "glow": 0,
+        "fade": 0,
+        "scan": false
+      },
+      "holo": {
+        "on": false,
+        "tier": "static",
+        "intensity": 70,
+        "base": {
+          "side": "below",
+          "dx": 0,
+          "dy": 0,
+          "size": 100
+        },
+        "rays": 9,
+        "rayMode": "corners",
+        "falloff": null,
+        "cone": true,
+        "float": false,
+        "flicker": false,
+        "fringe": false,
+        "footage": "dark"
+      }
+    },
+    {
+      "id": "yz934xp",
+      "x": 1194,
+      "y": 890,
+      "label": "Mining",
+      "match": "VPC MongoosT-50CM3 Throttle (Vendor: 3344 Product: 0194)",
+      "nth": 0,
+      "accent": "#e9a23b",
+      "text": "#f0c27a",
+      "bg": "#1e150d",
+      "bgAlpha": 100,
+      "border": "#8c6e4d",
+      "theme": "drake",
+      "size": 1,
+      "type": "axis",
+      "axes": {
+        "a": 3
+      },
+      "inv": {
+        "a": true
+      },
+      "persp": {
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "sx": 0,
+        "sy": 0,
+        "d": 900
+      },
+      "proj": {
+        "glow": 0,
+        "fade": 0,
+        "scan": false
+      },
+      "holo": {
+        "on": false,
+        "tier": "static",
+        "intensity": 70,
+        "base": {
+          "side": "below",
+          "dx": 0,
+          "dy": 0,
+          "size": 100
+        },
+        "rays": 9,
+        "rayMode": "corners",
+        "falloff": null,
+        "cone": true,
+        "float": false,
+        "flicker": false,
+        "fringe": false,
+        "footage": "dark"
+      }
+    },
+    {
+      "id": "vrxn61j",
+      "x": 1279,
+      "y": 1027,
+      "label": "Fire",
+      "match": "VPC Alpha Prime R (Vendor: 3344 Product: 0138)",
+      "nth": 0,
+      "accent": "#ff4040",
+      "text": "#f0c27a",
+      "bg": "#1e150d",
+      "bgAlpha": 100,
+      "border": "#8c6e4d",
+      "theme": "drake",
+      "size": 1,
+      "type": "button",
+      "button": 3,
+      "persp": {
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "sx": 0,
+        "sy": 0,
+        "d": 900
+      },
+      "proj": {
+        "glow": 0,
+        "fade": 0,
+        "scan": false
+      },
+      "holo": {
+        "on": false,
+        "tier": "static",
+        "intensity": 70,
+        "base": {
+          "side": "below",
+          "dx": 0,
+          "dy": 0,
+          "size": 100
+        },
+        "rays": 9,
+        "rayMode": "corners",
+        "falloff": null,
+        "cone": true,
+        "float": false,
+        "flicker": false,
+        "fringe": false,
+        "footage": "dark"
+      }
+    },
+    {
+      "id": "wvju7up",
+      "type": "label",
+      "x": 759,
+      "y": 322,
+      "label": "Pilot Cam",
+      "size": 1,
+      "accent": "#ffffff",
+      "text": "#ffffff",
+      "bg": "#121212",
+      "bgAlpha": 0,
+      "persp": {
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "sx": 0,
+        "sy": 0,
+        "d": 900
+      },
+      "proj": {
+        "glow": 0,
+        "fade": 0,
+        "scan": false
+      },
+      "holo": {
+        "on": false,
+        "tier": "static",
+        "intensity": 70,
+        "base": {
+          "side": "below",
+          "dx": 0,
+          "dy": 0,
+          "size": 100
+        },
+        "rays": 9,
+        "rayMode": "corners",
+        "falloff": null,
+        "cone": true,
+        "float": false,
+        "flicker": false,
+        "fringe": false,
+        "footage": "dark"
+      }
+    }
+  ],
+  "_source": {
+    "tag": "v1.9.0",
+    "commit": "f5e71eea0c3daa9e4fe62d97c9da018f6466080f",
+    "viewport": {
+      "width": 1920,
+      "height": 1080
+    },
+    "features": [
+      "projector",
+      "perspective"
+    ]
+  },
+  "_rendered": [
+    {
+      "id": "1v1fcpy",
+      "type": "stick",
+      "x": 543,
+      "y": 582,
+      "w": 157,
+      "h": 174
+    },
+    {
+      "id": "g0rsrii",
+      "type": "stick",
+      "x": 676,
+      "y": 822,
+      "w": 164,
+      "h": 207
+    },
+    {
+      "id": "lfuz88v",
+      "type": "throttle",
+      "x": 849,
+      "y": 890,
+      "w": 89,
+      "h": 166
+    },
+    {
+      "id": "4uicufl",
+      "type": "pedals",
+      "x": 954,
+      "y": 941,
+      "w": 224,
+      "h": 115
+    },
+    {
+      "id": "yz934xp",
+      "type": "axis",
+      "x": 1194,
+      "y": 890,
+      "w": 69,
+      "h": 166
+    },
+    {
+      "id": "vrxn61j",
+      "type": "button",
+      "x": 1279,
+      "y": 1027,
+      "w": 64,
+      "h": 29
+    },
+    {
+      "id": "wvju7up",
+      "type": "label",
+      "x": 759,
+      "y": 322,
+      "w": 88,
+      "h": 34
+    }
+  ]
+}
