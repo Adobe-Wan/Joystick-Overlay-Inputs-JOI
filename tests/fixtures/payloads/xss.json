@@ -1,0 +1,6 @@
+{"savedAt": 9e15, "settings": {"background":"solid","bgColor":"url(https://evil.example/bgcolor.png)","accent":"</style><script>window.__pwned=1</script>","text":"javascript:alert(1)","panel":"\"><img src=x onerror=window.__pwned=2>","theme":"<img src=x onerror=alert(3)>"},
+ "widgets": [
+  {"id":"w1","type":"button","label":"<img src=x onerror=window.__pwned=3><script>window.__pwned=4</script>","accent":"url(https://evil.example/accent.png)","button":0,"match":"<b>dev</b> (Vendor: 0001 Product: 0002)"},
+  {"id":"w2","type":"stick","label":"</style><svg onload=alert(5)>","axes":{"x":0,"y":1},"accent":"red;background:url(https://evil.example/semi.png)","text":"url(https://evil.example/text.png)","border":"#ff0000","match":"javascript:alert(1)"},
+  {"id":"w3","type":"label","label":"‮RTL <iframe src=https://evil.example>","x":100,"y":100}
+ ]}
