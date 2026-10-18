@@ -2186,7 +2186,8 @@ function frame(now, timed) {
   flushText(now);
   holoPerf(now, dt);
   if (!loopNeeded()) { stopLoop(); if (!padList.length) idleCheck(); return; }
-  const smooth = now - movedAt < IDLE_MS || perfPending();   // the frame-time check needs real frames
+  const capturing = editing && wiz && (wiz.stage === "steps" || wiz.stage === "press");   // detection counts frames
+  const smooth = now - movedAt < IDLE_MS || perfPending() || capturing;   // the frame-time check needs real frames
   if (smooth && timed) { clearTimeout(tickT); tickT = 0; rafId = requestAnimationFrame(frame); }
   else if (!smooth && !timed) { cancelAnimationFrame(rafId); rafId = 0; tickT = setTimeout(tick, POLL_MS); }
 }
