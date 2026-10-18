@@ -29,8 +29,8 @@ Download the new zip and replace `JOI.html` in your folder. Keep your `profile.j
 3. Right-click the source and choose **Interact**. The first time, JOI opens in edit mode with a **Getting Started** dialog. Move a stick so the browser sees your controllers. (Later, press **E** or click **Open Editor** to return.)
 4. Click **Get Started**. A dialog in the middle of the screen walks you through it:
    1. **Choose a Reference Screenshot:** pick the sample screenshot that matches your screen, or **Load My Own Screenshot**. It shows only while editing, so you can place widgets around the in-game HUD instead of on top of it.
-   2. **What Are You Adding?** Stick, Pedals, Button, Throttle, Single Axis or Label.
-   3. **Move it** when asked. It detects the axis and its direction.
+   2. **What Are You Adding?** Stick, Pedals, Button/Key, Throttle, Single Axis or Label.
+   3. **Move it** when asked. It detects the axis and its direction. For a **Button/Key**, press a button on any device or a key on your keyboard.
    4. **Name It**, then **Add to Overlay**. Press **Add Another Device** for the next one.
 
    New widgets line up along the bottom middle of the screen, where most streamers keep their inputs. The round **+** button (bottom right, or press **A**) adds more at any time.
@@ -85,8 +85,10 @@ With several widgets selected, every change applies to all of them. The first ti
 - **3D depth** (0 to 100%) gives the panel a beveled, raised edge, sinks the stick gate into the panel, and turns the stick's ball into a lit sphere with a shadow. It's drawn once with CSS shadows and gradients, so it adds no per-frame cost in OBS.
 
   ![3D depth at 0, 50 and 100%](docs/depth.png)
-- **Bar direction:** throttles and single axes can be **Vertical** (default) or **Horizontal**. A horizontal bar starts at the same size as the pedals' rudder bar. On pedals, **Rudder bar** stands the rudder upright between the brakes or lays it flat (default).
-- **Width scale** and **Height scale** (buttons and pedals, 25 to 400%) stretch the box on one axis without changing the text size. A very narrow button cuts off its label.
+- **Display:** throttles and single axes can be **Vertical** (default), **Horizontal** or **Circular**. A horizontal bar starts at the same size as the pedals' rudder bar. On pedals, **Rudder display** stands the rudder upright between the brakes, lays it flat (default), or makes it Circular.
+  - **Circular** turns the bar into a round dial with the % value in its middle. A single axis or the rudder fills from the top: clockwise (to the right) for positive, counterclockwise (to the left) for negative. A throttle fills clockwise from the dial's left end. The dial leaves a gap at the bottom, so -100% and +100% look different. **Dial size** (40 to 240 px) sets its diameter, and on pedals the brake bars stand as tall as the dial.
+- **Shape** (Button/Key): **Box** (default, hugs the name like before), **Pill**, **Circle**, **Rounded Square** and **Keycap**, which looks like a key on a keyboard and sinks when pressed. Circle, Rounded Square and Keycap are at least one key wide (44 px at Size 100%); a longer name such as *Space* makes a wider key, and **Width scale** stretches it further (a spacebar at 250%, say).
+- **Width scale** and **Height scale** (Button/Key, 25 to 400%) stretch the box on one axis without changing the text size. A very narrow button cuts off its label.
 - **Inner sizes:** stick area for sticks (always a square 4×4 gate before any perspective), bar thickness and length for throttles and single axes, and rudder and brake bar sizes for pedals. These are in pixels before **Size**, which still scales the whole widget.
 - **Reset Layout** puts them back to the defaults.
 
@@ -97,6 +99,15 @@ Every slider's value is clickable: click it, type a number and press Enter (Esca
 **Arrange in Grid** (under **Arrange** > **Rows and Columns**, several widgets selected) lines them up in rows and columns from the group's top-left corner. **Columns: Auto** keeps the rows your widgets already roughly sit in, so a loose layout tidies up the way it looks; 1 to 6 sets the columns, filled in reading order. Each column is as wide as its widest widget and every widget is centered in its cell, using the **Gap** value (Auto uses the grid size). Match the sizes first for perfectly even cells. It runs once on click, so it costs nothing while you stream.
 
 Widgets keep a fixed size while you fly. The % values reserve room for their widest reading, so moving a stick never resizes anything.
+
+## Keyboard keys (WASD overlays)
+A **Button/Key** can show a keyboard key instead of a device button. Choose **+ Button/Key** (or the round **+**), then press the key. It binds straight away, named after the letter it types on your keyboard, and shows as a **Keycap**. Space and Enter bind too; Escape closes the dialog and Tab moves between its buttons.
+
+For movement keys, press **Add W, A, S and D Keys** in the same step. It adds the four keycaps laid out like a keyboard (W above S, A and D beside it) at the bottom middle, selected together so you can style them at once. Keys are stored by their place on the keyboard, so a binding survives a change of keyboard layout. **Detect Again** in the **Key** section rebinds one, to another key or to a device button.
+
+![Circular displays, WASD keycaps (W held) and the Circle, Pill and Rounded Square shapes](docs/keys-and-dials.png)
+
+**The catch in OBS:** a Browser source only receives key presses while it has keyboard focus, which in OBS means while its **Interact** window is open and focused. With the game in front, Windows sends the keys to the game, not to OBS, so the keycaps won't light during play from the browser source alone. Showing keys while you play needs a helper that listens to the keyboard system-wide; the planned in-game companion app is where that fits. Device buttons and axes are not affected: the browser reads controllers whether or not it has focus.
 
 ## Color themes
 Match your widgets to your ship's MFDs. Select widgets and look under **Color Theme** in the side panel, or use the same controls in **Settings** to color every widget (new widgets then use it too).
