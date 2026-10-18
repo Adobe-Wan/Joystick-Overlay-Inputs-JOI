@@ -76,8 +76,31 @@ body.preview:not(.editing).has-widgets #preview-chip { display: flex; }
 .bars { display: flex; gap: 12px; align-items: flex-end; justify-content: center; }
 .bars .col { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .bars .col span { font-size: 10px; letter-spacing: 0.1em; opacity: 0.75; text-transform: uppercase; }
+/* Circular display: the value sits in the middle of the dial, laid over it so the widget never resizes. */
+.dial { position: relative; width: max-content; margin: 0 auto; }
+.dial > .dial-val { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); white-space: nowrap;
+  font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 12px; font-weight: 600; }
+.dial > .dial-val.full { color: var(--accent); }
+.bars .col .dial > .dial-val { font-size: 12px; letter-spacing: 0; opacity: 1; text-transform: none; }
 .btn-widget { padding: 4px 12px; min-width: 64px; font-weight: 700; font-size: 12px; letter-spacing: 0.06em; transition: background 60ms, color 60ms, box-shadow 60ms; }
 .btn-widget.on { background: var(--accent); color: var(--on, #031018); border-color: var(--accent); box-shadow: 0 0 14px var(--accent); text-shadow: none; }
+/* Keycap: the widget is the key's base, its sides a shade darker than the face and deepest at the front, under a
+   raised top face (.cap) that carries the legend. Pressed, the face sinks onto the base and lights in the highlight
+   color. Sizes are in em, so the whole key scales with Size. Nothing changes the widget's box. */
+.btn-widget.shape-keycap { min-width: 0; letter-spacing: 0.02em;
+  background-image: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(0,0,0,0.2) 40%, rgba(0,0,0,0.55));
+  box-shadow: inset 0 -0.12em 0 rgba(0,0,0,0.45), 0 0.2em 0.6em rgba(0,0,0,0.55); }
+.btn-widget.shape-keycap .cap { position: absolute; left: 0.4em; right: 0.4em; top: 0.16em; bottom: 0.6em;
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+  border-radius: max(2px, calc(var(--kr, 8px) - 2px)); background: var(--wbg);
+  background-image: radial-gradient(120% 90% at 50% 35%, rgba(255,255,255,0.2), rgba(255,255,255,0.1) 70%, rgba(255,255,255,0.06));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.28), inset 0 -1px 0 rgba(0,0,0,0.25), 0 0 0 1px rgba(0,0,0,0.45), 0 0.12em 0.2em rgba(0,0,0,0.4);
+  transition: transform 50ms, background-color 50ms, box-shadow 50ms; }
+.btn-widget.shape-keycap.on { background-image: linear-gradient(180deg, rgba(0,0,0,0.25), rgba(0,0,0,0.45)); }
+.btn-widget.shape-keycap.on .cap { transform: translateY(0.3em); background: var(--accent);
+  background-image: linear-gradient(180deg, rgba(255,255,255,0.22), rgba(255,255,255,0) 60%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.35), 0 0 0 1px rgba(0,0,0,0.3); }
+@media (prefers-reduced-motion: reduce) { .btn-widget.shape-keycap .cap { transition: none; } }
 .label-widget { font-weight: 700; letter-spacing: 0.06em; }
 /* Perspective: one CSS transform per widget, no per-frame cost. A static tilt needs no will-change (a 3D transform
    gets its own layer anyway); the Projector's float is an animation, which promotes its widget while it runs. */
@@ -501,6 +524,7 @@ kbd { font: 600 0.9em var(--mono); padding: 0.1em 0.45em; border: 1px solid rgba
 #wizard .wsteps > li > * { display: inline-flex; align-items: center; gap: 0.35rem; min-height: 0; padding: 0.25rem 0.7rem; border-radius: 1rem; font: inherit;
   border: 1px solid rgba(255,255,255,0.18); color: #8a98a8; font-weight: 600; letter-spacing: 0.02em; }
 #wizard .wsteps button { color: var(--ui-accent); border-color: rgba(79,209,255,0.45); }
+#wiz-title:focus { outline: none; }   /* focused by script only (tabindex -1), so Space and Enter can be bound */
 #wizard .wsteps button:hover { background: rgba(79,209,255,0.12); }
 #wizard .wsteps [aria-current] { background: var(--ui-accent); border-color: var(--ui-accent); color: #00131c; }
 #wizard h2 { margin: 0.4rem 0 0.3rem; font-size: 1.7rem; font-weight: 650; line-height: 1.25; }
@@ -583,7 +607,7 @@ body:not(.editing):not(.has-widgets) #enter-edit { display: flex; }
       <li><button class="wstep" data-welcome="bg"><span class="num">1</span><span><b>Choose a Reference Screenshot</b>
         <small>A Star Citizen screenshot behind your widgets, so they sit around the HUD instead of on top of it. Only shown while editing.</small></span>
         <span class="go" aria-hidden="true">›</span></button></li>
-      <li><button class="wstep" data-welcome="add"><span class="num">2</span><span><b>Add Your Devices</b><small>Pick Stick, Pedals or a Button, then move it when asked.</small></span><span class="go" aria-hidden="true">›</span></button></li>
+      <li><button class="wstep" data-welcome="add"><span class="num">2</span><span><b>Add Your Devices</b><small>Pick Stick, Pedals or a Button/Key, then move or press it when asked.</small></span><span class="go" aria-hidden="true">›</span></button></li>
       <li><button class="wstep" data-welcome="arrange"><span class="num">3</span><span><b>Arrange, Then Leave Edit Mode</b>
         <small>Drag widgets into place, then switch <i>Edit Mode</i> off (top bar) or press <kbd>E</kbd>.</small></span>
         <span class="go" aria-hidden="true">›</span></button></li>
@@ -614,7 +638,7 @@ body:not(.editing):not(.has-widgets) #enter-edit { display: flex; }
     <label class="switch" title="Leave edit mode (E)"><input type="checkbox" role="switch" id="edit-switch" checked><span class="track"><span class="thumb"></span></span>Edit Mode</label>
     <span class="divider"></span>
     <button class="primary" data-act="add-device">+ Device</button>
-    <button data-act="add-button">+ Button</button>
+    <button data-act="add-button">+ Button/Key</button>
     <button data-act="add-label">+ Label</button>
     <button data-act="heat" id="heat-btn">Session Heatmap</button>
     <button data-act="settings">Settings</button>
@@ -887,6 +911,29 @@ const FONTS = { bahn: 'Bahnschrift, "Segoe UI", system-ui, sans-serif', segoe: '
   cascadia: '"Cascadia Mono", Consolas, ui-monospace, monospace', consolas: 'Consolas, "Cascadia Mono", ui-monospace, monospace', arial: "Arial, Helvetica, sans-serif" };
 const FONT_CHECK = v => isObj(v) ? pickFields(v, { f: f => oneOf(f, Object.keys(FONTS)), s: numRange(8, 48) }) : undefined;
 const BTN_AXIS = 64;
+// Button/Key widgets bound to a keyboard key store its KeyboardEvent.code ("KeyW", "Space", "ShiftLeft"): the key's
+// place on the keyboard, so a binding survives a change of keyboard layout.
+const KEY_CODE_RE = /^[A-Za-z][A-Za-z0-9]{0,31}$/;
+// Shapes for a Button/Key. Box hugs its name (the original look); the others are drawn by their .shape-* class.
+const SHAPES = { box: "Box", pill: "Pill", circle: "Circle", square: "Rounded Square", keycap: "Keycap" };
+// A key's name for its widget: the character it types on this keyboard when it has one (so an AZERTY "Z" reads Z),
+// otherwise a short name for its place on the keyboard.
+const KEY_NAMES = { Space: "Space", ShiftLeft: "Shift", ShiftRight: "Right Shift", ControlLeft: "Ctrl", ControlRight: "Right Ctrl",
+  AltLeft: "Alt", AltRight: "Right Alt", MetaLeft: "Win", MetaRight: "Right Win", ArrowUp: "↑", ArrowDown: "↓", ArrowLeft: "←",
+  ArrowRight: "→", Enter: "Enter", NumpadEnter: "Num Enter", Backspace: "Backspace", CapsLock: "Caps Lock", Escape: "Esc", Tab: "Tab",
+  Backquote: "`", Minus: "-", Equal: "=", BracketLeft: "[", BracketRight: "]", Backslash: "\\", Semicolon: ";", Quote: "'",
+  Comma: ",", Period: ".", Slash: "/", PageUp: "Page Up", PageDown: "Page Down", ContextMenu: "Menu" };
+function keyLabel(code, key) {
+  if (typeof key === "string" && key.length === 1 && key.trim()) return key.toUpperCase();
+  if (KEY_NAMES[code]) return KEY_NAMES[code];
+  const m = /^(?:Key|Digit)(\w)$/.exec(code) || /^Numpad(\d)$/.exec(code);
+  if (m) return (code.startsWith("Numpad") ? "Num " : "") + m[1];
+  return String(code).replace(/([a-z])([A-Z0-9])/g, "$1 $2");
+}
+// Keys held right now, by KeyboardEvent.code, for Button/Key widgets bound to the keyboard. A browser source only
+// gets keys while it has focus (in OBS, its Interact window), so losing focus releases every key rather than leave
+// one lit.
+const keysDown = new Set();
 const AXIS_MAP = v => { const o = {}; if (isObj(v)) for (const k in v) if (/^[a-z]{1,2}$/.test(k) && Number.isInteger(v[k]) && v[k] >= 0 && v[k] < BTN_AXIS + 128) o[k] = v[k]; return o; };
 const BOOL_MAP = v => { const o = {}; if (isObj(v)) for (const k in v) if (/^[a-z]{1,2}$/.test(k)) o[k] = !!v[k]; return o; };
 const PERSP_CHECK = { rx: numRange(-180, 180), ry: numRange(-180, 180), rz: numRange(-180, 180), sx: numRange(-60, 60), sy: numRange(-60, 60), d: numRange(100, 10000) };
@@ -901,9 +948,10 @@ const HOLO_CHECK = { on: optBool, tier: v => oneOf(v, ["static", "subtle", "full
 const WIDGET_CHECK = {
   label: textMax(200), match: textMax(256), nth: intRange(0, 15), slot: intRange(0, 15), button: intRange(0, 127), hat: intRange(0, 63), hatDir: intRange(0, 7),
   x: numRange(-10000, 10000), y: numRange(-10000, 10000), size: numRange(0.25, 4), scaleW: numRange(0.25, 4), scaleH: numRange(0.25, 4),   // scaleW / scaleH: buttons only; pedals' are read once, to migrate
-  boxW: numRange(0, 4000), boxH: numRange(0, 4000), fill: optBool, orient: v => oneOf(v, ["h", "v"]), face: v => oneOf(v, ["square", "radar"]),
+  boxW: numRange(0, 4000), boxH: numRange(0, 4000), fill: optBool, orient: v => oneOf(v, ["h", "v", "c"]), face: v => oneOf(v, ["square", "radar"]),
+  key: v => typeof v === "string" && KEY_CODE_RE.test(v) ? v : undefined, shape: v => oneOf(v, Object.keys(SHAPES)),
   pad: numRange(0, 100), radius: numRange(0, 100), depth: numRange(0, 100),
-  dims: v => pickFields(v, { box: numRange(1, 1000), bw: numRange(1, 1000), bh: numRange(1, 1000), rw: numRange(1, 1000), rh: numRange(1, 1000) }),
+  dims: v => pickFields(v, { box: numRange(1, 1000), bw: numRange(1, 1000), bh: numRange(1, 1000), rw: numRange(1, 1000), rh: numRange(1, 1000), cd: numRange(1, 1000) }),
   showTitle: optBool, showValues: optBool, showAxisLabels: optBool,
   fonts: v => isObj(v) ? pickFields(v, { title: FONT_CHECK, values: FONT_CHECK, labels: FONT_CHECK }) : undefined,
   accent: optHex, text: optHex, bg: optHex, border: optHex, bgAlpha: numRange(0, 100), theme: idText,
@@ -926,8 +974,10 @@ function normalizeWidget(src) {
   const w = { id: src.id, type: src.type, ...pickFields(src, WIDGET_CHECK) };
   w.x ??= 0; w.y ??= 0;
   if (AXIS_TYPES.has(w.type)) { w.axes ??= {}; w.inv ??= {}; } else { delete w.axes; delete w.inv; }
-  if (w.type === "button") w.button ??= 0;
-  if (w.type !== "button" || w.hat == null) { delete w.hat; delete w.hatDir; } else w.hatDir ??= 0;
+  if (w.type === "button") w.button ??= 0; else { delete w.key; delete w.shape; }
+  if (w.type !== "button" || w.hat == null || w.key) { delete w.hat; delete w.hatDir; } else w.hatDir ??= 0;
+  if (w.key) { delete w.match; delete w.nth; delete w.slot; }   // a keyboard key, not a device input
+  if (w.orient === "c" && !(isBar(w) || w.type === "pedals")) delete w.orient;
   return w;
 }
 // Layouts saved before ver 2 stored sizes at a scale of 1 / 0.75. Convert once, keeping the drawn size, and fold
@@ -1136,15 +1186,16 @@ function startRemap(w) {
   renderWiz();
 }
 function finishRemap() {
-  const w = profile.widgets.find(o => o.id === wiz.remap), d = wiz.dev;
-  if (w && d) {
-    Object.assign(w, { match: d.id, nth: d.nth, slot: d.pad.index });
+  const w = profile.widgets.find(o => o.id === wiz.remap), d = wiz.dev, key = wiz.key;
+  if (w && (d || key)) {
+    if (key) { delete w.match; delete w.nth; delete w.slot; } else Object.assign(w, { match: d.id, nth: d.nth, slot: d.pad.index });
     if (wiz.kind === "button") Object.assign(w, buttonFields()); else { w.axes = wiz.axes; w.inv = wiz.inv; }
+    for (const k in w) if (w[k] === undefined) delete w[k];
     save(); rebuildAll();
   }
   closeWizard();
   if (w) setSelection([w.id]);
-  if (w && d) toast(`${w.label || "Widget"} now uses ${devName(d)}`);
+  if (w && (d || key)) toast(`${w.label || "Widget"} now uses ${key ? "the " + keyLabel(key) + " key" : devName(d)}`);
 }
 function wizSkip() { wiz.step++; wizAfterStep(); }
 function wizAfterStep() {
@@ -1287,17 +1338,33 @@ function buttonTick(pads, now) {
   wiz.stage = "name"; renderWiz();
 }
 function buttonFields() {
-  return wiz.hat ? { button: 0, hat: wiz.hat.axis, hatDir: wiz.hat.dir } : { button: wiz.button, hat: undefined, hatDir: undefined };
+  if (wiz.key) return { key: wiz.key, button: 0, hat: undefined, hatDir: undefined };
+  return wiz.hat ? { button: 0, hat: wiz.hat.axis, hatDir: wiz.hat.dir, key: undefined } : { button: wiz.button, hat: undefined, hatDir: undefined, key: undefined };
+}
+// Keyboard keys for Button/Key: pressing one while the Button/Key step listens binds it straight away (a key has no
+// analog travel or chatter to wait out). Escape still closes the setup and Tab still moves focus.
+document.addEventListener("keydown", e => {
+  if (!wiz || wiz.kind !== "button" || wiz.stage !== "press" || e.repeat) return;
+  if (e.key === "Escape" || e.key === "Tab" || !KEY_CODE_RE.test(e.code || "")) return;
+  // The step opens with focus on its heading, so Space and Enter bind; tabbed onto a button, they press it.
+  if ((e.key === "Enter" || e.key === " ") && e.target.closest && e.target.closest("#wizard button")) return;
+  e.preventDefault(); e.stopPropagation();
+  Object.assign(wiz, { key: e.code, dev: null, button: undefined, hat: null, name: keyLabel(e.code, e.key), stage: "name" });
+  renderWiz();
+}, true);
+// Widget settings every new widget starts from: the overlay's theme and colors.
+function newWidgetBase(s = profile.settings) {
+  return { id: uid(), x: 0, y: 0, accent: s.accent, text: s.text, bg: s.panel, bgAlpha: s.panelAlpha, border: s.border || undefined, theme: s.theme || undefined, size: 1 };
 }
 function wizFinish() {
   if (wiz.remap) return finishRemap();
-  const d = wiz.dev, s = profile.settings;
-  const w = { id: uid(), x: 0, y: 0, label: wiz.name, match: d.id, nth: d.nth, slot: d.pad.index,
-    accent: s.accent, text: s.text, bg: s.panel, bgAlpha: s.panelAlpha, border: s.border || undefined, theme: s.theme || undefined, size: 1 };
-  if (wiz.kind === "button") Object.assign(w, { type: "button" }, buttonFields());
+  const d = wiz.dev;
+  const w = { ...newWidgetBase(), label: wiz.name, ...(d ? { match: d.id, nth: d.nth, slot: d.pad.index } : {}) };
+  if (wiz.kind === "button") Object.assign(w, { type: "button" }, buttonFields(), wiz.key ? { shape: "keycap" } : {});
   else Object.assign(w, { type: wiz.type, axes: wiz.axes, inv: wiz.inv });
   addAndPlace(w);
-  wizAdded.push(w.label || TYPES[w.type]?.name || "Button");
+  for (const k in w) if (w[k] === undefined) delete w[k];
+  wizAdded.push(w.label || TYPES[w.type]?.name || "Button/Key");
   wiz = { kind: "done", last: w };
   renderWiz();
 }
@@ -1536,19 +1603,22 @@ function positionWidget(w, size) {
 
 // Inner container sizes per widget type, before the Size multiplier. Users can override each.
 // Drawn pixels at Size 100%, all on the 4 px scale. The brakes beside the rudder follow its thickness (rh).
-const DIMS = { stick: { box: 112 }, throttle: { bw: 20, bh: 104 }, axis: { bw: 20, bh: 104 }, pedals: { rw: 152, rh: 20 } };
-const BAR_PX = [20, 240], STICK_PX = [40, 300];   // the Width / Height slider ranges
+// cd is the diameter of the Circular display (orient "c"), a dial that throttles, axes and the rudder can use instead.
+const DIMS = { stick: { box: 112 }, throttle: { bw: 20, bh: 104, cd: 80 }, axis: { bw: 20, bh: 104, cd: 80 }, pedals: { rw: 152, rh: 20, cd: 80 } };
+const BAR_PX = [20, 240], STICK_PX = [40, 300], DIAL_PX = [40, 240];   // the Width / Height slider ranges
+const isDial = w => w.orient === "c" && (isBar(w) || w.type === "pedals");
 // A horizontal throttle or axis is drawn like the pedals' rudder bar, so the two come out the same size side by side.
 const DIMS_H = { bw: DIMS.pedals.rh, bh: DIMS.pedals.rw };
 const dimsOf = w => ({ ...(DIMS[w.type] || {}), ...(isBar(w) && w.orient === "h" ? DIMS_H : {}), ...(w.dims || {}) });
 const RADIUS = 8, PAD = 4;
+const KEY_U = 44;   // a Circle, Rounded Square or Keycap at Size 100% is at least this wide: one key on a keyboard
 // Content: Fill (w.fill) grows the stick, bar or rudder into a fixed Width / Height box, like Figma's Fill against
 // Hug. buildWidget measures the widget at its normal size, then builds it once more with the inner size grown by the
 // spare room: a stick grows by the smaller spare side so it stays square, a bar or rudder grows along its length.
 const FILL_TYPES = new Set(["stick", "throttle", "axis", "pedals"]);
 function fillGrow(w, D, ex, ey, k) {
   const ok = v => isFinite(v) && v >= 0.5;
-  if (w.type === "stick") { const d = Math.min(ex, ey); return ok(d) ? { box: D.box + d / k } : null; }
+  if (w.type === "stick" || isDial(w)) { const d = Math.min(ex, ey), key = isDial(w) ? "cd" : "box"; return ok(d) ? { [key]: D[key] + d / k } : null; }
   if (isBar(w)) { const d = w.orient === "h" ? ex : ey; return ok(d) ? { bh: D.bh + d / k } : null; }
   if (w.type === "pedals") { const d = w.orient === "v" ? ey : ex; return ok(d) ? { rw: D.rw + d / k } : null; }
   return null;
@@ -1559,6 +1629,13 @@ function measureRoot(root) {
   const size = { w: root.offsetWidth, h: root.offsetHeight };
   root.remove(); root.style.visibility = "";
   return size;
+}
+// A Circular display: the dial's canvas with its value centered on it. The value is laid over the canvas, so the
+// widget's size never depends on the reading.
+function dial(canvas, val) {
+  const d = el("div", { class: "dial" }, canvas);
+  if (val) { val.classList.add("dial-val"); d.append(val); }
+  return d;
 }
 function buildWidget(w, grow) {
   const root = el("div", { class: "widget", "data-id": w.id });
@@ -1579,7 +1656,7 @@ function buildWidget(w, grow) {
   const kx = w.scaleW || 1, ky = w.scaleH || 1;
   // Per-widget layout: padding, corner radius (the stick box uses the same radius), and what to show.
   const pad = w.pad ?? PAD;
-  if (w.type === "button") root.style.padding = `${pad}px ${pad + 8}px`;   // buttons keep a little extra width around the text
+  if (w.type === "button") root.style.padding = w.shape === "keycap" ? "0" : `${pad}px ${pad + 8}px`;   // buttons keep a little extra width around the text; a keycap's face has its own inset
   else if (w.type !== "label" || w.pad != null) root.style.padding = pad + "px";
   rt.radius = w.radius ?? RADIUS; root.style.borderRadius = rt.radius + "px";
   const showTitle = w.showTitle !== false, showVals = w.showValues !== false, showAx = w.showAxisLabels !== false;
@@ -1598,39 +1675,59 @@ function buildWidget(w, grow) {
     const ro = readout(el("span", {}, lab("X"), span("x")), el("span", {}, lab("Y"), span("y")));
     if (ro) { ro.classList.add("pair"); ro.style.minWidth = rt.canvas.style.width; }
     root.append(...[title, rt.canvas, ro].filter(Boolean));
+  } else if (isBar(w) && isDial(w)) {
+    rt.canvas = makeCanvas(D.cd * k, D.cd * k);
+    root.append(...[title, dial(rt.canvas, showVals ? span("v") : null)].filter(Boolean));
   } else if (isBar(w)) {
     // bw = thickness, bh = length; a horizontal bar just swaps them.
     rt.canvas = w.orient === "h" ? makeCanvas(D.bh * k, D.bw * k) : makeCanvas(D.bw * k, D.bh * k);
     root.append(...[title, rt.canvas, readout(span("v"))].filter(Boolean));
   } else if (w.type === "pedals") {
     const hasBrakes = w.axes.bl != null || w.axes.br != null;
-    // rw = rudder length, rh = thickness; the rudder can stand upright between the brakes.
-    rt.canvas = w.orient === "v" ? makeCanvas(D.rh * k, D.rw * k) : makeCanvas(D.rw * k, D.rh * k);
+    // rw = rudder length, rh = thickness; the rudder can stand upright between the brakes, or be a dial (cd) with
+    // its value in the middle and the brakes standing as tall as the dial beside it.
+    const round = isDial(w);
+    rt.canvas = round ? makeCanvas(D.cd * k, D.cd * k) : w.orient === "v" ? makeCanvas(D.rh * k, D.rw * k) : makeCanvas(D.rw * k, D.rh * k);
+    const rudder = round ? dial(rt.canvas, showVals ? span("r") : null) : rt.canvas;
     const parts = [title];
     const cap = t => showAx ? styled(el("span", {}, t), "labels") : null;
     if (hasBrakes) {
-      rt.brakeL = makeCanvas(D.rh * k, D.rh * 2 * k); rt.brakeR = makeCanvas(D.rh * k, D.rh * 2 * k);
+      const bh = round ? D.cd : D.rh * 2;
+      rt.brakeL = makeCanvas(D.rh * k, bh * k); rt.brakeR = makeCanvas(D.rh * k, bh * k);
       parts.push(el("div", { class: "bars" },
         w.axes.bl != null ? el("div", { class: "col" }, rt.brakeL, cap("L")) : null,
-        el("div", { class: "col" }, rt.canvas, cap("Rudder")),
+        el("div", { class: "col" }, rudder, cap("Rudder")),
         w.axes.br != null ? el("div", { class: "col" }, rt.brakeR, cap("R")) : null));
-    } else parts.push(rt.canvas);
-    const ro = readout(
+    } else parts.push(rudder);
+    const ro = round && !hasBrakes ? null : readout(
       w.axes.bl != null ? el("span", { class: "bl" }, lab("L"), span("bl")) : null,
-      el("span", { class: "rud" }, lab("RUD"), Object.assign(span("r"), { _sign: true })),
+      round ? null : el("span", { class: "rud" }, lab("RUD"), Object.assign(span("r"), { _sign: true })),
       w.axes.br != null ? el("span", { class: "br" }, lab("R"), span("br")) : null);
-    if (ro && !showAx) ro.classList.add("ped-split");
+    if (ro && !showAx && !round) ro.classList.add("ped-split");
     parts.push(ro);
     root.append(...parts.filter(Boolean));
   } else if (w.type === "button") {
-    root.classList.add("btn-widget");
+    const shape = SHAPES[w.shape] ? w.shape : "box", text = w.label || (w.key ? keyLabel(w.key) : "Button");
+    root.classList.add("btn-widget", "shape-" + shape);
+    if (shape === "keycap") root.style.setProperty("--kr", rt.radius + "px");
     root.style.fontSize = 12 * k + "px";
-    root.textContent = w.label || "Button"; styled(root, "title");
-    if (kx !== 1 || ky !== 1) {
-      const n = measureRoot(root);
-      Object.assign(root.style, { width: Math.round(n.w * kx) + "px", height: Math.round(n.h * ky) + "px", minWidth: "0", boxSizing: "border-box",
+    root.textContent = text; styled(root, "title");
+    if (kx !== 1 || ky !== 1 || shape !== "box" && shape !== "pill") {
+      // Circle and Rounded Square are as tall as they are wide; a keycap is one key tall and at least one key wide,
+      // longer for a longer name (Space, Shift). Width / Height scale then stretch the shape like any button.
+      if (shape !== "box" && shape !== "pill") root.style.minWidth = "0";   // the shape sets its own width
+      const n = measureRoot(root), u = KEY_U * k * (w.fonts && w.fonts.title && w.fonts.title.s ? w.fonts.title.s / TEXT_SIZE : 1);
+      let bw = n.w, bh = n.h;
+      if (shape === "circle" || shape === "square") bw = bh = Math.max(n.w, n.h, u);
+      else if (shape === "keycap") { bw = Math.max(n.w + u * 0.5, u); bh = u; }
+      Object.assign(root.style, { width: Math.round(bw * kx) + "px", height: Math.round(bh * ky) + "px", minWidth: "0", boxSizing: "border-box",
         display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", whiteSpace: "nowrap" });
     }
+    // A keycap is a base (the key's sides, darker) with a raised top face that carries the legend and sinks when
+    // pressed. Measured above with its legend in place, so a longer name makes a wider key.
+    if (shape === "keycap") { root.textContent = ""; root.append(el("span", { class: "cap" }, text)); }
+    if (shape === "circle") root.style.borderRadius = "50%";
+    else if (shape === "pill") root.style.borderRadius = "999px";
   } else if (w.type === "label") {
     root.classList.add("label-widget");
     root.style.fontSize = 16 * k + "px";
@@ -2204,6 +2301,40 @@ function drawBar(c, v, accent, vertical, zero, rt, key, ink, holo, glow) {
   g.restore();   // also puts the composite mode back
   if (holo) tearStrip(c, rt);
 }
+// Circular display: a 270° dial open at the bottom. A centered axis (an Axis or the rudder) fills from the top, clockwise
+// for positive and counterclockwise for negative; a throttle fills clockwise from the left end. Both map -1..1 onto
+// the same sweep, so the heatmap cells sit where the fill would.
+const DIAL_SWEEP = Math.PI * 0.75, DIAL_TOP = -Math.PI / 2;
+const dialAngle = v => DIAL_TOP - DIAL_SWEEP + (v + 1) * DIAL_SWEEP;
+function drawDial(c, v, accent, zero, rt, key, ink, holo, glow) {
+  const g = c._g, W = c._w, H = c._h, cx = W / 2, cy = H / 2, th = Math.max(4, Math.round(W * 0.12)), r = Math.min(W, H) / 2 - th / 2 - 1;
+  const a0 = dialAngle(-1), a1 = dialAngle(1), at = dialAngle(clamp(v, -1, 1)), from = zero ? a0 : DIAL_TOP;
+  const ray = (a, r0, r1) => { g.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0); g.lineTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1); };
+  g.clearRect(0, 0, W, H);
+  g.save();
+  g.lineWidth = th; g.lineCap = "butt";
+  g.strokeStyle = hexA(ink, 0.14); g.beginPath(); g.arc(cx, cy, r, a0, a1); g.stroke();
+  const lightUp = () => { if (holo) g.globalCompositeOperation = "lighter"; };
+  if (showHeat && rt.heat1[key]) {
+    const hg = heatLayer(c);
+    if (hg) {
+      const h = rt.heat1[key], lut = heatLUT(accent), step = (a1 - a0) / HEAT1; let mx = 0; for (const q of h) mx = Math.max(mx, q);
+      hg.lineWidth = th;
+      if (mx > 0) for (let i = 0; i < HEAT1; i++) if (h[i]) { hg.strokeStyle = lut[Math.round(Math.sqrt(h[i] / mx) * 255)]; hg.beginPath(); hg.arc(cx, cy, r, a0 + i * step, a0 + (i + 1) * step + 0.004); hg.stroke(); }
+    }
+    blitHeat(g, c);
+  } else if (Math.abs(at - from) > 0.002) {
+    lightUp(); g.strokeStyle = accent;
+    g.beginPath(); g.arc(cx, cy, r, Math.min(from, at), Math.max(from, at)); g.stroke();
+  }
+  lightUp();
+  if (!zero) { g.strokeStyle = hexA(ink, 0.5); g.lineWidth = 1; g.beginPath(); ray(DIAL_TOP, r - th / 2, r + th / 2); g.stroke(); }   // the center mark
+  const tx = cx + Math.cos(at) * r, ty = cy + Math.sin(at) * r;
+  if (holo) { const s = Math.max(24, th * 2.4); g.drawImage(holoSprite(rt, glow), tx - s / 2, ty - s / 2, s, s); }   // glow under the tip
+  g.strokeStyle = ink; g.lineWidth = 2; g.beginPath(); ray(at, r - th / 2, r + th / 2); g.stroke();
+  g.restore();
+  if (holo) tearStrip(c, rt);
+}
 // Moves the widget's time since its last pass into the cells its input sat in, then records where it sits now.
 function heatCredit(w, rt, pad) {
   const d = heatClock - rt.heatT; rt.heatT = heatClock;
@@ -2230,20 +2361,22 @@ function drawWidget(w, rt, pad) {
   const holo = rt.holo, glow = holo ? rt.holoColors.glow : null;
   if (isBar(w)) {
     const zero = w.type === "throttle", key = w.type === "throttle" ? "t" : "a", v = readAxis(pad, w, key);
-    drawBar(rt.canvas, v, accent, w.orient !== "h", zero, rt, key, ink, holo, glow);
+    if (isDial(w)) drawDial(rt.canvas, v, accent, zero, rt, key, ink, holo, glow);
+    else drawBar(rt.canvas, v, accent, w.orient !== "h", zero, rt, key, ink, holo, glow);
     setText(rt.spans.v, v, zero);
     return;
   }
   if (w.type === "pedals") {
     const r = readAxis(pad, w, "r");
-    drawBar(rt.canvas, r, accent, w.orient === "v", false, rt, "r", ink, holo, glow);
+    if (isDial(w)) drawDial(rt.canvas, r, accent, false, rt, "r", ink, holo, glow);
+    else drawBar(rt.canvas, r, accent, w.orient === "v", false, rt, "r", ink, holo, glow);
     setText(rt.spans.r, r);
     if (w.axes.bl != null && rt.brakeL) { const v = readAxis(pad, w, "bl"); drawBar(rt.brakeL, v, accent, true, true, rt, "bl", ink, holo, glow); setText(rt.spans.bl, v, true); }
     if (w.axes.br != null && rt.brakeR) { const v = readAxis(pad, w, "br"); drawBar(rt.brakeR, v, accent, true, true, rt, "br", ink, holo, glow); setText(rt.spans.br, v, true); }
     return;
   }
   if (w.type === "button") {
-    const on = !!pad && buttonOn(w, pad);
+    const on = w.key ? keysDown.has(w.key) : !!pad && buttonOn(w, pad);
     if (rt._on !== on) {
       rt._on = on; rt.root.classList.toggle("on", on);
       if (on && rt.rig) { rt.rig.classList.add("pulse"); clearTimeout(rt.pulseT); rt.pulseT = setTimeout(() => rt.rig.classList.remove("pulse"), 120); }   // the projector's core flashes with the press
@@ -2258,11 +2391,11 @@ let heatTick = 0, heatShown = -1;
 // [connected, ...axes] (a button's pressed state in place of axes), compared as numbers: nothing is allocated.
 function inputChanged(w, rt, pad) {
   const s = rt.inVals; let c = rt.inNew; rt.inNew = false;
-  const on = pad ? 1 : 0;
+  const on = pad || w.key ? 1 : 0;
   if (s[0] !== on) { s[0] = on; c = true; }
-  if (!pad) return c;
+  if (!on) return c;
   if (w.type === "button") {
-    const v = buttonOn(w, pad) ? 1 : 0;
+    const v = (w.key ? keysDown.has(w.key) : buttonOn(w, pad)) ? 1 : 0;
     if (s[1] !== v) { s[1] = v; c = true; }
     return c;
   }
@@ -2306,6 +2439,9 @@ function idleCheck() {
   idleT = setTimeout(() => { if (Array.from(navigator.getGamepads ? navigator.getGamepads() : [], slotId).some(Boolean)) wake(); else idleCheck(); }, 1000);
 }
 window.addEventListener("gamepadconnected", () => wake());
+window.addEventListener("keydown", e => { if (!e.repeat && e.code && !keysDown.has(e.code)) { keysDown.add(e.code); wake(); } }, true);
+window.addEventListener("keyup", e => { if (keysDown.delete(e.code)) wake(); }, true);
+window.addEventListener("blur", () => { if (keysDown.size) { keysDown.clear(); wake(); } });
 window.addEventListener("gamepaddisconnected", () => wake());
 document.addEventListener("visibilitychange", () => wake());
 window.addEventListener("obsSourceVisibleChanged", e => { obsState.visible = !(e.detail && e.detail.visible === false); wake(); });
@@ -2330,7 +2466,7 @@ function frame(now, timed) {
     for (const w of profile.widgets) {
       const rt = runtime[w.id]; if (!rt || !rt.root || w.type === "label") continue;
       try {
-        const pad = padOf(w, rt), off = !pad;
+        const pad = w.key ? null : padOf(w, rt), off = !pad && !w.key;   // a keyboard key is never "not connected"
         if (rt._off !== off) { rt._off = off; rt.root.classList.toggle("offline", off); }
         // Only repaint a widget's canvases when its input (or the visible heatmap) changed.
         // A still stick costs no drawing at all, which keeps OBS's browser source light.
@@ -2780,6 +2916,23 @@ function setEditing(on) {
 function addLabel() {
   const s = profile.settings;
   addAndPlace({ id: uid(), type: "label", x: 0, y: 0, label: "Label", size: 1, accent: s.accent, text: s.text, bg: s.panel, bgAlpha: 0 });
+}
+// W, A, S and D as keycaps in one go, laid out like the keyboard (W above S, A and D beside it), joining the bottom
+// middle like any new widget, and selected together so they can be styled at once.
+function addWasd() {
+  const ws = ["W", "A", "S", "D"].map(c => ({ ...newWidgetBase(), type: "button", label: c, key: "Key" + c, button: 0, shape: "keycap" }));
+  closeWizard();
+  profile.widgets.push(...ws); rebuildAll();
+  const [W, A, S, D] = ws, b = boxOf(S), gap = 4;
+  const C = canvasSize(), m = profile.settings.margin, floor = C.h - m;
+  const row = profile.widgets.filter(o => !ws.includes(o) && Math.abs(o.y + boxOf(o).h - floor) <= 2);
+  const cw = b.w * 3 + gap * 2, ch = b.h * 2 + gap;
+  const x0 = Math.round((C.w - cw) / 2), y0 = Math.round((row.length ? unionBox(row).y - PLACE_GAP : floor) - ch);
+  Object.assign(A, { x: x0, y: y0 + b.h + gap }); Object.assign(S, { x: x0 + b.w + gap, y: A.y }); Object.assign(D, { x: x0 + 2 * (b.w + gap), y: A.y });
+  Object.assign(W, { x: S.x, y: y0 });
+  for (const w of ws) positionWidget(w);
+  save(); setSelection(ws.map(w => w.id));
+  toast("Added W, A, S and D keys");
 }
 function toggleHeat() { showHeat = !showHeat; applySettings(); wake(true); renderPanel(); toast(showHeat ? "Session heatmap on (H to hide, R to reset)" : "Session heatmap off"); }
 function resetHeat() {
@@ -3377,7 +3530,7 @@ function renderHome(p) {
   p.append(el("div", { class: "actions" }, el("button", { onclick: () => setSelection([], "devices") }, "Check Devices")));
   p.append(el("div", { class: "actions" },
     el("button", { class: "primary", onclick: startDeviceWizard }, "+ Device"),
-    el("button", { onclick: startButtonWizard }, "+ Button"),
+    el("button", { onclick: startButtonWizard }, "+ Button/Key"),
     el("button", { onclick: () => $("#file-in").click() }, "Import a Profile"),
     el("button", { class: "danger", onclick: resetAll }, "Reset All")));
   p.append(el("h4", {}, "Reference Screenshot"));
@@ -3404,7 +3557,7 @@ function renderHome(p) {
 const ADD_ITEMS = [
   { key: "stick", name: "Stick", short: "Stick", hint: "X and Y", icon: '<circle cx="12" cy="6" r="3"/><path d="M12 9v8M6 20h12M9 17h6"/>' },
   { key: "pedals", name: "Pedals", short: "Pedals", hint: "Rudder and toe brakes", icon: '<path d="M4 20l2-13h4l-1 13zM15 20l-1-13h4l2 13z"/>' },
-  { key: "button", name: "Button", short: "Button", hint: "Any button or trigger", icon: '<circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="3"/>' },
+  { key: "button", name: "Button/Key", short: "Button/Key", hint: "Any button, trigger or keyboard key", icon: '<circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="3"/>' },
   { key: "throttle", name: "Throttle", short: "Throttle", hint: "One forward axis", icon: '<rect x="8.5" y="3" width="7" height="5" rx="1.5"/><path d="M12 8v9M6 20h12M9 17h6"/>' },
   { key: "axis", name: "Single Axis", short: "Axis", hint: "Slider, dial or twist", icon: '<path d="M4 12h16M7 9l-3 3 3 3M17 9l3 3-3 3"/>' },
   { key: "label", name: "Label", short: "Label", hint: "Text on screen", icon: '<path d="M5 6h14M12 6v13M9 19h6"/>' }
@@ -3445,8 +3598,8 @@ function renderWiz() {
     });
     return ol;
   };
-  const noPad = () => { const n = el("p", { class: "warn", id: "wiz-nopad" },
-    "No devices seen yet. Move any stick or press a button so your browser can see them."); n.hidden = connectedPads().length > 0; return n; };
+  const noPad = text => { const n = el("p", { class: "warn", id: "wiz-nopad" },
+    text || "No devices seen yet. Move any stick or press a button so your browser can see them."); n.hidden = connectedPads().length > 0; return n; };
   const actions = (...xs) => b.append(el("div", { class: "actions" }, ...xs));
 
   if (wiz.stage === "bg") {
@@ -3467,11 +3620,14 @@ function renderWiz() {
       "It's at the bottom middle of the screen. Drag it anywhere later.");
     if (wizAdded.length > 1) { const ul = el("ul", { class: "added", "aria-label": "Added so far" }); for (const n of wizAdded) ul.append(el("li", {}, n)); b.append(ul); }
     actions(el("button", { onclick: closeWizard }, "Done"),
-      el("button", { onclick: startButtonWizard }, "Add a Button"),
+      el("button", { onclick: startButtonWizard }, "Add a Button/Key"),
       el("button", { class: "primary", "data-autofocus": "", onclick: () => { wizBg = false; startDeviceWizard(); } }, "Add Another Device"));
   } else if (wiz.kind === "button" && wiz.stage === "press") {
-    head(...st(2, "Button"), "Press the Button You Want to Show", "Any button on any device. Hold it for a moment.");
-    b.append(el("p", { class: "tip", id: "wiz-hint", "aria-live": "polite" }), noPad());
+    head(...st(2, "Button/Key"), "Press the Button or Key You Want to Show", "Any button on any device (hold it for a moment), or any key on your keyboard.");
+    Object.assign(b.querySelector("#wiz-title"), { tabIndex: -1 }).dataset.autofocus = "";
+    b.append(el("p", { class: "tip", id: "wiz-hint", "aria-live": "polite" }),
+      noPad("No game devices seen yet. Keyboard keys work anyway; for a device button, press it once so your browser can see the device."));
+    if (!wiz.remap) b.append(el("p", { class: "tip" }, "Showing movement keys? ", el("button", { class: "text", onclick: addWasd, title: "Add W, A, S and D as keycaps, laid out like a keyboard" }, "Add W, A, S and D Keys")));
     actions(wiz.remap ? null : el("button", { onclick: startDeviceWizard }, "Back"), el("button", { onclick: closeWizard }, "Cancel"));
   } else if (wiz.stage === "type") {
     head(...(wizAdded.length ? [0, "Add Another"] : st(1)), "What Are You Adding?",
@@ -3492,8 +3648,9 @@ function renderWiz() {
     actions(wiz.remap ? el("button", { onclick: closeWizard }, "Cancel") : el("button", { onclick: startDeviceWizard }, "Back"),
       cur.optional ? el("button", { class: "primary", "data-autofocus": "", onclick: wizSkip }, "Skip, I Don't Have This") : null);
   } else {
-    const devText = wiz.kind === "button" ? `${devName(wiz.dev)}, ${wiz.hat ? "hat " + HAT_DIRS[wiz.hat.dir].toLowerCase() : "button " + (wiz.button + 1)}` : devName(wiz.dev);
-    head(...st(3), "Name It", `Detected ${devText}. The name shows on the widget, for example "Left Stick".`);
+    const devText = wiz.key ? `the ${keyLabel(wiz.key)} key on your keyboard`
+      : wiz.kind === "button" ? `${devName(wiz.dev)}, ${wiz.hat ? "hat " + HAT_DIRS[wiz.hat.dir].toLowerCase() : "button " + (wiz.button + 1)}` : devName(wiz.dev);
+    head(...st(3), "Name It", `Detected ${devText}. The name shows on the widget, for example ${wiz.key ? '"W" or "Boost"' : '"Left Stick"'}.`);
     const name = textIn(wiz, "name"); name.classList.add("name-in"); name.setAttribute("aria-label", "Widget name"); name.dataset.autofocus = "";
     name.addEventListener("keydown", e => { if (e.key === "Enter") wizFinish(); });
     b.append(name);
@@ -3662,13 +3819,13 @@ function unitsIn() {
   if (!unitMode) { try { unitMode = localStorage.getItem(UNITS_KEY) === "pct" ? "pct" : "px"; } catch (e) { unitMode = "px"; } }
   return unitMode;
 }
-const dimKeys = w => w.type === "stick" ? { w: "box", h: "box" }
+const dimKeys = w => w.type === "stick" ? { w: "box", h: "box" } : isDial(w) ? { w: "cd", h: "cd" }
   : isBar(w) ? (w.orient === "h" ? { w: "bh", h: "bw" } : { w: "bw", h: "bh" })
   : w.orient === "v" ? { w: "rh", h: "rw" } : { w: "rw", h: "rh" };
 // The key Fill sets, which stays with the stick's one size, a bar's length and a rudder's length.
-const fillKey = w => w.type === "stick" ? "box" : isBar(w) ? "bh" : "rw";
+const fillKey = w => w.type === "stick" ? "box" : isDial(w) ? "cd" : isBar(w) ? "bh" : "rw";
 function dimRows(p, ws, upd) {
-  const w0 = ws[0], stick = w0.type === "stick", [lo, hi] = stick ? STICK_PX : BAR_PX;
+  const w0 = ws[0], stick = w0.type === "stick", round = ws.every(isDial), [lo, hi] = stick ? STICK_PX : round ? DIAL_PX : BAR_PX;
   const mode = unitsIn();
   const units = { get v() { return unitMode; }, set v(x) { unitMode = x; try { localStorage.setItem(UNITS_KEY, x); } catch (e) {} } };
   choiceRow(p, "Size Unit", units, "v", [["px", "Px", "Pixels, as drawn at Size 100%."], ["pct", "Percent", "Percent of this widget's default size."]], () => renderPanel(), { aria: "Size unit" });
@@ -3702,6 +3859,7 @@ function dimRows(p, ws, upd) {
     return r;
   };
   if (stick) rowFor("Stick area", "w");
+  else if (round) rowFor("Dial size", "w");
   else { rowFor("Width", "w"); rowFor("Height", "h"); }
   if (w0.type === "pedals" && ws.some(w => w.axes && (w.axes.bl != null || w.axes.br != null)))
     p.append(el("div", { class: "hint small" }, "The brake bars follow the rudder's thickness."));
@@ -3725,7 +3883,13 @@ function layoutSection(p, ws) {
   if (ws.every(w => isBar(w) || w.type === "pedals")) {
     const def = w => w.orient || (w.type === "pedals" ? "h" : "v");
     const o = all(w => def(w), (w, k, v) => { w.orient = v; });
-    choiceRow(p, ws.every(w => w.type === "pedals") ? "Rudder bar" : "Bar direction", o, "v", [["v", "Vertical"], ["h", "Horizontal"]], upd);
+    choiceRow(p, ws.every(w => w.type === "pedals") ? "Rudder display" : "Display", o, "v", [["v", "Vertical"], ["h", "Horizontal"],
+      ["c", "Circular", "A dial that fills from the top: clockwise for positive, counterclockwise for negative. The value sits in the middle."]], () => { upd(); renderPanel(); });
+  }
+  if (ws.every(w => w.type === "button")) {
+    const shape = all(w => SHAPES[w.shape] ? w.shape : "box", (w, k, v) => { w.shape = v; });
+    choiceRow(p, "Shape", shape, "v", [["box", "Box", "Hugs the name, like before."], ["pill", "Pill", "Fully rounded ends."], ["circle", "Circle", "A round button."],
+      ["square", "Rounded Square", "As tall as it is wide."], ["keycap", "Keycap", "Looks like a key on a keyboard, and sinks when pressed."]], upd, { aria: "Button/Key shape", wrap: true });
   }
   if (ws.every(w => w.type === "button" || w.type === "label")) { p.append(el("h5", {}, "Text")); p.append(fontRows(ws, "title", upd)); }
   if (ws.every(w => w.type === "button")) {
@@ -3734,7 +3898,7 @@ function layoutSection(p, ws) {
   }
   if (ws.every(w => w.type === w0.type && FILL_TYPES.has(w.type))) dimRows(p, ws, upd);
   p.append(el("div", { class: "actions" }, el("button", { class: "subtle", onclick: () => {
-    const keys = ["pad", "radius", "depth", "dims", "showTitle", "showValues", "showAxisLabels", "scaleW", "scaleH", "orient", "boxW", "boxH", "fill", "fonts"];
+    const keys = ["pad", "radius", "depth", "dims", "showTitle", "showValues", "showAxisLabels", "scaleW", "scaleH", "orient", "boxW", "boxH", "fill", "fonts", "shape"];
     for (const w of ws) for (const k of keys) delete w[k];
     upd(); save(); renderPanel();
   } }, "Reset Layout")));
@@ -3918,7 +4082,7 @@ const sizeRow = (p, ws, upd) => pctRow(p, "Size", ws, w => w.size || 1, (w, v) =
 
 function renderWidgetPanel(p) {
   const w = selectedWidgets()[0]; if (!w) return;
-  const names = { stick: "Stick", throttle: "Throttle", pedals: "Pedals", axis: "Single Axis", button: "Button", label: "Label" };
+  const names = { stick: "Stick", throttle: "Throttle", pedals: "Pedals", axis: "Single Axis", button: "Button/Key", label: "Label" };
   const upd = () => { refreshWidget(w); syncSelectionClasses(); };
   const seen = w.match && padFor(w, connectedPads());
   panelHead(p, names[w.type] || w.type, w.type !== "label" && w.match && !seen ? "Device not connected. See Device below." : "", el("div", { class: "fields" }, fld("Name", textIn(w, "label", upd), null, true)));
@@ -3930,11 +4094,15 @@ function renderWidgetPanel(p) {
   colorSection(p, [w]);
   perspectiveSection(p, [w]);
   projectorSection(p, [w]);
-  if (w.type !== "label") {
+  if (w.key) {
+    const d = section(p, "Key", { key: "device", fam: "input", icon: "device", summary: keyLabel(w.key) });
+    d.append(el("div", { class: "hint small" }, `Lights while ${keyLabel(w.key)} is held. In OBS, keys reach the overlay only while its Interact window has focus.`));
+    d.append(el("div", { class: "actions" }, el("button", { onclick: () => startRemap(w), title: "Press a key or a device button to rebind it" }, "Detect Again")));
+  } else if (w.type !== "label") {
     const name = w.match ? deviceLabel(w.match, w.nth) : "";
     const d = section(p, "Device", { key: "device", fam: "input", icon: "device", summary: name ? name + (seen ? "" : " (not connected)") : "None yet" });
     d.append(el("div", { class: "hint small" }, !name ? "No device yet." : seen ? "Connected." : "Not connected. Move it or press a button to wake it."));
-    d.append(el("div", { class: "actions" }, el("button", { onclick: () => startRemap(w), title: w.type === "button" ? "Press the button again to remap it" : "Move the device again to remap it" }, "Detect Device"),
+    d.append(el("div", { class: "actions" }, el("button", { onclick: () => startRemap(w), title: w.type === "button" ? "Press a button or key to remap it" : "Move the device again to remap it" }, "Detect Device"),
       w.match && twinsOf(w, connectedPads()) > 1 ? el("button", { onclick: () => swapTwins(w.match) }, "Swap with Identical Device") : null));
     if (w.match && w.type !== "button" && TYPES[w.type]) {
       for (const s of TYPES[w.type].steps) if (w.axes[s.key] != null) {

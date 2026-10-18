@@ -85,7 +85,7 @@ test.describe("sizes", () => {
   test("defaults are on the 4 px scale", async ({ app, page }) => {
     await open(app, base([stick(), bar()]));
     const d = await page.evaluate(() => [dimsOf(profile.widgets[0]), dimsOf(profile.widgets[1]), PAD, RADIUS]);
-    expect(d).toEqual([{ box: 112 }, { bw: 20, bh: 104 }, 4, 8]);
+    expect(d).toEqual([{ box: 112 }, { bw: 20, bh: 104, cd: 80 }, 4, 8]);   // cd: the Circular display's diameter
   });
   test("a layout from before v2 keeps the size it drew", async ({ app, page }) => {
     const old = { savedAt: 1, settings: {}, widgets: [

@@ -10,7 +10,7 @@ const { DEV, AX, HAT_IDLE, ms, move, hold, btn, press, plug, unplug, noise, thro
 
 const toStick = page => h.toType(page, "Stick");
 const toType = (page, name) => h.toType(page, name);
-const toButton = page => h.toType(page, "Button");
+const toButton = page => h.toType(page, "Button/Key");
 const bound = (s, axes, inv) => {
   if (!s || s.stage !== "name") return `never finished (stage ${s && s.stage}, step ${s && s.step}, axes ${JSON.stringify(s && s.axes)})`;
   for (const k in axes) if (s.axes[k] !== axes[k] || (inv && s.inv[k] !== inv[k])) return `bound ${JSON.stringify(s.axes)} inv ${JSON.stringify(s.inv)}`;
