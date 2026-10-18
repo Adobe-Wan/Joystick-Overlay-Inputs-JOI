@@ -117,6 +117,11 @@ body.preview:not(.editing).has-widgets #preview-chip { display: flex; }
 /* Projection look: fine scanlines plus a faint beam of the highlight color from the top edge. Painted once. */
 .widget.scan::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
   background: repeating-linear-gradient(180deg, rgba(0,0,0,0) 0 2px, rgba(0,0,0,0.2) 2px 3px), linear-gradient(180deg, var(--beam, transparent), transparent 65%); }
+/* A radar face is the widget's edge, like the Gladius radar: no box behind the disc. The disc takes the widget's
+   background, and its scanlines (rscan) instead of the box's. Title and readouts stand on the scene like a Label. */
+.widget.radar { background: none !important; border-color: transparent !important; box-shadow: none !important; }
+.widget.radar canvas:not(.holo-fringe) { border-radius: 50%; background-color: var(--wbg); }
+.widget.radar.rscan > canvas { background-image: repeating-linear-gradient(180deg, rgba(0,0,0,0) 0 2px, rgba(0,0,0,0.2) 2px 3px); }
 /* Projector look: the widget is a hologram emitted from a base on the dash. Each projected widget has one rig
    (base disc, light cone, ray fan) under it, all static CSS and SVG painted once from the widget's projected corners.
    Colors are the --holo-* custom properties derived from the widget's theme; --holo-i scales every alpha with
@@ -2161,9 +2166,7 @@ function buildWidget(w, grow) {
     const roll = el("i", { class: "holo-roll" }, el("i"));
     root.append(inner, roll); rt.inner = inner;
     rt.roll = roll;
-    // A radar disc stands alone, like the Gladius radar: no rectangle of scanlines or beam around it (the disc carries
-    // its own, see .widget.holo.radar), and the roll is clipped to it once attachHolo knows where the disc sits.
-    if (isRadar(w)) { root.classList.add("radar"); root.classList.toggle("rscan", root.classList.contains("scan")); root.classList.remove("scan"); }
+    // A projected radar's roll is clipped to the disc once attachHolo knows where the disc sits.
     root.style.setProperty("--holo-fall-a", (1 - holoFalloff(w, holo) / 100).toFixed(2));
     root.style.setProperty("--holo-mask-dir", { below: "180deg", above: "0deg", left: "270deg", right: "90deg" }[holo.base.side] || "180deg");
     const tier = holoTier(holo), bright = holo.footage === "bright";
@@ -2179,6 +2182,9 @@ function buildWidget(w, grow) {
     // A radar disc has no frame in the Gladius: at Background opacity 0 its rectangle is gone, frame glow included.
     if ((w.bgAlpha ?? profile.settings.panelAlpha) > 0) root.style.borderColor = hexA(w.border || w.accent || profile.settings.accent, bright ? 1 : 0.85);
   }
+  // A radar disc stands alone, like the Gladius radar: no box, scanlines or beam around it (the disc carries its
+  // own, see .widget.radar).
+  if (isRadar(w)) { root.classList.add("radar"); root.classList.toggle("rscan", root.classList.contains("scan")); root.classList.remove("scan"); }
   if (selected.has(w.id)) root.classList.add("selected");
   return root;
 }
