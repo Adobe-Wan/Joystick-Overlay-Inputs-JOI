@@ -6,13 +6,13 @@ An OBS overlay for Star Citizen pilots. It shows your sticks, throttle, pedals a
 
 ## Download
 
-**[Download JOI.zip (latest version)](https://github.com/Adobe-Wan/stay-on-target/releases/latest/download/JOI.zip)**
+**[Download JOI.zip (latest version)](https://github.com/Adobe-Wan/Joystick-Overlay-Inputs-JOI/releases/latest/download/JOI.zip)**
 
 1. Click the link above. Your browser saves `JOI.zip`.
 2. Right-click the zip and choose **Extract All…** Put the folder somewhere permanent, for example `Documents\Joystick Overlay Inputs`. Don't run it from inside the zip or from your Downloads folder if you clean that out.
 3. Follow **Set up in OBS** below.
 
-Every version, with its change notes, is on the [Releases page](https://github.com/Adobe-Wan/stay-on-target/releases).
+Every version, with its change notes, is on the [Releases page](https://github.com/Adobe-Wan/Joystick-Overlay-Inputs-JOI/releases).
 
 **Requirements:** Windows, a recent OBS Studio, and any joystick, throttle, pedals or button box that Windows sees as a game controller. Nothing else to install.
 
