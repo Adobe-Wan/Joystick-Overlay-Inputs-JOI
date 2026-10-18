@@ -20,7 +20,7 @@ Every version, with its change notes, is on the [Releases page](https://github.c
 Download the new zip and replace `StayOnTarget.html` in your folder. Keep your `profile.js`: your layout comes back automatically. You don't need to change anything in OBS.
 
 ## Set up in OBS
-1. [Download](#download) and extract the zip. The folder holds `StayOnTarget.html`, the `Background Images for Edit Mode` sample screenshots, this README and the license. Keep them together.
+1. [Download](#download) and extract the zip. The folder holds `StayOnTarget.html`, the `Background Images for Edit Mode` sample screenshots, this README with its images and the license. Keep them together.
 2. In OBS, add a **Browser** source, check **Local file** and pick `StayOnTarget.html`.
    - **Width / Height:** use your OBS canvas size (Settings → Video → Base Canvas, usually **1920 × 1080**). The overlay then maps 1:1 to your screen, and you position widgets by dragging them in step 4 rather than by moving the source.
    - **FPS:** check **Use custom frame rate** and set **60**.

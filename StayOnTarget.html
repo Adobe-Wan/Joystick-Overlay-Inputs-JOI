@@ -98,17 +98,17 @@ body.preview:not(.editing).has-widgets #preview-chip { display: flex; }
 /* The cone is a soft light volume, brightest at the emitter and gone before the widget: a radial mask anchored on the
    base end feathers every edge, so the rays carry the beam and no hard trapezoid shows. */
 .holo-cone { background: linear-gradient(var(--holo-dir, 0deg), rgba(var(--holo-rays-rgb), calc(0.16 * var(--holo-i) + var(--holo-b))), rgba(var(--holo-rays-rgb), calc(0.03 * var(--holo-i) + 0.5 * var(--holo-b))) 60%, rgba(var(--holo-rays-rgb), 0));
-  -webkit-mask-image: radial-gradient(ellipse 58% 100% at var(--holo-mpos, 50% 100%), #000, rgba(0,0,0,0.45) 40%, transparent 92%); mask-image: radial-gradient(ellipse 58% 100% at var(--holo-mpos, 50% 100%), #000, rgba(0,0,0,0.45) 40%, transparent 92%); }
+  -webkit-mask-image: radial-gradient(ellipse 58% 100% at var(--holo-mpos, 50% 100%), #000, rgba(0,0,0,0.45) 40%, transparent 92%);
+  mask-image: radial-gradient(ellipse 58% 100% at var(--holo-mpos, 50% 100%), #000, rgba(0,0,0,0.45) 40%, transparent 92%); }
 .holo-rays { left: 0; top: 0; overflow: visible; }
 .holo-rays stop { stop-color: var(--holo-rays); }
-/* Sampled from the Gladius radar (16:9 reference): its beams add only about 0.1 brightness over the dark
+/* Matched to the Gladius radar: its beams add only about 0.1 brightness over the dark
    cockpit, read as soft bands rather than hard lines, and are nearly gone by the disc. */
 .holo-rays stop.a { stop-opacity: calc(0.3 * var(--holo-i) + var(--holo-b)); }
 .holo-rays stop.b { stop-opacity: calc(0.02 * var(--holo-i) + 0.5 * var(--holo-b)); }
 .holo-rays line { fill: none; stroke-linecap: round; }
 .holo-rays .rays line { stroke-width: 1; }
 .holo-rays .bloom line { stroke-width: 6; opacity: 0.14; }
-.holo-rays .debug circle { fill: none; stroke: var(--guide); stroke-width: 1; }
 .holo-base { border-radius: 50%; background: rgba(var(--holo-ped-rgb), 0.55); border: 1px solid rgba(var(--holo-acc-rgb), calc(0.9 * var(--holo-i) + var(--holo-b)));
   box-shadow: 0 0 6px rgba(var(--holo-acc-rgb), calc(0.6 * var(--holo-i))), inset 0 0 8px rgba(var(--holo-acc-rgb), calc(0.3 * var(--holo-i))); }
 .holo-base i { position: absolute; display: block; border-radius: 50%; }
@@ -133,8 +133,12 @@ body.editing .holo-rig.selected .holo-base { outline: 1px dashed var(--ui-accent
 .widget.holo.live.drop { margin-top: 1px; }
 /* The falloff toward the base is on the drawn faces only: readouts and titles stay fully legible, like the Gladius labels. */
 /* --holo-fall-a is what's left at the base end: 1 - Fade Toward Base. */
-.widget.holo .holo-in > canvas, .widget.holo .holo-in .bars { -webkit-mask-image: linear-gradient(var(--holo-mask-dir, 180deg), #000 0 60%, rgba(0,0,0,var(--holo-fall-a, 0.5)) 100%); mask-image: linear-gradient(var(--holo-mask-dir, 180deg), #000 0 60%, rgba(0,0,0,var(--holo-fall-a, 0.5)) 100%); }
-.widget.holo.radar .holo-in > canvas { -webkit-mask-image: linear-gradient(var(--holo-mask-dir, 180deg), #000 0 55%, rgba(0,0,0,var(--holo-fall-a, 0.7)) 100%); mask-image: linear-gradient(var(--holo-mask-dir, 180deg), #000 0 55%, rgba(0,0,0,var(--holo-fall-a, 0.7)) 100%); }
+.widget.holo .holo-in > canvas, .widget.holo .holo-in .bars {
+  -webkit-mask-image: linear-gradient(var(--holo-mask-dir, 180deg), #000 0 60%, rgba(0,0,0,var(--holo-fall-a, 0.5)) 100%);
+  mask-image: linear-gradient(var(--holo-mask-dir, 180deg), #000 0 60%, rgba(0,0,0,var(--holo-fall-a, 0.5)) 100%); }
+.widget.holo.radar .holo-in > canvas {
+  -webkit-mask-image: linear-gradient(var(--holo-mask-dir, 180deg), #000 0 55%, rgba(0,0,0,var(--holo-fall-a, 0.7)) 100%);
+  mask-image: linear-gradient(var(--holo-mask-dir, 180deg), #000 0 55%, rgba(0,0,0,var(--holo-fall-a, 0.7)) 100%); }
 /* Scan roll: a 2px band sweeping down the widget, compositor-only. Subtle tier and up. The outer element clips it
    (to the disc on a radar face); the band inside is what moves. */
 .widget.holo .holo-roll { display: none; position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
@@ -182,8 +186,6 @@ body.editing .holo-rig.selected .holo-base { outline: 1px dashed var(--ui-accent
 .look-prev.proj.above::after { bottom: auto; top: 0; }
 .look-prev i { display: block; width: 40px; height: 26px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.55); background: rgba(255,255,255,0.08); transform-origin: 50% 50%; }
 .look-prev i.disc { width: 30px; height: 30px; border-radius: 50%; }
-.sec.sub { border-top: 0; margin: 0.5rem 0 0; padding-top: 0; }
-.sec.sub .sec-t { text-transform: none; letter-spacing: 0; font-size: 0.95rem; color: #b6c3d1; font-weight: 600; }
 .look-prev i.holo { border-color: var(--ui-accent); box-shadow: 0 0 6px var(--ui-accent), inset 0 0 6px rgba(79,209,255,0.35);
   background: repeating-linear-gradient(180deg, rgba(79,209,255,0.12) 0 2px, rgba(79,209,255,0.03) 2px 3px); }
 .look-prev i.visor { background: none; }
@@ -341,6 +343,7 @@ input[type=checkbox] { accent-color: var(--ui-accent); width: 1.3rem; height: 1.
 #panel .row > span { color: #b6c3d1; }
 #panel .row select, #panel .row input[type=text], #panel .row input[type=number] { width: 11rem; }
 #panel .hint { color: #a9b6c4; line-height: 1.5; margin: 0.6rem 0; }
+#panel .hint.warn { color: #ffb547; }
 #panel .actions { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.9rem; }
 /* Panel sections: a header you can collapse (remembered per browser), an optional switch or summary beside it. */
 .sec { margin: 0.7rem 0 0; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 0.35rem; }
@@ -410,8 +413,6 @@ button.subtle:hover { border-color: rgba(255,255,255,0.3); color: var(--text); b
 .tsel-list li[aria-selected=true]::after { content: "✓"; margin-left: auto; }
 .wide-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.3rem; margin-top: 0.3rem; }
 .wide-row.three { grid-template-columns: repeat(3, 1fr); }
-.choices { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin: 0.8rem 0; }
-.choices button { padding: 1rem 0.6rem; font-size: 1.05rem; font-weight: 600; }
 .step { border: 1px solid rgba(255,255,255,0.15); border-radius: 0.5rem; padding: 0.8rem; margin: 0.6rem 0; color: #a9b6c4; }
 .step.active { border-color: var(--ui-accent); color: var(--text); }
 .step.done { color: var(--text); }
@@ -493,7 +494,6 @@ kbd { font: 600 0.9em var(--mono); padding: 0.1em 0.45em; border: 1px solid rgba
 #wizard .added li { padding: 0.25rem 0.7rem; border-radius: 1rem; background: rgba(79,209,255,0.14); color: var(--text); font-size: 0.93rem; }
 #wizard .added li::before { content: "✓ "; color: var(--ui-accent); }
 #wizard .actions { display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end; margin-top: 1.3rem; }
-#wizard .actions .spacer { flex: 1; }
 #wizard .tip { color: #a9b6c4; font-size: 0.93rem; margin-top: 1rem; }
 #wiz-hint:empty { display: none; }
 /* Round + button with a radial menu, bottom right of the editing area */
@@ -557,9 +557,13 @@ body:not(.editing):not(.has-widgets) #enter-edit { display: flex; }
     <h2 id="welcome-title">Welcome to Stay On Target</h2>
     <p class="lead">Show your sticks, throttle and pedals on stream, then watch your replays to see what your hands and feet were doing.</p>
     <ol>
-      <li><button class="wstep" data-welcome="bg"><span class="num">1</span><span><b>Choose a Reference Screenshot</b><small>A Star Citizen screenshot behind your widgets, so they sit around the HUD instead of on top of it. Only shown while editing.</small></span><span class="go" aria-hidden="true">›</span></button></li>
+      <li><button class="wstep" data-welcome="bg"><span class="num">1</span><span><b>Choose a Reference Screenshot</b>
+        <small>A Star Citizen screenshot behind your widgets, so they sit around the HUD instead of on top of it. Only shown while editing.</small></span>
+        <span class="go" aria-hidden="true">›</span></button></li>
       <li><button class="wstep" data-welcome="add"><span class="num">2</span><span><b>Add Your Devices</b><small>Pick Stick, Pedals or a Button, then move it when asked.</small></span><span class="go" aria-hidden="true">›</span></button></li>
-      <li><button class="wstep" data-welcome="arrange"><span class="num">3</span><span><b>Arrange, Then Leave Edit Mode</b><small>Drag widgets into place, then switch <i>Edit Mode</i> off (top bar) or press <kbd>E</kbd>.</small></span><span class="go" aria-hidden="true">›</span></button></li>
+      <li><button class="wstep" data-welcome="arrange"><span class="num">3</span><span><b>Arrange, Then Leave Edit Mode</b>
+        <small>Drag widgets into place, then switch <i>Edit Mode</i> off (top bar) or press <kbd>E</kbd>.</small></span>
+        <span class="go" aria-hidden="true">›</span></button></li>
     </ol>
     <div class="foot">
       <span>Already have a setup? <button class="text" data-welcome="import">Import a Profile</button></span>
@@ -627,9 +631,12 @@ body:not(.editing):not(.has-widgets) #enter-edit { display: flex; }
  */
 
 const STORE_KEY = "stayontarget.profile";
-const OLD_STORE_KEY = "joyviz2.v2.profile";   // carried over from the JoyViz 2 builds
+const OLD_STORE_KEY = "joyviz2.v2.profile";   // JoyViz 2, the app's former name: still read so those setups load
 const REF_KEY = "stayontarget.reference";
 const SNAP_PX = 6;                            // smart-guide snap distance, screen pixels
+const DESIGN_W = 1920, DESIGN_H = 1080;       // the canvas layouts are designed on
+const BASE_FONT_PX = 14;                      // the editor's rem at 100% (html font-size in the CSS)
+const PLACE_GAP = 16, CASCADE = 24;           // px between placed widgets; offset for a copy or a widget on another's spot
 const DEFAULT_SETTINGS = { scaleMode: "auto", scale: 1, uiScale: "auto", background: "transparent", bgColor: "#00ff00",
   accent: "#ffffff", text: "#ffffff", panel: "#121212", panelAlpha: 100, border: "", theme: "default", spaceGap: "",
   gridSnap: true, gridSize: 16, smartGuides: true, centerLines: true, margin: 24 };
@@ -643,8 +650,7 @@ const runtime = Object.create(null);   // keyed by widget id: no prototype, so a
 
 // Ship manufacturer MFD color schemes, sampled from each maker's in-game power management screen:
 // accent = a filled power pip (stick dot, bars, pressed buttons), border = an empty pip's outline,
-// background = the MFD background, primary = the MFD's text. Crusader, Banu and AopoA are fan picks
-// until we have screenshots of theirs.
+// background = the MFD background, primary = the MFD's text. Crusader, Banu and AopoA are fan picks.
 const MFG_THEMES = [
   { id: "aegis", name: "Aegis Dynamics", colors: { primary: "#CDE8EC", accent: "#92D0DA", background: "#0E1E27" }, border: "#3C616B" },
   { id: "anvil", name: "Anvil Aerospace", colors: { primary: "#B4F2E0", accent: "#84E0C8", background: "#182A29" }, border: "#3F6D6A" },
@@ -695,16 +701,20 @@ function prettyName(id) {
   const s = typeof id === "string" ? id : "";   // a label, or a widget not bound to a device yet, has no id
   return s.replace(/\s*\((STANDARD GAMEPAD\s*)?Vendor:.*\)\s*$/i, "").replace(/^[0-9a-f]{1,4}-[0-9a-f]{1,4}-/i, "").trim() || s;
 }
+// [r, g, b] of a #rgb or #rrggbb color, or null.
+function hexRgb(hex) {
+  const h = normHex(hex); if (!h) return null;
+  const n = parseInt(h.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255];
+}
 // Dark or light text, whichever reads better on a given fill (WCAG relative luminance).
 function onColor(hex) {
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex || ""); if (!m) return "#031018";
-  const n = parseInt(m[1], 16), lin = c => { c /= 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
-  const L = 0.2126 * lin(n >> 16) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
+  const c = hexRgb(hex); if (!c) return "#031018";
+  const lin = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+  const L = 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2]);
   return L > 0.18 ? "#031018" : "#ffffff";
 }
 function hexA(hex, a) {
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex || ""); if (!m) return `rgba(79,209,255,${a})`;
-  const n = parseInt(m[1], 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`;
+  const c = hexRgb(hex); return c ? `rgba(${c.join(",")},${a})` : `rgba(79,209,255,${a})`;   // UI cyan for a missing color
 }
 
 // ---------- devices ----------
@@ -795,6 +805,8 @@ function newProfile() { return { savedAt: 0, settings: { ...DEFAULT_SETTINGS }, 
 // A widget that can't be repaired (bad id, unknown type) is dropped.
 const WIDGET_TYPES = new Set(["stick", "throttle", "pedals", "axis", "button", "label"]);
 const AXIS_TYPES = new Set(["stick", "throttle", "pedals", "axis"]);
+const isRadar = w => w.type === "stick" && w.face === "radar";
+const isBar = w => w.type === "throttle" || w.type === "axis";
 const ID_RE = /^[\w-]{1,32}$/;
 const isObj = v => !!v && typeof v === "object" && !Array.isArray(v);
 const inRange = (v, lo, hi) => v != null && v !== "" && Number.isFinite(+v) ? clamp(+v, lo, hi) : undefined;
@@ -865,7 +877,7 @@ function normalize(p) {
   const ids = new Set();
   n.widgets = (Array.isArray(p.widgets) ? p.widgets : []).map(normalizeWidget).filter(Boolean);
   for (const w of n.widgets) { while (ids.has(w.id)) w.id = uid(); ids.add(w.id); }   // two widgets can't share one runtime entry
-  // Earlier builds defaulted to a see-through 62% background, too faint over Star Citizen's HUD.
+  // Migrate the former 62% default background, too faint over Star Citizen's HUD, to 88%.
   if (n.settings.panelAlpha === 62) { n.settings.panelAlpha = 88; n.settings.panel = "#05080c"; n.settings.text = "#f2f7fb"; }
   for (const w of n.widgets) {
     if (w.bgAlpha === 62) { w.bgAlpha = 88; if (w.bg === "#080c12") w.bg = "#05080c"; }
@@ -964,7 +976,8 @@ function download(name, text, type) {
 function exportProfile(asScript) {
   profile.savedAt = Date.now(); stampLayout();
   const json = JSON.stringify(profile, null, 2);
-  if (asScript) download("profile.js", "// Stay On Target profile: a personal backup. Keep it next to StayOnTarget.html. It runs as a script, so don't share it; share the .json instead.\nwindow.STAYONTARGET_PROFILE = " + json + ";\n", "text/javascript");
+  const note = "// Stay On Target profile: a personal backup. Keep it next to StayOnTarget.html. It runs as a script, so don't share it; share the .json instead.";
+  if (asScript) download("profile.js", note + "\nwindow.STAYONTARGET_PROFILE = " + json + ";\n", "text/javascript");
   else download("stayontarget-profile.json", json, "application/json");
 }
 // A real profile is a few kilobytes; anything near this is not one, and parsing it would only cost memory.
@@ -983,8 +996,8 @@ function importProfileText(text) {
 }
 
 // ---------- device types ----------
-// Each wizard step captures one axis. dir says which way the user moves it, so we can
-// auto-invert: after capture, "positive" always means right / forward / pressed.
+// Each wizard step captures one axis. dir says which way the user moves it, so the binding
+// inverts itself: after capture, "positive" always means right / forward / pressed.
 const TYPES = {
   stick: { name: "Stick", steps: [
     { key: "x", ask: "Move the stick fully RIGHT", dir: +1 },
@@ -1214,7 +1227,7 @@ function wizFinish() {
 // goes above it. Widgets the user placed elsewhere are never moved.
 function addAndPlace(w) {
   profile.widgets.push(w); rebuildAll();
-  const C = canvasSize(), m = profile.settings.margin, gap = 16, b = boxOf(w), floor = C.h - m;
+  const C = canvasSize(), m = profile.settings.margin, gap = PLACE_GAP, b = boxOf(w), floor = C.h - m;
   const row = profile.widgets.filter(o => o !== w && Math.abs(o.y + boxOf(o).h - floor) <= 2);
   w.x = Math.round((C.w - b.w) / 2); w.y = Math.round(floor - b.h);
   if (row.length) {
@@ -1227,7 +1240,7 @@ function addAndPlace(w) {
     } else if (!centered && u.x + u.w + gap + b.w <= C.w - m) w.x = Math.round(u.x + u.w + gap);
     else w.y = Math.round(u.y - gap - b.h);
   }
-  while (profile.widgets.some(o => o !== w && o.x === w.x && o.y === w.y)) { w.x += 24; w.y -= 24; }
+  while (profile.widgets.some(o => o !== w && o.x === w.x && o.y === w.y)) { w.x += CASCADE; w.y -= CASCADE; }
   positionWidget(w); save(); setSelection([w.id]);
 }
 
@@ -1323,8 +1336,7 @@ function styleWidget(root, w) {
 const depthOf = w => holoOf(w).on ? 0 : clamp((w.depth || 0) / 100, 0, 1);   // Projector ignores depth: an extruded bezel is not a hologram
 // Blend two #rrggbb colors; t = 0 gives a, 1 gives b.
 function mixHex(a, b, t) {
-  const p = h => { const m = /^#?([0-9a-f]{6})$/i.exec(h || ""); const n = m ? parseInt(m[1], 16) : 0; return [n >> 16, (n >> 8) & 255, n & 255]; };
-  const A = p(a), B = p(b);
+  const A = hexRgb(a) || [0, 0, 0], B = hexRgb(b) || [0, 0, 0];
   return "#" + A.map((v, i) => Math.round(v + (B[i] - v) * t).toString(16).padStart(2, "0")).join("");
 }
 // 2.5D look: perspective + rotations + skew in a single transform string. The browser
@@ -1351,30 +1363,33 @@ const LOOK_PRESETS = [
   { name: "Left Holo", tile: "Left Wall", group: "Holograms", hint: "A hologram hanging off the left wall of the cockpit.", persp: { ry: 48, d: 700 }, proj: { glow: 60, fade: 50 } },
   { name: "Right Holo", tile: "Right Wall", group: "Holograms", hint: "A hologram hanging off the right wall of the cockpit.", persp: { ry: -48, d: 700 }, proj: { glow: 60, fade: 50 } },
   // Projector looks: the hologram stands in a beam from a base on the dash. Dash Radar lies nearly flat, seen from
-  // above like the Gladius radar, with no panel behind the disc (fade 100: a faint rectangle gave it away).
-  { name: "Dash Radar", tile: "Dash Radar", group: "Projectors", hint: "A radar disc projected up from the dash, like the Gladius.", persp: { rx: 62, d: 700 }, proj: { glow: 60, fade: 100 }, holo: { on: true, base: { side: "below" }, rays: 11 }, face: "radar" },
+  // above like the Gladius radar, with fade 100 so no faint rectangle shows behind the disc.
+  { name: "Dash Radar", tile: "Dash Radar", group: "Projectors", hint: "A radar disc projected up from the dash, like the Gladius.",
+    persp: { rx: 62, d: 700 }, proj: { glow: 60, fade: 100 }, holo: { on: true, base: { side: "below" }, rays: 11 }, face: "radar" },
   { name: "Dash Projector", tile: "Dash", group: "Projectors", hint: "An upright hologram standing in a beam from the console.", persp: { rx: 12, d: 900 }, proj: { glow: 55, fade: 65 }, holo: { on: true } },
   { name: "Left Projector", tile: "Left", group: "Projectors", hint: "Projected from the left console, turned toward you.", persp: { rx: 8, ry: 34, d: 800 }, proj: { glow: 55, fade: 65 }, holo: { on: true, base: { side: "below", dx: 18 } } },
   { name: "Right Projector", tile: "Right", group: "Projectors", hint: "Projected from the right console, turned toward you.", persp: { rx: 8, ry: -34, d: 800 }, proj: { glow: 55, fade: 65 }, holo: { on: true, base: { side: "below", dx: -18 } } },
   { name: "Overhead Projector", tile: "Overhead", group: "Projectors", hint: "Hangs down from a projector in the canopy frame.", persp: { rx: -24 }, proj: { glow: 55, fade: 65 }, holo: { on: true, base: { side: "above" } } }
 ];
 // Projector look: the widget is a hologram emitted from a base on the dash, like the Gladius radar. Off by
-// default; a widget without `holo` renders exactly as before. tier: static (painted once) | subtle (slow float,
+// default; a widget without `holo` renders flat. tier: static (painted once) | subtle (slow float,
 // rare dropout) | full (dynamic fringe, tears, photons, dust). base.side: below|above|left|right, dx/dy in widget
 // px, size %. rays 0 hides them; rayMode corners: one ray to each corner of the widget, the rest spread around its
-// outline (edge: the older fan along the edge facing the base). footage: bright raises every alpha for planet glare
+// outline (edge: a fan along the edge facing the base). footage: bright raises every alpha for planet glare
 // and clouds. falloff: how much the drawn face dims toward the base, 0-100 (null: 50, or 30 on a radar disc).
 // Motion and effects start off (Still, no float, flicker or fringe) so users add them one at a time.
 const HOLO_DEFAULT = { on: false, tier: "static", intensity: 70, base: { side: "below", dx: 0, dy: 0, size: 100 },
   rays: 9, rayMode: "corners", falloff: null, cone: true, float: false, flicker: false, fringe: false, footage: "dark" };
 // The base disc lies on the dash, so its squash follows the widget's tilt: a 0.28 dish for an upright widget (the
 // dash seen almost edge-on), growing by 0.22 × sin(tilt) as the widget lies back. Dash Radar (62°) lands on 0.47,
-// the ratio of the Gladius disc. Tuned by eye against the 16:9 reference.
+// the ratio of the Gladius disc.
 const HOLO_SQUASH = [0.28, 0.22];
 const HOLO_STILL = { tx: 0, ty: 0, rx: 0 };   // the idle float at rest
-const holoFalloff = (w, h) => h.falloff ?? (w.type === "stick" && w.face === "radar" ? 30 : 50);
+const holoFalloff = (w, h) => h.falloff ?? (isRadar(w) ? 30 : 50);
+// Intensity 70% is the reference strength (gain 1); 100% gives about 1.43.
+const HOLO_I_REF = 70;
+const holoGain = h => clamp(h.intensity / HOLO_I_REF, 0, 100 / HOLO_I_REF);
 const holoOf = w => ({ ...HOLO_DEFAULT, ...(w.holo || {}), base: { ...HOLO_DEFAULT.base, ...((w.holo || {}).base || {}) } });
-const HOLO_DEBUG = new URLSearchParams(location.search).has("holodebug");   // marks the computed corners on the rig
 // Every projector color comes from the widget's theme, so the hologram reads as that manufacturer's light.
 // core = the accent pushed toward white (hot center, rim ticks, slit); glow = halos; rays = the beam. Near-white
 // accents (RSI, Esperia, Default) would give a colorless projector: they borrow the border's hue when it has one
@@ -1385,7 +1400,6 @@ function deriveHolo({ accent, border, bg }) {
   const low = hsv(accent).s < 0.12, bd = border ? hsv(border) : null;
   const src = !low ? accent : bd && bd.s >= 0.25 && bd.v >= 0.5 ? border : "#dcebff";
   const { h, s, v } = hsv(src), b = hsv(bg);
-  const n = parseInt(normHex(src).slice(1), 16);
   return {
     core: hsvToHex(h, s * 0.45, Math.min(v + 0.35, 0.98)),
     glow: hsvToHex(h, s, Math.min(v + 0.1, 1)),
@@ -1393,22 +1407,23 @@ function deriveHolo({ accent, border, bg }) {
     pedestal: hsvToHex(b.h, b.s, Math.min(b.v, 0.25)),   // always dark hardware, whatever the custom color
     fringeA: low ? "#ff2a5a" : hsvToHex((h + 210) % 360, 0.9, 0.95),
     fringeB: low ? "#2ad7ff" : hsvToHex((h + 150) % 360, 0.9, 0.95),
-    accRgb: `${n >> 16},${(n >> 8) & 255},${n & 255}`
+    accRgb: rgbOf(src)
   };
 }
-const lookPersp = l => ({ ...PERSP_DEFAULT, ...l.persp });
-const lookProj = l => ({ ...PROJ_DEFAULT, ...(l.proj || {}) });
+const perspOf = o => ({ ...PERSP_DEFAULT, ...(o.persp || {}) });
+const projOf = o => ({ ...PROJ_DEFAULT, ...(o.proj || {}) });
+const lookPersp = perspOf, lookProj = projOf;   // presets carry persp / proj the way widgets do
 const lookHolo = l => holoOf({ holo: l.holo });
 // Two projector settings are the same look when both are off, whatever else they remember, or when they match.
 const sameHolo = (a, b) => (!a.on && !b.on) || JSON.stringify(a) === JSON.stringify(b);
 const sameLook = (w, l) => {
-  const p = { ...PERSP_DEFAULT, ...(w.persp || {}) }, q = { ...PROJ_DEFAULT, ...(w.proj || {}) }, lp = lookPersp(l), lq = lookProj(l);
+  const p = perspOf(w), q = projOf(w), lp = lookPersp(l), lq = lookProj(l);
   return Object.keys(lp).every(k => p[k] === lp[k]) && Object.keys(lq).every(k => q[k] === lq[k])
     && sameHolo(holoOf(w), lookHolo(l)) && (w.type !== "stick" || (w.face || "square") === (l.face || "square"));
 };
 // Glow, fade and scanlines on top of the widget's colors. Runs after styleWidget, so colors stay the theme's.
 function applyProjection(root, w) {
-  const pr = { ...PROJ_DEFAULT, ...(w.proj || {}) };
+  const pr = projOf(w);
   const g = clamp((pr.glow || 0) / 100, 0, 1), fade = clamp((pr.fade || 0) / 100, 0, 1);
   const accent = w.accent || profile.settings.accent, alpha = (w.bgAlpha ?? profile.settings.panelAlpha) / 100;
   root.classList.toggle("scan", !!pr.scan);
@@ -1428,7 +1443,7 @@ function applyPerspective(root, w) {
   const p = w.persp, h = holoOf(w), live = h.on && holoTier(h) !== "static";
   const flat = !live && (!p || (!p.rx && !p.ry && !p.rz && !p.sx && !p.sy));
   root.classList.toggle("tilted", !flat);
-  const q = p || {}, pre = `perspective(${q.d || 900}px)`, post = `rotateX(${q.rx || 0}deg) rotateY(${q.ry || 0}deg) rotateZ(${q.rz || 0}deg) skew(${q.sx || 0}deg, ${q.sy || 0}deg)`;
+  const q = p || {}, pre = `perspective(${q.d || PERSP_DEFAULT.d}px)`, post = `rotateX(${q.rx || 0}deg) rotateY(${q.ry || 0}deg) rotateZ(${q.rz || 0}deg) skew(${q.sx || 0}deg, ${q.sy || 0}deg)`;
   root.style.transform = flat ? "" : pre + (live ? " translate(0.00px, 0.00px) " : " ") + post;
   if (live && h.float) { root.style.setProperty("--holo-pre", pre); root.style.setProperty("--holo-post", post); }
 }
@@ -1445,9 +1460,9 @@ function positionWidget(w, size) {
 const DIMS = { stick: { box: 150 }, throttle: { bw: 26, bh: 140 }, axis: { bw: 26, bh: 140 }, pedals: { rw: 200, rh: 22, bkw: 18, bkh: 50 } };
 // A horizontal throttle or axis is drawn like the pedals' rudder bar, so the two come out the same size side by side.
 const DIMS_H = { bw: DIMS.pedals.rh, bh: DIMS.pedals.rw };
-const dimsOf = w => ({ ...(DIMS[w.type] || {}), ...((w.type === "throttle" || w.type === "axis") && w.orient === "h" ? DIMS_H : {}), ...(w.dims || {}) });
+const dimsOf = w => ({ ...(DIMS[w.type] || {}), ...(isBar(w) && w.orient === "h" ? DIMS_H : {}), ...(w.dims || {}) });
 const RADIUS = 8, PAD = 8;
-const SIZE_BASE = 0.75;   // "Size 100%" draws at 75% of the original scale (the old 75% looked right as the default)
+const SIZE_BASE = 0.75;   // "Size 100%" draws at 75% of the DIMS sizes
 // Content: Fill (w.fill) grows the stick, bar or rudder into a fixed Width / Height box, like Figma's Fill against
 // Hug. buildWidget measures the widget at its normal size, then builds it once more with the inner size grown by the
 // spare room: a stick grows by the smaller spare side so it stays square, a bar or rudder grows along its length.
@@ -1455,9 +1470,16 @@ const FILL_TYPES = new Set(["stick", "throttle", "axis", "pedals"]);
 function fillGrow(w, D, ex, ey, k, kx, ky) {
   const ok = v => isFinite(v) && v >= 0.5;
   if (w.type === "stick") { const d = Math.min(ex, ey); return ok(d) ? { box: D.box + d / k } : null; }
-  if (w.type === "throttle" || w.type === "axis") { const d = w.orient === "h" ? ex : ey; return ok(d) ? { bh: D.bh + d / k } : null; }
+  if (isBar(w)) { const d = w.orient === "h" ? ex : ey; return ok(d) ? { bh: D.bh + d / k } : null; }
   if (w.type === "pedals") { const d = w.orient === "v" ? ey / ky : ex / kx; return ok(d) ? { rw: D.rw + d / k } : null; }
   return null;
+}
+// A built widget's natural size: laid out once, hidden, on the stage (build time only, never per frame).
+function measureRoot(root) {
+  root.style.visibility = "hidden"; $("#stage").append(root);
+  const size = { w: root.offsetWidth, h: root.offsetHeight };
+  root.remove(); root.style.visibility = "";
+  return size;
 }
 function buildWidget(w, grow) {
   const root = el("div", { class: "widget", "data-id": w.id });
@@ -1494,7 +1516,7 @@ function buildWidget(w, grow) {
     const ro = readout(el("span", {}, lab("X"), span("x")), el("span", {}, lab("Y"), span("y")));
     if (ro) { ro.classList.add("pair"); ro.style.minWidth = rt.canvas.style.width; }
     root.append(...[title, rt.canvas, ro].filter(Boolean));
-  } else if (w.type === "throttle" || w.type === "axis") {
+  } else if (isBar(w)) {
     // bw = thickness, bh = length; a horizontal bar just swaps them.
     rt.canvas = w.orient === "h" ? makeCanvas(D.bh * k, D.bw * k) : makeCanvas(D.bw * k, D.bh * k);
     root.append(...[title, rt.canvas, readout(span("v"))].filter(Boolean));
@@ -1523,10 +1545,8 @@ function buildWidget(w, grow) {
     root.style.fontSize = 13 * k + "px";
     root.textContent = w.label || "Button";
     if (kx !== 1 || ky !== 1) {
-      // Measure the natural box once (build time only, never per frame), then stretch it.
-      root.style.visibility = "hidden"; $("#stage").append(root);
-      const nw = root.offsetWidth, nh = root.offsetHeight; root.remove(); root.style.visibility = "";
-      Object.assign(root.style, { width: Math.round(nw * kx) + "px", height: Math.round(nh * ky) + "px", minWidth: "0", boxSizing: "border-box",
+      const n = measureRoot(root);
+      Object.assign(root.style, { width: Math.round(n.w * kx) + "px", height: Math.round(n.h * ky) + "px", minWidth: "0", boxSizing: "border-box",
         display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", whiteSpace: "nowrap" });
     }
   } else if (w.type === "label") {
@@ -1535,9 +1555,8 @@ function buildWidget(w, grow) {
     root.textContent = w.label || "Label";
   }
   if (!grow && w.fill && (w.boxW || w.boxH) && FILL_TYPES.has(w.type)) {
-    root.style.visibility = "hidden"; $("#stage").append(root);
-    const nw = root.offsetWidth, nh = root.offsetHeight; root.remove(); root.style.visibility = "";
-    const g = fillGrow(w, D, w.boxW ? w.boxW - nw : Infinity, w.boxH ? w.boxH - nh : Infinity, k, kx, ky);
+    const n = measureRoot(root);
+    const g = fillGrow(w, D, w.boxW ? w.boxW - n.w : Infinity, w.boxH ? w.boxH - n.h : Infinity, k, kx, ky);
     if (g) return buildWidget(w, g);
   }
   // Width / Height in px (typed, or from Match Width / Height): a fixed box with the content centered in it. A
@@ -1553,7 +1572,7 @@ function buildWidget(w, grow) {
     rt.roll = roll;
     // A radar disc stands alone, like the Gladius radar: no rectangle of scanlines or beam around it (the disc carries
     // its own, see .widget.holo.radar), and the roll is clipped to it once attachHolo knows where the disc sits.
-    if (w.type === "stick" && w.face === "radar") { root.classList.add("radar"); root.classList.toggle("rscan", root.classList.contains("scan")); root.classList.remove("scan"); }
+    if (isRadar(w)) { root.classList.add("radar"); root.classList.toggle("rscan", root.classList.contains("scan")); root.classList.remove("scan"); }
     root.style.setProperty("--holo-fall-a", (1 - holoFalloff(w, holo) / 100).toFixed(2));
     root.style.setProperty("--holo-mask-dir", { below: "180deg", above: "0deg", left: "270deg", right: "90deg" }[holo.base.side] || "180deg");
     const tier = holoTier(holo), bright = holo.footage === "bright";
@@ -1561,13 +1580,13 @@ function buildWidget(w, grow) {
     if (tier !== "static") {
       // The ripple and the float run as CSS animations (holoKeyframes), each widget at its own phase so they never
       // flicker in unison. --holo-env is the ripple's depth: half its amplitude (3 %, Full 6 %) times Intensity.
-      const k = clamp(holo.intensity / 70, 0, 1.43), ph = rt.holoPhase = rt.holoPhase ?? Math.random() * 100;
+      const k = holoGain(holo), ph = rt.holoPhase = rt.holoPhase ?? Math.random() * 100;
       root.style.setProperty("--holo-env", ((tier === "full" ? 0.06 : 0.03) / 2 * k).toFixed(4));
       root.style.setProperty("--holo-delay", -(ph % HOLO_ENV_S).toFixed(2) + "s");
       if (holo.float) { root.classList.add("float"); root.style.setProperty("--holo-k", k.toFixed(3)); root.style.setProperty("--holo-fdelay", -(ph % HOLO_FLOAT_S).toFixed(2) + "s"); }
     }
     // A radar disc has no frame in the Gladius: its rectangle fades out with Background fade and loses the frame glow.
-    const fade = w.type === "stick" && w.face === "radar" ? clamp(({ ...PROJ_DEFAULT, ...(w.proj || {}) }).fade / 100, 0, 1) : 0;
+    const fade = isRadar(w) ? clamp(projOf(w).fade / 100, 0, 1) : 0;
     if (fade) root.style.boxShadow = "none";
     if ((w.bgAlpha ?? profile.settings.panelAlpha) > 0) root.style.borderColor = hexA(w.border || w.accent || profile.settings.accent, (bright ? 1 : 0.85) * (1 - fade));
   }
@@ -1594,22 +1613,22 @@ function holoSprite(rt, color) {
 // One rig per projected widget, inserted under it: a base disc, a light cone and a fan of rays that meet the
 // widget where the browser draws it. Laid out once from the widget's projected corners; moving the widget just
 // moves the rig, and nothing in it changes size per frame.
-const rgbOf = hex => { const n = parseInt((normHex(hex) || "#ffffff").slice(1), 16); return `${n >> 16},${(n >> 8) & 255},${n & 255}`; };
+const rgbOf = hex => (hexRgb(hex) || [255, 255, 255]).join(",");
 const holoBaseDiam = len => clamp(0.36 * len, 40, 150);   // the pedestal's width at Base Size 100%, from the widget's width (or height for a side base)
 const holoSquash = deg => clamp(HOLO_SQUASH[0] + HOLO_SQUASH[1] * Math.abs(Math.sin((deg || 0) * Math.PI / 180)), 0, 0.75);
 const holoColorsOf = w => deriveHolo({ accent: w.accent || profile.settings.accent, border: w.border || "", bg: w.bg || profile.settings.panel });
 function setHoloVars(e, d, h) {
-  const v = { core: d.core, glow: d.glow, rays: d.rays, "acc-rgb": d.accRgb, "core-rgb": rgbOf(d.core), "rays-rgb": rgbOf(d.rays), "ped-rgb": rgbOf(d.pedestal),
-    "fringe-a": hexA(d.fringeA, 0.45), "fringe-b": hexA(d.fringeB, 0.45), i: clamp(h.intensity / 70, 0, 1.43).toFixed(3), b: h.footage === "bright" ? 0.15 : 0 };
+  const v = { core: d.core, rays: d.rays, "acc-rgb": d.accRgb, "core-rgb": rgbOf(d.core), "rays-rgb": rgbOf(d.rays), "ped-rgb": rgbOf(d.pedestal),
+    i: holoGain(h).toFixed(3), b: h.footage === "bright" ? 0.15 : 0 };
   for (const k in v) e.style.setProperty("--holo-" + k, v[k]);
 }
 const svgEl = (tag, attrs = {}) => { const e = document.createElementNS("http://www.w3.org/2000/svg", tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; };
 // The same matrix applyPerspective() writes (origin 50% 50%, perspective, float, rotateX/Y/Z, skew), so the rays
 // land on the real edge. The rays aim at the float's rest position: it drifts by 2 px at most. Reading getBoundingClientRect() instead would lose the trapezoid and force layout.
 function holoMatrix(w, rt, idle) {
-  const W = rt.W, H = rt.H, p = { ...PERSP_DEFAULT, ...(w.persp || {}) };
+  const W = rt.W, H = rt.H, p = perspOf(w);
   let m = new DOMMatrix().translate(W / 2, H / 2);
-  const persp = new DOMMatrix(); persp.m34 = -1 / (p.d || 900); m = m.multiply(persp);
+  const persp = new DOMMatrix(); persp.m34 = -1 / (p.d || PERSP_DEFAULT.d); m = m.multiply(persp);
   m = m.translate(idle.tx, idle.ty);
   // CSS applies rotateX, then rotateY, then rotateZ; DOMMatrix.rotate(x, y, z) would apply them Z, Y, X, so one axis at a time.
   m = m.rotate((p.rx || 0) + idle.rx, 0, 0).rotate(0, p.ry || 0, 0).rotate(0, 0, p.rz || 0);
@@ -1640,7 +1659,7 @@ function attachHolo(w, rt, measured) {
   const root = rt.root, id = "hr-" + w.id;
   if (!measured) measureHolo(rt);
   // A radar disc takes its rays on the rim, like the Gladius; everything else on the edge facing the base.
-  rt.holoDisc = w.type === "stick" && w.face === "radar" && rt.canvas ? { x: rt.canvasAt.x + rt.canvas._w / 2, y: rt.canvasAt.y + rt.canvas._h / 2, r: rt.canvas._w / 2 } : null;
+  rt.holoDisc = isRadar(w) && rt.canvas ? { x: rt.canvasAt.x + rt.canvas._w / 2, y: rt.canvasAt.y + rt.canvas._h / 2, r: rt.canvas._w / 2 } : null;
   if (rt.holoDisc) Object.assign(rt.roll.style, { left: (rt.holoDisc.x - rt.holoDisc.r) + "px", top: (rt.holoDisc.y - rt.holoDisc.r) + "px", width: rt.holoDisc.r * 2 + "px", height: rt.holoDisc.r * 2 + "px", borderRadius: "50%" });
   const rig = el("div", { class: "holo-rig", "data-for": w.id });
   setHoloVars(rig, rt.holoColors, h);
@@ -1648,7 +1667,7 @@ function attachHolo(w, rt, measured) {
   const grad = svgEl("radialGradient", { id, gradientUnits: "userSpaceOnUse" });
   grad.append(svgEl("stop", { offset: "0", class: "a" }), svgEl("stop", { offset: "1", class: "b" }));
   const defs = svgEl("defs"); defs.append(grad);
-  // No dot where a ray lands: the Gladius beams just fade into the hologram (end dots read too heavy).
+  // No dot where a ray lands: the beams fade into the hologram.
   const bloom = svgEl("g", { class: "bloom" }), lines = svgEl("g", { class: "rays" });
   rt.rayLines = []; rt.rayBloom = []; rt.rayGrad = grad;
   const n = clamp(Math.round(h.rays), 0, 15), edgeFan = !rt.holoDisc && h.rayMode === "edge";
@@ -1661,7 +1680,6 @@ function attachHolo(w, rt, measured) {
     lines.append(l); bloom.append(b); rt.rayLines.push(l); rt.rayBloom.push(b);
   }
   svg.append(defs, bloom, lines);
-  if (HOLO_DEBUG) { const g = svgEl("g", { class: "debug" }); rt.debugDots = [0, 1, 2, 3].map(() => { const c = svgEl("circle", { r: 3 }); g.append(c); return c; }); svg.append(g); }
   const cone = el("div", { class: "holo-cone" }, el("i", { class: "holo-dust" }));
   const base = el("div", { class: "holo-base" }, el("i", { class: "ring" }), el("i", { class: "core" }), el("i", { class: "slit" }));
   if (!h.cone) cone.style.display = "none";
@@ -1732,7 +1750,7 @@ function tearStrip(c, rt) {
 // reads, so a Base Offset scrub or the idle-float tick can call it directly.
 function layoutHolo(w, rt, idle = HOLO_STILL) {
   const h = holoOf(w), side = h.base.side, W = rt.W, H = rt.H, m = holoMatrix(w, rt, idle);
-  const P = (x, y) => projectPt(m, x, y), p = { ...PERSP_DEFAULT, ...(w.persp || {}) };
+  const P = (x, y) => projectPt(m, x, y), p = perspOf(w);
   const c = rt.holoCorners = [[0, 0], [W, 0], [W, H], [0, H]].map(([x, y]) => P(x, y));
   const vert = side === "below" || side === "above";
   // Base: a pedestal about a third of the widget wide, centered under (over, beside) the facing edge, squashed like
@@ -1763,13 +1781,14 @@ function layoutHolo(w, rt, idle = HOLO_STILL) {
   let far = 1; for (const q of pts) far = Math.max(far, Math.hypot(q.x - bx, q.y - by));
   for (const [k, v] of [["cx", bx + ox], ["cy", by + oy], ["fx", bx + ox], ["fy", by + oy], ["r", far]]) rt.rayGrad.setAttribute(k, f(v));
   for (const e of [...rt.rayLines, ...rt.rayBloom]) { e.setAttribute("x1", f(bx + ox)); e.setAttribute("y1", f(by + oy)); }
-  aimRays(w, rt, pts);
+  aimRays(rt, pts);
   // Photons travel the rest position of the first, middle and last ray; each one's keyframes read these variables.
   rt.photons.forEach((ph, i) => {
     const q = pts[[0, Math.floor((rt.rayLines.length - 1) / 2), rt.rayLines.length - 1][i]] || pts[0]; if (!q) return;
-    for (const [k, v] of [["--x0", f(bx + ox) + "px"], ["--y0", f(by + oy) + "px"], ["--x1", f(q.x + ox) + "px"], ["--y1", f(q.y + oy) + "px"], ["--dur", (2.5 + i * 0.6).toFixed(1) + "s"], ["--delay", (-i * 1.3).toFixed(1) + "s"]]) ph.style.setProperty(k, v);
+    const vars = { "--x0": f(bx + ox) + "px", "--y0": f(by + oy) + "px", "--x1": f(q.x + ox) + "px", "--y1": f(q.y + oy) + "px",
+      "--dur": (2.5 + i * 0.6).toFixed(1) + "s", "--delay": (-i * 1.3).toFixed(1) + "s" };
+    for (const k in vars) ph.style.setProperty(k, vars[k]);
   });
-  if (rt.debugDots) rt.debugDots.forEach((e, i) => { e.setAttribute("cx", f(c[i].x + ox)); e.setAttribute("cy", f(c[i].y + oy)); });
   // Cone: a trapezoid from the base's rim to the two ends of the facing edge, clipped on an element sized to its own bounds.
   const nr = vert ? [{ x: bx - bw * 0.35, y: by }, { x: bx + bw * 0.35, y: by }] : [{ x: bx, y: by - bh * 0.35 }, { x: bx, y: by + bh * 0.35 }];
   const poly = [edge[0], edge[1], nr[1], nr[0]];
@@ -1814,7 +1833,7 @@ function rayTargets(w, rt, m) {
   return pts;
 }
 // The cheap per-tick path for the idle float: only the ray ends move (the base end stays put).
-function aimRays(w, rt, pts) {
+function aimRays(rt, pts) {
   const { ox, oy } = rt.holoGeom, f = v => v.toFixed(1);
   rt.rayLines.forEach((l, i) => {
     const q = pts[i]; if (!q) return;
@@ -1896,7 +1915,7 @@ function stampLayout() {
 // a shorter browser window or an ultrawide never pushes bottom widgets out of view.
 function overlayScale() {
   const s = profile.settings;
-  return s.scaleMode === "auto" ? Math.min(window.innerWidth / 1920, window.innerHeight / 1080) : s.scale;
+  return s.scaleMode === "auto" ? Math.min(window.innerWidth / DESIGN_W, window.innerHeight / DESIGN_H) : s.scale;
 }
 function offscreenWidgets() {
   const C = canvasSize();
@@ -1907,13 +1926,14 @@ function bringIntoView() {
   for (const w of offscreenWidgets()) { const b = boxOf(w); w.x = Math.round(clamp(w.x, 0, Math.max(0, C.w - b.w))); w.y = Math.round(clamp(w.y, 0, Math.max(0, C.h - b.h))); }
   save(); rebuildAll(); toast("Widgets moved into view");
 }
+const widgetsAre = n => n + (n > 1 ? " widgets are" : " widget is");
 function updateOffscreenNote() {
   const n = offscreenWidgets().length, note = $("#offscreen-note");
-  note.hidden = !n; note.textContent = n ? `${n} widget${n > 1 ? "s are" : " is"} outside this window.` : "";
+  note.hidden = !n; note.textContent = n ? `${widgetsAre(n)} outside this window.` : "";
 }
 function uiScale() {
   const u = profile.settings.uiScale;
-  return u === "auto" ? Math.max(1, Math.min(window.innerWidth / 1920, window.innerHeight / 1080)) : +u;
+  return u === "auto" ? Math.max(1, Math.min(window.innerWidth / DESIGN_W, window.innerHeight / DESIGN_H)) : +u;
 }
 function canvasSize() { const s = overlayScale(); return { w: window.innerWidth / s, h: window.innerHeight / s }; }
 function applySettings() {
@@ -1923,7 +1943,7 @@ function applySettings() {
   document.body.classList.toggle("has-widgets", profile.widgets.length > 0);
   document.body.classList.toggle("show-center", !!s.centerLines);
   const stage = $("#stage");
-  document.documentElement.style.fontSize = (14 * uiScale()).toFixed(2) + "px";
+  document.documentElement.style.fontSize = (BASE_FONT_PX * uiScale()).toFixed(2) + "px";
   stage.style.transform = `scale(${overlayScale()})`; stage.style.width = C.w + "px"; stage.style.height = C.h + "px";
   $("#center-lines .v").style.left = Math.round(C.w / 2) + "px";
   $("#center-lines .h").style.top = Math.round(C.h / 2) + "px";
@@ -1985,7 +2005,7 @@ function stickFace(w, rt, c) {
   const f = c._face = makeCanvas(c._w, c._h), g = f._g, S = c._w, R = S / 2;
   const accent = w.accent || profile.settings.accent, ink = w.text || profile.settings.text;
   const rad = f._rad = Math.min(rt.radius ?? RADIUS, S / 2);
-  // Face: today's square gate, or a radar disc inscribed in the same square (rings and rim ticks, like the Gladius).
+  // Face: the square gate, or a radar disc inscribed in the same square (rings and rim ticks, like the Gladius).
   const radar = f._radar = w.face === "radar";
   // The rim is a whole number of device pixels wide and sits on the pixel grid, so all four sides read the same at any scale.
   const dp = c.width / S, lw = f._lw = Math.max(1, Math.round(dp)) / dp;
@@ -2126,10 +2146,10 @@ function heatCredit(w, rt, pad) {
 }
 // Called only when the widget's input (or the visible heatmap) changed.
 function drawWidget(w, rt, pad) {
+  if (w.type === "stick") return drawStick(w, rt, pad);
   const accent = w.accent || profile.settings.accent, ink = w.text || profile.settings.text;
   const holo = rt.holo, glow = holo ? rt.holoColors.glow : null;
-  if (w.type === "stick") return drawStick(w, rt, pad);
-  if (w.type === "throttle" || w.type === "axis") {
+  if (isBar(w)) {
     const zero = w.type === "throttle", key = w.type === "throttle" ? "t" : "a", v = readAxis(pad, w, key);
     drawBar(rt.canvas, v, accent, w.orient !== "h", zero, rt, key, ink, holo, glow);
     setText(rt.spans.v, v, zero);
@@ -2254,7 +2274,7 @@ function frame(now, timed) {
 }
 // ---------- projector motion ----------
 // Subtle and Full move without script: the opacity ripple and the idle float are CSS keyframes, built here once and
-// looped, and each widget picks its phase with a negative animation-delay (buildWidget). The ripple is the old
+// looped, and each widget picks its phase with a negative animation-delay (buildWidget). The ripple is a
 // multi-frequency envelope (max 1.5 Hz, far below any flash threshold) with frequencies rounded to whole cycles of
 // HOLO_ENV_S, so it loops seamlessly; the float is likewise periodic over HOLO_FLOAT_S. Values scale per widget
 // through --holo-env (ripple depth) and --holo-k (Intensity).
@@ -2265,7 +2285,9 @@ const envWave = t => { const a = 2 * Math.PI * t / HOLO_ENV_S; return 0.5 * Math
   for (let i = 0, n = 120; i <= n; i++) env.push(`${f(i * 100 / n)}% { opacity: calc(1 - var(--holo-env) * ${f(1 - envWave(i / n * HOLO_ENV_S))}); }`);
   for (let i = 0, n = 72; i <= n; i++) {
     const a = 2 * Math.PI * i / n;
-    flt.push(`${f(i * 100 / n)}% { transform: var(--holo-pre) translate(calc(var(--holo-k) * ${f(2 * Math.sin(2 * a))}px), calc(var(--holo-k) * ${f(1.5 * Math.sin(3 * a))}px)) rotateX(calc(var(--holo-k) * ${f(0.6 * Math.sin(2 * a + 0.5))}deg)) var(--holo-post); }`);
+    const tx = f(2 * Math.sin(2 * a)), ty = f(1.5 * Math.sin(3 * a)), rx = f(0.6 * Math.sin(2 * a + 0.5));
+    flt.push(`${f(i * 100 / n)}% { transform: var(--holo-pre) translate(calc(var(--holo-k) * ${tx}px), calc(var(--holo-k) * ${ty}px))`
+      + ` rotateX(calc(var(--holo-k) * ${rx}deg)) var(--holo-post); }`);
   }
   document.head.append(el("style", {}, `@keyframes holo-env { ${env.join(" ")} } @keyframes holo-float { ${flt.join(" ")} }`));
 })();
@@ -2275,7 +2297,7 @@ const envWave = t => { const a = 2 * Math.PI * t / HOLO_ENV_S; return 0.5 * Math
 const dropGap = full => full ? 4 + Math.random() * 10 : 10 + Math.random() * 4;   // seconds between dropouts
 function scheduleDrop(rt) { rt.dropT = setTimeout(() => startDrop(rt), dropGap(rt.holoTierNow === "full") * 1000); }
 function startDrop(rt) {
-  const full = rt.holoTierNow === "full", k = clamp(rt.holoCfg.intensity / 70, 0, 1.43);
+  const full = rt.holoTierNow === "full", k = holoGain(rt.holoCfg);
   const len = 0.05 + Math.random() * 0.08, depth = full ? 0.2 + Math.random() * 0.3 : 0.2;
   rt.dropOn = true; rt.tear = full ? 1 + Math.round(Math.random()) : 0; rt.dropDx = full ? 1 + Math.round(Math.random() * 0.6) : 0;
   rt.root.style.setProperty("--holo-dip", (1 - depth * Math.min(1, k)).toFixed(3));
@@ -2412,16 +2434,18 @@ function align(edge) {
   }
   save();
 }
-// Space widgets apart. With a gap (px) they sit exactly that far apart, starting from the
+// A typed gap in px, or null for Auto.
+const gapOf = g => g !== "" && g != null && !isNaN(+g) ? Math.max(0, +g) : null;
+// Space widgets apart. With a gap (px) they sit that far apart, starting from the
 // leftmost/topmost one; without one, 3+ widgets spread evenly between the outermost two.
 function distribute(horizontal, fixedGap) {
-  const ws = selectedWidgets(), fixed = fixedGap !== "" && fixedGap != null && !isNaN(+fixedGap);
+  const ws = selectedWidgets(), typed = gapOf(fixedGap), fixed = typed != null;
   if (ws.length < (fixed ? 2 : 3)) { toast(fixed ? "Select 2 or more widgets to space" : "Select 3 or more widgets, or enter a gap in pixels"); return; }
   const items = ws.map(w => ({ w, b: boxOf(w) })).sort((a, b) => horizontal ? a.b.x - b.b.x : a.b.y - b.b.y);
   const first = items[0].b, last = items[items.length - 1].b;
   const span = horizontal ? (last.x + last.w) - first.x : (last.y + last.h) - first.y;
   const total = items.reduce((t, i) => t + (horizontal ? i.b.w : i.b.h), 0);
-  const gap = fixed ? Math.max(0, +fixedGap) : (span - total) / (items.length - 1);
+  const gap = fixed ? typed : (span - total) / (items.length - 1);
   let pos = horizontal ? first.x : first.y;
   for (const i of items) {
     if (horizontal) i.w.x = Math.round(pos); else i.w.y = Math.round(pos);
@@ -2435,7 +2459,7 @@ function distribute(horizontal, fixedGap) {
 // as tall as its tallest, every widget centered in its cell, gap px apart (Auto: the grid size). One pass, on click.
 function arrangeGrid(cols, fixedGap) {
   const ws = selectedWidgets(); if (ws.length < 2) { toast("Select 2 or more widgets to arrange"); return; }
-  const s = profile.settings, gap = fixedGap !== "" && fixedGap != null && !isNaN(+fixedGap) ? Math.max(0, +fixedGap) : s.gridSize;
+  const s = profile.settings, gap = gapOf(fixedGap) ?? s.gridSize;
   const items = ws.map(w => ({ w, b: boxOf(w) })), u = unionBox(ws);
   let rows = [];
   if (cols) {
@@ -2633,7 +2657,7 @@ function deleteSelected() {
   selected.clear(); save(); rebuildAll(); setSelection([]);
 }
 function duplicateSelected() {
-  const copies = selectedWidgets().map(w => ({ ...JSON.parse(JSON.stringify(w)), id: uid(), x: w.x + 24, y: w.y + 24 }));
+  const copies = selectedWidgets().map(w => ({ ...JSON.parse(JSON.stringify(w)), id: uid(), x: w.x + CASCADE, y: w.y + CASCADE }));
   profile.widgets.push(...copies); save(); rebuildAll(); setSelection(copies.map(c => c.id));
 }
 
@@ -2713,6 +2737,13 @@ function closeWelcome() {
   if (editing) back.focus();
 }
 
+// Keeps Tab inside a modal dialog: past the last control it wraps to the first, and back.
+function trapTab(e, box, sel = "button") {
+  if (e.key !== "Tab") return;
+  const f = [...box.querySelectorAll(sel)], i = f.indexOf(document.activeElement);
+  if (e.shiftKey && i <= 0) { e.preventDefault(); f[f.length - 1].focus(); }
+  else if (!e.shiftKey && i === f.length - 1) { e.preventDefault(); f[0].focus(); }
+}
 // Small confirm dialog. Resolves true only on the confirm button; Cancel, Escape and the backdrop all cancel.
 function confirmDialog({ title, body, ok }) {
   const d = $("#confirm"), back = document.activeElement;
@@ -2725,7 +2756,7 @@ function confirmDialog({ title, body, ok }) {
     const onClick = e => { if (e.target === d) return done(false); const a = e.target.closest("[data-confirm]"); if (a) done(a.dataset.confirm === "yes"); };
     const onKey = e => {
       if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); done(false); }
-      else if (e.key === "Tab") { e.preventDefault(); const f = [...d.querySelectorAll("button")]; f[(f.indexOf(document.activeElement) + (e.shiftKey ? f.length - 1 : 1)) % f.length].focus(); }
+      else trapTab(e, d);
       e.stopPropagation();
     };
     d.addEventListener("click", onClick); d.addEventListener("keydown", onKey);
@@ -2756,18 +2787,12 @@ $("#welcome").addEventListener("click", e => {
 });
 $("#welcome").addEventListener("keydown", e => {
   if (e.key === "Escape") { e.stopPropagation(); closeWelcome(); }
-  if (e.key === "Tab") {   // keep focus inside the dialog
-    const f = [...$("#welcome").querySelectorAll("button")];
-    const i = f.indexOf(document.activeElement);
-    if (e.shiftKey && i <= 0) { e.preventDefault(); f[f.length - 1].focus(); }
-    else if (!e.shiftKey && i === f.length - 1) { e.preventDefault(); f[0].focus(); }
-  }
+  trapTab(e, $("#welcome"));
 });
 
 $("#toolbar").addEventListener("click", e => {
   const act = e.target.dataset && e.target.dataset.act; if (!act) return;
-  if (act === "done") setEditing(false);
-  else if (act === "add-device") profile.widgets.length ? startDeviceWizard() : startSetup();
+  if (act === "add-device") profile.widgets.length ? startDeviceWizard() : startSetup();
   else if (act === "add-button") startButtonWizard();
   else if (act === "add-label") addLabel();
   else if (act === "heat") toggleHeat();
@@ -2823,7 +2848,7 @@ function normHex(v) {
   return /^[0-9a-f]{6}$/.test(h) ? "#" + h : null;
 }
 function hexToHsv(hex) {
-  const n = parseInt(hex.slice(1), 16), r = (n >> 16 & 255) / 255, g = (n >> 8 & 255) / 255, b = (n & 255) / 255;
+  const [r, g, b] = hexRgb(hex).map(c => c / 255);
   const mx = Math.max(r, g, b), d = mx - Math.min(r, g, b);
   let h = 0;
   if (d) h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
@@ -2934,13 +2959,13 @@ function secOpen(key, def) {
   if (!secState) { try { secState = JSON.parse(localStorage.getItem(SEC_KEY) || "{}") || {}; } catch (e) { secState = {}; } }
   return key in secState ? !!secState[key] : def;
 }
-function section(p, title, { key, open = true, summary, extra, sub } = {}) {
+function section(p, title, { key, open = true, summary, extra } = {}) {
   const isOpen = secOpen(key, open);
   const body = el("div", { class: "sec-b", id: "sec-" + key }); body.hidden = !isOpen;
   const t = el("button", { type: "button", class: "sec-t", "aria-expanded": String(isOpen), "aria-controls": body.id }, el("span", {}, title),
     summary ? el("span", { class: "sum" }, summary) : null, el("span", { class: "chev", "aria-hidden": "true" }, "▼"));
   t.addEventListener("click", () => { const o = body.hidden; body.hidden = !o; t.setAttribute("aria-expanded", String(o)); secState[key] = o; try { localStorage.setItem(SEC_KEY, JSON.stringify(secState)); } catch (e) {} });
-  p.append(el("div", { class: "sec" + (sub ? " sub" : "") }, el("div", { class: "sec-h" }, t, extra || null), body));
+  p.append(el("div", { class: "sec" }, el("div", { class: "sec-h" }, t, extra || null), body));
   return body;
 }
 // Slider with its value: label and value on one line, the slider full width below. fmt turns a value into text.
@@ -3045,18 +3070,18 @@ function panelHead(p, title, sub, nameRow) {
   alignRow(h); p.append(h);
 }
 // Sticky foot: Duplicate and Remove always in reach instead of at the end of a long scroll.
-function panelFoot(p, removeLabel) {
+function panelFoot(p, removeLabel, removeName = removeLabel) {
   p.append(el("div", { class: "p-foot" },
     el("button", { onclick: duplicateSelected, title: "Duplicate (Ctrl+D)" }, "Duplicate"),
-    el("button", { class: "danger", onclick: deleteSelected, title: "Remove (Delete)" }, removeLabel)));
+    el("button", { class: "danger", onclick: deleteSelected, title: "Remove (Delete)", "aria-label": removeName }, removeLabel)));
 }
-// Position and Size: where the widget (or the group's box) sits and how big it is, Figma's frame section.
 // Keeps the X / Y boxes in the side panel current when a widget moves without the panel being rebuilt.
 function syncPositionFields(ws, bs) {
   if (!ws.length) return;
   const ub = unionBox(ws, bs);
   for (const n of document.querySelectorAll("#ui input[data-pos]")) if (document.activeElement !== n) { n.value = Math.round(ub[n.dataset.pos]); n.dispatchEvent(new Event("input")); }
 }
+// Position and Size: where the widget (or the group's box) sits and how big it is, Figma's frame section.
 function positionSection(p, ws) {
   p = section(p, "Position and Size", { key: "pos" });
   const posIn = (axis, label) => {
@@ -3074,13 +3099,12 @@ function positionSection(p, ws) {
   p.append(el("div", { class: "fields" },
     fld("X", posIn("x", ws.length > 1 ? "Group left edge" : "Left edge"), "px"),
     fld("Y", posIn("y", ws.length > 1 ? "Group top edge" : "Top edge"), "px")));
-  boxSizeRows(p, ws, p => {
-  if (ws.every(w => FILL_TYPES.has(w.type))) {
+  boxSizeRows(p, ws, body => {
+    if (!ws.every(w => FILL_TYPES.has(w.type))) return;
     const fill = { get v() { return ws[0].fill ? "fill" : "fit"; }, set v(x) { for (const w of ws) { if (x === "fill") w.fill = true; else delete w.fill; } } };
-    choiceRow(p, "Content", fill, "v", [["fit", "Fit", "The stick, bar or rudder keeps its size, centered in the box."],
+    choiceRow(body, "Content", fill, "v", [["fit", "Fit", "The stick, bar or rudder keeps its size, centered in the box."],
       ["fill", "Fill", "The stick, bar or rudder grows to fill the box. Drag a handle or type W and H to size it."]],
       () => { refreshKeepingCenters(ws); syncSelectionClasses(); placeResize(); }, { aria: "Content sizing" });
-  }
   });
   sizeRow(p, ws, () => { refreshKeepingCenters(ws); syncSelectionClasses(); });
 }
@@ -3151,11 +3175,11 @@ function renderHome(p) {
   p.append(el("div", { class: "hint" }, "Add each device once with + Device or the round + button. New widgets line up along the bottom middle."));
   p.append(el("div", { class: "hint" }, "Drag widgets into place. Drag a box or Shift+click to select several. Press E or switch off Edit Mode when you're done."));
   const off = offscreenWidgets().length;
-  if (off) p.append(el("div", { class: "hint", style: "color:#ffb547" }, `${off} widget${off > 1 ? "s are" : " is"} outside this window.`),
+  if (off) p.append(el("div", { class: "hint warn" }, `${widgetsAre(off)} outside this window.`),
     el("div", { class: "actions" }, el("button", { onclick: bringIntoView }, "Bring Into View")));
   const missing = profile.widgets.filter(w => w.match && !padFor(w, connectedPads()));
-  if (!connectedPads().length) p.append(el("div", { class: "hint", style: "color:#ffb547" }, "No devices seen yet. Move a stick or press a button so the browser detects them."));
-  else if (missing.length) p.append(el("div", { class: "hint", style: "color:#ffb547" }, `${missing.length} widget${missing.length > 1 ? "s are" : " is"} waiting for ${missing.length > 1 ? "their devices" : "its device"}. Open Check Devices to see why.`));
+  if (!connectedPads().length) p.append(el("div", { class: "hint warn" }, "No devices seen yet. Move a stick or press a button so the browser detects them."));
+  else if (missing.length) p.append(el("div", { class: "hint warn" }, `${widgetsAre(missing.length)} waiting for ${missing.length > 1 ? "their devices" : "its device"}. Open Check Devices to see why.`));
   p.append(el("div", { class: "actions" }, el("button", { onclick: () => setSelection([], "devices") }, "Check Devices")));
   p.append(el("div", { class: "actions" },
     el("button", { class: "primary", onclick: startDeviceWizard }, "+ Device"),
@@ -3191,7 +3215,9 @@ const ADD_ITEMS = [
   { key: "axis", name: "Single Axis", short: "Axis", hint: "Slider, dial or twist", icon: '<path d="M4 12h16M7 9l-3 3 3 3M17 9l3 3-3 3"/>' },
   { key: "label", name: "Label", short: "Label", hint: "Text on screen", icon: '<path d="M5 6h14M12 6v13M9 19h6"/>' }
 ];
-const devName = d => prettyName(d.id) + (d.nth ? " #" + (d.nth + 1) : "");
+// A device's name, numbered among identical ones: "VPC Stick #2".
+const deviceLabel = (id, nth) => prettyName(id) + (nth ? " #" + (nth + 1) : "");
+const devName = d => deviceLabel(d.id, d.nth);
 function renderWiz() {
   const host = $("#wizard"), b = $("#wiz-body");
   const was = host.classList.contains("open");
@@ -3287,12 +3313,7 @@ function renderWiz() {
 }
 $("#wizard").addEventListener("keydown", e => {
   if (e.key === "Escape") { e.stopPropagation(); closeWizard(); }
-  if (e.key === "Tab") {   // keep focus inside the dialog
-    const f = [...$("#wizard").querySelectorAll("button, input")];
-    const i = f.indexOf(document.activeElement);
-    if (e.shiftKey && i <= 0) { e.preventDefault(); f[f.length - 1].focus(); }
-    else if (!e.shiftKey && i === f.length - 1) { e.preventDefault(); f[0].focus(); }
-  }
+  trapTab(e, $("#wizard"), "button, input");
 });
 $("#wizard").addEventListener("pointerdown", e => { if (e.target.id === "wizard" && wiz && wiz.kind === "done") closeWizard(); });
 
@@ -3353,7 +3374,6 @@ function applyThemeTo(t, ws, all) {
   for (const w of targets) Object.assign(w, tc);
   if (all) Object.assign(profile.settings, { accent: tc.accent, text: tc.text, panel: tc.bg, border: tc.border, theme: t.id, ...(tc.bgAlpha != null ? { panelAlpha: tc.bgAlpha } : {}) });
   save(); rebuildAll(); syncSelectionClasses();
-  window.dispatchEvent(new CustomEvent("stayontarget:theme", { detail: { theme: t.id, colors: { ...t.colors }, widgets: targets.map(w => w.id) } }));
   toast((t.title || t.name) + " colors applied");
 }
 function themeSection(p, ws, all) {
@@ -3455,7 +3475,7 @@ function layoutSection(p, ws) {
   slider("Padding", all((w, k) => w.pad ?? PAD, (w, k, v) => { w.pad = v; }), "v", 0, 48);
   slider("Corner radius", all((w, k) => w.radius ?? RADIUS, (w, k, v) => { w.radius = v; }), "v", 0, 32);
   slider("3D depth", all((w, k) => w.depth || 0, (w, k, v) => { w.depth = v; }), "v", 0, 100, "%", ws.some(w => holoOf(w).on) ? "Off while Projector is on: a hologram has no bezel." : null);
-  if (ws.every(w => w.type === "throttle" || w.type === "axis" || w.type === "pedals")) {
+  if (ws.every(w => isBar(w) || w.type === "pedals")) {
     const def = w => w.orient || (w.type === "pedals" ? "h" : "v");
     const o = all(w => def(w), (w, k, v) => { w.orient = v; });
     choiceRow(p, ws.every(w => w.type === "pedals") ? "Rudder bar" : "Bar direction", o, "v", [["v", "Vertical"], ["h", "Horizontal"]], upd);
@@ -3477,7 +3497,8 @@ function layoutSection(p, ws) {
     for (const [label, key, min, max] of SLIDERS) slider(label, dims, key, min, max);
   }
   p.append(el("div", { class: "actions" }, el("button", { class: "subtle", onclick: () => {
-    for (const w of ws) { delete w.pad; delete w.radius; delete w.depth; delete w.dims; delete w.showTitle; delete w.showValues; delete w.showAxisLabels; delete w.scaleW; delete w.scaleH; delete w.orient; delete w.boxW; delete w.boxH; delete w.fill; }
+    const keys = ["pad", "radius", "depth", "dims", "showTitle", "showValues", "showAxisLabels", "scaleW", "scaleH", "orient", "boxW", "boxH", "fill"];
+    for (const w of ws) for (const k of keys) delete w[k];
     upd(); save(); renderPanel();
   } }, "Reset Layout")));
 }
@@ -3486,7 +3507,7 @@ function layoutSection(p, ws) {
 // glow, background, scanlines) in the open, never behind a disclosure. Projector-only controls follow in their own
 // section while Projector is chosen.
 function perspectiveSection(p, ws) {
-  for (const w of ws) { w.persp = { ...PERSP_DEFAULT, ...(w.persp || {}) }; w.proj = { ...PROJ_DEFAULT, ...(w.proj || {}) }; }
+  for (const w of ws) { w.persp = perspOf(w); w.proj = projOf(w); }
   const w0 = ws[0];
   const upd = () => { for (const w of ws) { applyPerspective(runtime[w.id].root, w); const rt = runtime[w.id]; if (rt.rig) layoutHolo(w, rt); } };
   const updProj = () => { for (const w of ws) refreshWidget(w); syncSelectionClasses(); };
@@ -3539,7 +3560,10 @@ function perspectiveSection(p, ws) {
   paintShows(); p.append(shows);
   toggleRow(p, "Scanlines", pproxy, "scan", updProj);
   p.append(el("div", { class: "hint small" }, "Snapping and alignment use the widget's flat footprint."));
-  p.append(el("div", { class: "actions" }, el("button", { class: "subtle", onclick: () => { for (const w of ws) { w.persp = { ...PERSP_DEFAULT }; delete w.proj; delete w.holo; delete w.face; } save(); updProj(); renderPanel(); } }, "Reset to Flat")));
+  p.append(el("div", { class: "actions" }, el("button", { class: "subtle", onclick: () => {
+    for (const w of ws) { w.persp = { ...PERSP_DEFAULT }; delete w.proj; delete w.holo; delete w.face; }
+    save(); updProj(); renderPanel();
+  } }, "Reset to Flat")));
 }
 // Width and Height in px: the widget's box as it sits on screen (its flat footprint). Typing a value fixes it;
 // smaller than the content just fits the content. With several selected, Match makes them all as wide and/or as
@@ -3579,8 +3603,8 @@ function boxSizeRows(p, ws, extra) {
   if (fixed) p.append(el("div", { class: "actions" }, el("button", { class: "subtle", onclick: () => { for (const w of ws) { delete w.boxW; delete w.boxH; } upd(); } }, "Fit to Content")));
 }
 // Flat or Projector for every widget in ws. Projector gives a Stick its radar disc; Flat
-// puts back what Projector changed, so Flat renders exactly as never-on. The background is left alone either way:
-// its opacity and fade stay the user's (Projector used to force a 60% fade over whatever was set).
+// puts back what Projector changed, so Flat renders as if it had never been on. The background's opacity and
+// fade stay the user's either way.
 function setProjector(ws, on) {
   for (const w of ws) {
     w.holo = holoOf(w);
@@ -3588,12 +3612,12 @@ function setProjector(ws, on) {
     w.holo.on = on;
     if (!on) { if (w.holo.prev) { w.proj = w.holo.prev.proj; w.face = w.holo.prev.face; if (!w.face) delete w.face; delete w.holo.prev; } continue; }
     w.holo.prev = { proj: w.proj && { ...w.proj }, face: w.face };
-    w.proj = { ...PROJ_DEFAULT, ...(w.proj || {}) };
+    w.proj = projOf(w);
     if (w.type === "stick" && !w.face) w.face = "radar";
   }
 }
 // Projector: a hologram emitted from a base on the dash. The switch sits in the section header, and the controls
-// show only while it is on, grouped into Basics, Base & Beams and Effects.
+// show only while it is on, grouped into Basics, Base and Beams, and Effects.
 function projectorSection(p, ws) {
   for (const w of ws) w.holo = holoOf(w);   // fill the defaults onto the widget, as Cockpit Look does for persp/proj
   const w0 = ws[0], h0 = w0.holo;
@@ -3619,7 +3643,7 @@ function projectorSection(p, ws) {
   sliderRow(p, "Base size", bproxy, "size", 50, 200, "%", upd);
   sliderRow(p, "Move left or right", bproxy, "dx", -200, 200, " px", updBase, { fmt: px }).addEventListener("change", upd);
   sliderRow(p, "Move up or down", bproxy, "dy", -200, 200, " px", updBase, { fmt: px }).addEventListener("change", upd);
-  if (!(ws.every(w => w.type === "stick" && w.face === "radar")))
+  if (!ws.every(isRadar))
     choiceRow(p, "Rays reach", proxy, "rayMode", [["corners", "Every Corner", "One ray to each corner of the widget; past 4, the rest spread around its outline."],
       ["edge", "Near Edge", "A fan along the edge facing the base, the far corners faint."]], upd, { aria: "Rays reach" });
   sliderRow(p, "Rays", proxy, "rays", 0, 15, "", upd, { fmt: v => v ? String(v) : "Off" });
@@ -3652,7 +3676,6 @@ function projectFromOneBase(ws) {
   }
 }
 
-// Slider plus a number box for a percentage, applied to every widget in ws.
 // A percentage slider for every widget in ws, drawn like every other slider (click the value to type one).
 function pctRow(p, label, ws, get, set, MIN, MAX, upd) {
   const obj = { get v() { return Math.round(get(ws[0]) * 100); }, set v(x) { for (const w of ws) set(w, x / 100); } };
@@ -3675,7 +3698,7 @@ function renderWidgetPanel(p) {
   perspectiveSection(p, [w]);
   projectorSection(p, [w]);
   if (w.type !== "label") {
-    const name = w.match ? prettyName(w.match) + (w.nth ? " #" + (w.nth + 1) : "") : "";
+    const name = w.match ? deviceLabel(w.match, w.nth) : "";
     const d = section(p, "Device", { key: "device", summary: name ? name + (seen ? "" : " (not connected)") : "None yet" });
     d.append(el("div", { class: "hint small" }, !name ? "No device yet." : seen ? "Connected." : "Not connected. Move it or press a button to wake it."));
     d.append(el("div", { class: "actions" }, el("button", { onclick: () => startRemap(w), title: w.type === "button" ? "Press the button again to remap it" : "Move the device again to remap it" }, "Detect Device"),
@@ -3701,7 +3724,7 @@ function renderMultiPanel(p) {
   colorSection(p, ws);
   perspectiveSection(p, ws);
   projectorSection(p, ws);
-  panelFoot(p, "Remove " + ws.length + " Widgets");
+  panelFoot(p, "Remove " + ws.length, "Remove " + ws.length + " widgets");
 }
 
 // Device check: every controller slot the browser exposes, live, plus which widgets are still waiting.
@@ -3741,7 +3764,7 @@ function fillDevices(body) {
   body._names = names;
   const frag = document.createDocumentFragment();
   frag.append(el("h4", {}, `Seen by the browser (${pads.length}${slots ? " of " + slots + " slots" : ""})`));
-  if (!pads.length) frag.append(el("div", { class: "hint", style: "color:#ffb547" }, "Nothing yet. Browsers hide devices until you press a button or move an axis fully after the page opens."));
+  if (!pads.length) frag.append(el("div", { class: "hint warn" }, "Nothing yet. Browsers hide devices until you press a button or move an axis fully after the page opens."));
   for (const d of pads) {
     const act = Math.max(0, ...d.pad.axes.map(a => Math.abs(a))), pressed = d.pad.buttons.some(b => b.pressed);
     const meter = el("span", { class: "dev-meter", "aria-hidden": "true" }, el("i", { style: `width:${Math.round(act * 100)}%` }));
@@ -3755,10 +3778,12 @@ function fillDevices(body) {
   if (missing.length) {
     frag.append(el("h4", {}, "Waiting for"));
     for (const w of missing) frag.append(el("div", { class: "dev-row missing" }, el("b", {}, w.label || w.type),
-      el("small", {}, prettyName(w.match) + (w.nth ? " #" + (w.nth + 1) : "") + (w.type === "pedals" ? " · push a pedal or a toe brake all the way once" : " · press a button or move it all the way once"))));
+      el("small", {}, deviceLabel(w.match, w.nth) + (w.type === "pedals" ? " · push a pedal or a toe brake all the way once" : " · press a button or move it all the way once"))));
   }
   if (slots && pads.length >= Math.min(slots, PAD_SLOTS) && missing.length)
-    frag.append(el("div", { class: "hint warn-box" }, `All ${pads.length} controller slots are taken, so another device can't connect. Browsers and OBS show at most ${PAD_SLOTS} game controllers. Unplug or disable one you don't need on stream (a spare throttle, a wheel, a virtual controller from Steam or vJoy), then reload this page.`));
+    frag.append(el("div", { class: "hint warn-box" }, `All ${pads.length} controller slots are taken, so another device can't connect. `
+      + `Browsers and OBS show at most ${PAD_SLOTS} game controllers. Unplug or disable one you don't need on stream `
+      + "(a spare throttle, a wheel, a virtual controller from Steam or vJoy), then reload this page."));
   frag.append(el("div", { class: "hint" }, "Still missing? Close other browser tabs or apps that read devices, unplug the device and plug it back in, then refresh. Windows lists every device under Win+R, joy.cpl."));
   body.replaceChildren(frag);
 }
@@ -3787,7 +3812,9 @@ function renderSettingsPanel(p) {
   heat.append(el("div", { class: "actions" }, el("button", { onclick: toggleHeat }, showHeat ? "Hide Heatmap" : "Show Heatmap"), el("button", { class: "subtle", onclick: resetHeat }, "Reset Heatmap")));
   const about = section(p, "About", { key: "s-about", open: false });
   about.append(el("div", { class: "hint" }, "Stay On Target is free, open-source software under the MIT License. It uses no third-party libraries, fonts, trackers or online services: everything runs offline from this one file."));
-  about.append(el("div", { class: "hint" }, "This is an unofficial Star Citizen fan project, not affiliated with the Cloud Imperium group of companies. Star Citizen®, Roberts Space Industries® and Cloud Imperium® are trademarks of Cloud Imperium Rights LLC. Manufacturer names are used only to describe fan-made color themes."));
+  about.append(el("div", { class: "hint" }, "This is an unofficial Star Citizen fan project, not affiliated with the Cloud Imperium group of companies. "
+    + "Star Citizen®, Roberts Space Industries® and Cloud Imperium® are trademarks of Cloud Imperium Rights LLC. "
+    + "Manufacturer names are used only to describe fan-made color themes."));
   const over = section(p, "Start Over", { key: "s-reset", open: false });
   over.append(el("div", { class: "hint small" }, "Removes every widget and setting on this computer. Download profile.js first to keep a backup."));
   over.append(el("div", { class: "actions" }, el("button", { class: "danger", onclick: resetAll }, "Reset All")));
@@ -3795,7 +3822,8 @@ function renderSettingsPanel(p) {
 
 function renderExportPanel(p) {
   p.append(el("h3", {}, "Save and Share"));
-  p.append(el("div", { class: "hint" }, "Your setup saves automatically. For a personal backup that survives OBS clearing its cache, download profile.js and put it in the same folder as StayOnTarget.html. It's for your own computer only: don't share it."));
+  p.append(el("div", { class: "hint" }, "Your setup saves automatically. For a personal backup that survives OBS clearing its cache, "
+    + "download profile.js and put it in the same folder as StayOnTarget.html. It's for your own computer only: don't share it."));
   p.append(el("div", { class: "actions" }, el("button", { class: "primary", onclick: () => exportProfile(true) }, "Download profile.js")));
   p.append(el("h4", {}, "Share With Another Pilot"));
   p.append(el("div", { class: "hint" }, "Download .json and send that file. The other pilot opens the editor and chooses Import a Profile. With the same hardware it works right away; otherwise they remove the widgets and add their own devices."));
@@ -3803,7 +3831,7 @@ function renderExportPanel(p) {
 }
 
 // ---------- boot ----------
-// OBS exposes window.obsstudio; anywhere else we show a dark preview. Add ?transparent to the
+// OBS exposes window.obsstudio; anywhere else the page shows a dark preview. Add ?transparent to the
 // URL for other streaming apps that support transparency but don't identify themselves.
 const IN_OBS = !!window.obsstudio || new URLSearchParams(location.search).has("transparent");
 document.body.classList.toggle("preview", !IN_OBS);

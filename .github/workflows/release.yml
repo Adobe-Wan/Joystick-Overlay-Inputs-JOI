@@ -44,6 +44,7 @@ jobs:
           mkdir -p "dist/Stay On Target"
           cp StayOnTarget.html README.md LICENSE "dist/Stay On Target/"
           if [ -d "Background Images for Edit Mode" ]; then cp -r "Background Images for Edit Mode" "dist/Stay On Target/"; fi
+          cp -r docs "dist/Stay On Target/"   # the README's images
           cd dist && zip -r -X StayOnTarget.zip "Stay On Target"
           sha256sum StayOnTarget.zip > SHA256SUMS.txt
           cat SHA256SUMS.txt
