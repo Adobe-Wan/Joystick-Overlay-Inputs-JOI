@@ -488,6 +488,7 @@ kbd { font: 600 0.9em var(--mono); padding: 0.1em 0.45em; border: 1px solid rgba
 #wizard .actions { display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end; margin-top: 1.3rem; }
 #wizard .actions .spacer { flex: 1; }
 #wizard .tip { color: #a9b6c4; font-size: 0.93rem; margin-top: 1rem; }
+#wiz-hint:empty { display: none; }
 /* Round + button with a radial menu, bottom right of the editing area */
 #fab-wrap { position: fixed; right: 24.25rem; bottom: 1.5rem; width: 4.5rem; height: 4.5rem; z-index: 25; }
 body.panel-hidden #fab-wrap { right: 1.5rem; }
@@ -968,7 +969,7 @@ const TYPES = {
     { key: "x", ask: "Move the stick fully RIGHT", dir: +1 },
     { key: "y", ask: "Push the stick fully FORWARD", dir: +1 } ] },
   throttle: { name: "Throttle", steps: [
-    { key: "t", ask: "Push the throttle fully FORWARD", dir: +1 } ] },
+    { key: "t", ask: "Push the throttle fully FORWARD", dir: +1, stays: true } ] },
   pedals: { name: "Pedals", steps: [
     { key: "r", ask: "Push the RIGHT rudder pedal forward", dir: +1 },
     { key: "bl", ask: "Press the LEFT toe brake", dir: +1, optional: true },
@@ -980,16 +981,11 @@ const TYPES = {
 // ---------- wizard ----------
 let wiz = null;
 
-function snapshotAll() {
-  const s = {};
-  for (const d of connectedPads()) s[d.pad.index + "|" + d.id] = { axes: d.pad.axes.slice(), buttons: d.pad.buttons.map(b => b.pressed) };
-  return s;
-}
 let wizAdded = [];   // names added since the wizard opened, for the "Add More" summary
 let wizBg = false;   // this run started with the background step (first setup)
 function startSetup() { closeFab(); closeWelcome(); wizBg = true; wiz = { kind: "device", stage: "bg" }; renderWiz(); }
 function startDeviceWizard() { closeFab(); closeWelcome(); if (!wiz) wizBg = false; wiz = { kind: "device", stage: "type" }; renderWiz(); }
-function startButtonWizard() { closeFab(); closeWelcome(); wiz = { kind: "button", stage: "press", base: snapshotAll() }; renderWiz(); }
+function startButtonWizard() { closeFab(); closeWelcome(); wiz = { kind: "button", stage: "press" }; renderWiz(); }
 function closeWizard() {
   const finished = wiz && wiz.kind === "done";
   wiz = null; wizAdded = []; wizBg = false; renderWiz();
@@ -1014,7 +1010,7 @@ function wizChooseType(t) {
   closeFab(); closeWelcome();
   if (t === "button") return startButtonWizard();
   if (t === "label") { closeWizard(); return addLabel(); }
-  wiz = { kind: "device", type: t, name: TYPES[t].name, stage: "steps", step: 0, axes: {}, inv: {}, base: snapshotAll() };
+  wiz = { kind: "device", type: t, name: TYPES[t].name, stage: "steps", step: 0, axes: {}, inv: {} };
   renderWiz();
 }
 // Detect Device: rerun the move/press steps for an existing widget and rebind it in place,
@@ -1022,8 +1018,8 @@ function wizChooseType(t) {
 function startRemap(w) {
   closeFab(); closeWelcome(); wizBg = false; wizAdded = [];
   wiz = w.type === "button"
-    ? { kind: "button", stage: "press", base: snapshotAll(), remap: w.id }
-    : { kind: "device", type: w.type, name: w.label, stage: "steps", step: 0, axes: {}, inv: {}, base: snapshotAll(), remap: w.id };
+    ? { kind: "button", stage: "press", remap: w.id }
+    : { kind: "device", type: w.type, name: w.label, stage: "steps", step: 0, axes: {}, inv: {}, remap: w.id };
   renderWiz();
 }
 function finishRemap() {
@@ -1037,42 +1033,122 @@ function finishRemap() {
   if (w) setSelection([w.id]);
   if (w && d) toast(`${w.label || "Widget"} now uses ${devName(d)}`);
 }
-function wizSkip() { wiz.step++; wiz.base = snapshotAll(); wizAfterStep(); }
+function wizSkip() { wiz.step++; wizAfterStep(); }
 function wizAfterStep() {
   if (wiz.step >= TYPES[wiz.type].steps.length) wiz.stage = "name";
   renderWiz();
 }
+// Detection. An axis counts once it is 0.5 or more from its baseline for 3 frames in a row, so a one-frame glitch
+// never does. The first axis to count opens a 250 ms window; then the largest move wins if it beats the runner-up
+// by 1.25x (a grip twist bleeding into X loses to X), or after 1.5 s regardless. Hats encoded as an axis (they idle
+// near 1.29) are never candidates. Some devices read 0 on every axis until their first report, and a device can
+// appear mid-step (Chrome shows pads only after a first press or a big move, or it was plugged in): either way its
+// first values are taken as its rest, not as movement. After the first step, an axis takes part only once it is
+// back at its rest, so what the last step left moving (a toe brake rolled while pushing the rudder) can't finish
+// this one.
+const DET = { ARM: 0.5, FRAMES: 3, GRACE_MS: 250, RATIO: 1.25, WAIT_MS: 1500, HAT: 1.01, END: 0.9, REST: 0.2, STILL: 0.04,
+  STILL_MS: 150, PARK_MS: 1500, SETTLE_MS: 400, BTN_MS: 50, BTN_WIN_MS: 150, HINT_MS: 8000 };
+const detKey = d => d.pad.index + "|" + d.id;
+const restOf = v => Math.abs(v) >= DET.END ? v : 0;   // first seen mid-move: an axis rests at an end or in the middle
+const sameDev = (a, b) => a.key === b.key && a.nth === b.nth;
+function wizHint(text) {
+  const h = $("#wiz-hint"); if (h && h.textContent !== text) h.textContent = text;
+}
 function wizardTick(pads) {
   if (!wiz) return;
   const np = $("#wiz-nopad"); if (np) np.hidden = pads.length > 0;
-  if (wiz.kind === "button" && wiz.stage === "press") {
-    for (const d of pads) {
-      const b0 = (wiz.base[d.pad.index + "|" + d.id] || {}).buttons || [];
-      const i = d.pad.buttons.findIndex((b, k) => b.pressed && !b0[k]);
-      if (i >= 0) { wiz.dev = d; wiz.button = i; wiz.name = "Button " + (i + 1); wiz.stage = "name"; renderWiz(); return; }
-    }
-    return;
-  }
+  const now = performance.now();
+  if (wiz.kind === "button" && wiz.stage === "press") return buttonTick(pads, now);
   if (wiz.kind !== "device" || wiz.stage !== "steps") return;
-  let best = null;
+  if (!wiz.det || wiz.det.step !== wiz.step) wiz.det = { step: wiz.step, t0: now, pads: {}, armedAt: 0, pick: null, seen: new Set(pads.map(detKey)) };
+  wiz.rest = wiz.rest || {};
+  const det = wiz.det, step = TYPES[wiz.type].steps[wiz.step], used = Object.values(wiz.axes);
+  let lead = 0;
   for (const d of pads) {
-    if (wiz.dev && !(d.id === wiz.dev.id && d.nth === wiz.dev.nth)) continue;
-    const a0 = (wiz.base[d.pad.index + "|" + d.id] || {}).axes || [];
-    d.pad.axes.forEach((v, i) => {
-      if (wiz.dev && Object.values(wiz.axes).includes(i)) return;
-      const delta = v - (a0[i] ?? v);
-      if (!best || Math.abs(delta) > Math.abs(best.delta)) best = { d, i, delta };
+    if (wiz.dev && !sameDev(d, wiz.dev)) continue;
+    const k = detKey(d), v = d.pad.axes;
+    const ps = det.pads[k] = det.pads[k] || { base: null, hist: [], peak: [], recent: [], hat: [], d };
+    ps.d = d;
+    v.forEach((x, i) => { if (Math.abs(x) > DET.HAT) ps.hat[i] = true; });
+    if (v.length && v.every(x => x === 0)) { ps.unreported = true; continue; }
+    if (ps.unreported || (!ps.base && !det.seen.has(k))) { ps.unreported = false; ps.base = v.map(restOf); wiz.rest[k] = wiz.rest[k] || ps.base.slice(); }
+    else if (!ps.base) {
+      if (wiz.rest[k]) ps.base = v.map(() => null);
+      else { ps.base = v.slice(); wiz.rest[k] = v.slice(); }
+    }
+    if (ps.base.includes(null)) {
+      ps.hist.push({ t: now, v: v.slice() });
+      while (now - ps.hist[0].t > DET.STILL_MS) ps.hist.shift();
+      const rest = wiz.rest[k], full = now - ps.hist[0].t >= DET.STILL_MS * 0.9;
+      v.forEach((x, i) => {
+        if (ps.base[i] != null) return;
+        if (rest[i] != null && Math.abs(x - rest[i]) < DET.REST) { ps.base[i] = rest[i]; return; }
+        const xs = ps.hist.map(h => h.v[i]), lo = Math.min(...xs), hi = Math.max(...xs);
+        if (full && hi - lo < DET.STILL && now - det.t0 > DET.PARK_MS) ps.base[i] = xs[xs.length >> 1];
+      });
+    }
+    v.forEach((x, i) => {
+      if ((wiz.dev && used.includes(i)) || ps.hat[i] || ps.base[i] == null) return;
+      const r = ps.recent[i] = (ps.recent[i] || []).concat(x - ps.base[i]).slice(-DET.FRAMES);
+      const e = r.length === DET.FRAMES && r.every(y => Math.sign(y) === Math.sign(r[0])) ? r.reduce((a, y) => Math.abs(y) < Math.abs(a) ? y : a) : 0;
+      if (ps.peak[i] == null || Math.abs(e) > Math.abs(ps.peak[i])) ps.peak[i] = e;
+      if (Math.abs(e) >= DET.ARM && !det.armedAt) det.armedAt = now;
+      lead = Math.max(lead, Math.abs(r[r.length - 1]));
     });
   }
-  const live = $("#wiz-live"); if (live) live.style.width = (best ? clamp(Math.abs(best.delta) / 0.8, 0, 1) * 100 : 0) + "%";
-  if (best && Math.abs(best.delta) > 0.6) {
-    const step = TYPES[wiz.type].steps[wiz.step];
-    wiz.dev = wiz.dev || best.d;
-    wiz.axes[step.key] = best.i;
-    wiz.inv[step.key] = Math.sign(best.delta) !== step.dir;
-    wiz.step++; wiz.base = snapshotAll();
-    wizAfterStep();
+  const live = $("#wiz-live"); if (live) live.style.width = clamp(lead / 0.8, 0, 1) * 100 + "%";
+  if (!det.pick) {
+    if (!det.armedAt) {
+      if (wiz.dev && !pads.some(d => sameDev(d, wiz.dev))) wizHint("The device disconnected. Plug it back in to continue.");
+      else wizHint(now - det.t0 < DET.HINT_MS ? "" : lead > 0.15 ? "Almost there. Move it all the way to the end."
+        : "Nothing is moving yet. Move it all the way, or open Check Devices if it isn't listed.");
+      return;
+    }
+    if (now - det.armedAt < DET.GRACE_MS) return;
+    const c = [];
+    for (const k in det.pads) { const ps = det.pads[k]; ps.peak.forEach((e, i) => { if (e) c.push({ ps, i, e }); }); }
+    c.sort((a, b) => Math.abs(b.e) - Math.abs(a.e));
+    if (!c.length) return;
+    if (c[1] && Math.abs(c[0].e) < DET.RATIO * Math.abs(c[1].e) && now - det.armedAt < DET.WAIT_MS) { wizHint("Two axes moved together. Move only the one asked for."); return; }
+    det.pick = { ...c[0], at: now, last: null };
   }
+  const p = det.pick;
+  let sign = Math.sign(p.e);
+  if (step.stays) {   // a throttle stays where it is left, so where it settles says which end is forward
+    const x = p.ps.d.pad.axes[p.i];
+    if (p.last == null || Math.abs(x - p.last) > 0.01) { p.last = x; p.at = now; }
+    if (now - p.at < DET.SETTLE_MS || Math.abs(x) < 0.8) { wizHint("Leave it at full forward."); return; }
+    sign = Math.sign(x);
+  }
+  wiz.dev = wiz.dev || p.ps.d;
+  wiz.axes[step.key] = p.i;
+  wiz.inv[step.key] = sign !== step.dir;
+  wiz.step++;
+  wizAfterStep();
+}
+// A button held when the step opened (or a switch that stays on) counts only after a release. One that is held
+// 50 ms counts; 150 ms later the longest held wins, so a neighbor brushed at the same time loses. A device that
+// only became visible mid-step was revealed by this very press, so its held buttons count straight away.
+function buttonTick(pads, now) {
+  const det = wiz.det = wiz.det || { t0: now, pads: {}, firstAt: 0, seen: new Set(pads.map(detKey)) };
+  for (const d of pads) {
+    const k = detKey(d);
+    const ps = det.pads[k] = det.pads[k] || { blocked: d.pad.buttons.map(b => det.seen.has(k) && (b.pressed || b.value > 0.5)), since: [], held: [] };
+    ps.d = d;
+    d.pad.buttons.forEach((b, i) => {
+      const on = b.pressed || b.value > 0.5;
+      if (ps.blocked[i]) { if (!on) ps.blocked[i] = false; return; }
+      if (!on) { ps.since[i] = 0; return; }
+      ps.since[i] = ps.since[i] || now; ps.held[i] = now - ps.since[i];
+      if (ps.held[i] >= DET.BTN_MS && !det.firstAt) det.firstAt = now;
+    });
+  }
+  if (!det.firstAt) { wizHint(now - det.t0 < DET.HINT_MS ? "" : "Nothing pressed yet. A switch that stays on needs flipping off and on again."); return; }
+  if (now - det.firstAt < DET.BTN_WIN_MS) return;
+  let best = null;
+  for (const k in det.pads) { const ps = det.pads[k]; ps.held.forEach((t, i) => { if (t >= DET.BTN_MS && (!best || t > best.t)) best = { d: ps.d, i, t }; }); }
+  if (!best) return;
+  wiz.dev = best.d; wiz.button = best.i; wiz.name = "Button " + (best.i + 1); wiz.stage = "name"; renderWiz();
 }
 function wizFinish() {
   if (wiz.remap) return finishRemap();
@@ -3087,7 +3163,7 @@ function renderWiz() {
     b.append(el("p", { class: "tip" }, "Tip: the round + button in the bottom-right corner adds more at any time."));
   } else if (wiz.kind === "button" && wiz.stage === "press") {
     head(...st(2, "Button"), "Press the Button You Want to Show", "Any button on any device. Hold it for a moment.");
-    b.append(noPad());
+    b.append(el("p", { class: "tip", id: "wiz-hint", "aria-live": "polite" }), noPad());
     actions(wiz.remap ? null : el("button", { onclick: startDeviceWizard }, "Back"), el("button", { onclick: closeWizard }, "Cancel"));
   } else if (wiz.stage === "type") {
     head(...(wizAdded.length ? [0, "Add Another"] : st(1)), "What Are You Adding?",
@@ -3104,7 +3180,7 @@ function renderWiz() {
     b.append(el("div", { class: "live", role: "progressbar", "aria-label": "Movement detected" }, el("i", { id: "wiz-live" })));
     if (steps.length > 1) steps.forEach((s, i) => b.append(el("div", { class: i < wiz.step ? "step done" : i === wiz.step ? "step active" : "step" }, s.ask.charAt(0) + s.ask.slice(1).toLowerCase())));
     if (wiz.dev) b.append(el("p", { class: "tip" }, "Device: " + devName(wiz.dev)));
-    b.append(noPad());
+    b.append(el("p", { class: "tip", id: "wiz-hint", "aria-live": "polite" }), noPad());
     actions(wiz.remap ? el("button", { onclick: closeWizard }, "Cancel") : el("button", { onclick: startDeviceWizard }, "Back"),
       cur.optional ? el("button", { class: "primary", "data-autofocus": "", onclick: wizSkip }, "Skip, I Don't Have This") : null);
   } else {
