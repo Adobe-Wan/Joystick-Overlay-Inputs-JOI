@@ -1,12 +1,12 @@
 # Stay On Target
 
-An OBS overlay for Star Citizen pilots. It shows your sticks, throttle, pedals and buttons live on stream and in recordings, so you can watch replays back and see exactly what your hands and feet were doing. It's a single HTML file with no install and no internet needed.
+An OBS overlay for Star Citizen pilots. It shows your sticks, throttle, pedals and buttons live on stream and in recordings, so you can watch replays back and see what your hands and feet were doing. It's a single HTML file with no install and no internet needed.
 
 ![Stay On Target widgets over the Star Citizen HUD](docs/overlay.png)
 
 ## Download
 
-**[⬇ Download StayOnTarget.zip (latest version)](https://github.com/Adobe-Wan/stay-on-target/releases/latest/download/StayOnTarget.zip)**
+**[Download StayOnTarget.zip (latest version)](https://github.com/Adobe-Wan/stay-on-target/releases/latest/download/StayOnTarget.zip)**
 
 1. Click the link above. Your browser saves `StayOnTarget.zip`.
 2. Right-click the zip and choose **Extract All…** Put the folder somewhere permanent, for example `Documents\Stay On Target`. Don't run it from inside the zip or from your Downloads folder if you clean that out.
@@ -21,35 +21,35 @@ Download the new zip and replace `StayOnTarget.html` in your folder. Keep your `
 
 ## Set up in OBS
 1. [Download](#download) and extract the zip. The folder holds `StayOnTarget.html`, the `Background Images for Edit Mode` sample screenshots, this README and the license. Keep them together.
-2. In OBS, add a **Browser** source, tick **Local file** and pick `StayOnTarget.html`.
+2. In OBS, add a **Browser** source, check **Local file** and pick `StayOnTarget.html`.
    - **Width / Height:** use your OBS canvas size (Settings → Video → Base Canvas, usually **1920 × 1080**). The overlay then maps 1:1 to your screen, and you position widgets by dragging them in step 4 rather than by moving the source.
-   - **FPS:** tick custom frame rate and set **60**.
-3. Right-click the source and choose **Interact**. The first time, Stay On Target opens in edit mode with a **Getting Started** dialog. Move a stick so the browser sees your controllers. (Later, press **E** or click **Open the Editor** to return.)
+   - **FPS:** check **Use custom frame rate** and set **60**.
+3. Right-click the source and choose **Interact**. The first time, Stay On Target opens in edit mode with a **Getting Started** dialog. Move a stick so the browser sees your controllers. (Later, press **E** or click **Open Editor** to return.)
 4. Click **Get Started**. A dialog in the middle of the screen walks you through it:
-   1. **Choose a Background:** pick the sample screenshot that matches your screen, or **Load My Own Screenshot**. It shows only while editing, so you can place widgets around the in-game HUD instead of on top of it.
+   1. **Choose a Reference Screenshot:** pick the sample screenshot that matches your screen, or **Load My Own Screenshot**. It shows only while editing, so you can place widgets around the in-game HUD instead of on top of it.
    2. **What Are You Adding?** Stick, Pedals, Button, Throttle, Single Axis or Label.
    3. **Move it** when asked. It detects the axis and its direction.
-   4. **Name It**, then **Add to Overlay**. Press **Add More** for the next device.
+   4. **Name It**, then **Add to Overlay**. Press **Add Another Device** for the next one.
 
    New widgets line up along the bottom middle of the screen, where most streamers keep their inputs. The round **+** button (bottom right, or press **A**) adds more at any time.
 5. Drag the widgets where you want them (see *Positioning* below). Click one to change its name, size or colors.
-6. Switch **Edit Mode** off in the top bar (or press **E**). The screenshot background disappears with the editor.
-7. **Save / Share → Download profile.js**, and save it in the same folder as `StayOnTarget.html`. This keeps the setup safe if OBS clears its cache.
+6. Switch **Edit Mode** off in the top bar (or press **E**). The reference screenshot disappears with the editor.
+7. **Save and Share → Download profile.js**, and save it in the same folder as `StayOnTarget.html`. This keeps the setup safe if OBS clears its cache.
 
 ## Opening it in a normal browser
-Outside OBS the page shows a dark preview background with a note that it's transparent in OBS. In OBS it stays fully transparent. If another streaming app shows the dark background, add `?transparent` to the end of the file URL.
+Outside OBS the page shows a dark preview background with a note that it's transparent in OBS. In OBS it stays fully transparent. If another streaming app shows the dark background, add `?transparent` to the end of the file URL. Add `?edit` to open straight into the editor.
 
 ## 4K and other resolutions
 Layouts are designed on a 1920×1080 canvas and **fit to the screen size** automatically, so a layout made at 1080p looks the same at 1440p or 4K, and the whole layout always fits in a shorter browser window or on an ultrawide. The editor's text scales up too. If a widget ever ends up outside the window, the editor home panel offers **Bring Into View**. Both can be changed in **Settings → Size** (*Fit overlay to screen size*, *Editor text size*).
 
-**Moving a layout between screens.** Each profile remembers the screen shape it was arranged on. Open it on a different shape (a 4K browser tab with toolbars, a 1080p OBS source, an ultrawide) and each group of widgets keeps its place: things along the bottom middle stay at the bottom middle, and a widget near an edge or corner keeps its distance from it. Nothing is overwritten until you edit, so going back to the original screen puts everything exactly where it was. Profiles from v1.1 and earlier record their screen the next time you change something or download profile.js.
+**Moving a layout between screens.** Each profile remembers the screen shape it was arranged on. Open it on a different shape (a 4K browser tab with toolbars, a 1080p OBS source, an ultrawide) and each group of widgets keeps its place: things along the bottom middle stay at the bottom middle, and a widget near an edge or corner keeps its distance from it. Nothing is overwritten until you edit, so going back to the original screen puts everything back where it was. Profiles from v1.1 and earlier record their screen the next time you change something or download profile.js.
 
 ## Positioning
-- **Background screenshot.** The editor shows a Star Citizen screenshot behind your widgets so you can place them around the HUD. It only shows in the editor, never on stream. It's step 1 of setup, and you can change it any time on the editor home panel (**Load My Own Screenshot**, **No Background**).
+- **Reference screenshot.** The editor shows a Star Citizen screenshot behind your widgets so you can place them around the HUD. It only shows in the editor, never on stream. It's step 1 of setup, and you can change it any time on the editor home panel (**Load My Own Screenshot**, **No Screenshot**).
 - **Center lines** (blue) mark the middle of the screen. While dragging, **smart guides** (pink) snap a widget's edges or center to the screen center, edges, safe margin and other widgets. When nothing is close, it snaps to the **grid**. Hold **Alt** to drag freely.
 - **Select several:** drag a box on empty space, or Shift+click widgets. Ctrl+A selects all. Drag any selected widget to move them together.
-- **Align and place:** with a selection, use the panel's align buttons (left, center, right, top, middle, bottom). *Snap to Center*, *Center Horizontally*, *Bottom Center* and *Snap to Bottom* move the selection as one block.
-- **Spacing:** with 2+ selected, type a **Gap between, px** (for example 16) and press **Space Evenly ↔** or **↕** to set them exactly that far apart. Leave the gap on *Auto* to spread 3+ widgets evenly across their current width or height.
+- **Align and place:** with a selection, use the panel's align buttons (left, center, right, top, middle, bottom). *Center on Screen*, *Center Horizontally*, *Center at Bottom* and *Move to Bottom* move the selection as one block.
+- **Spacing:** with 2+ selected, type a **Gap** in px (for example 16) and press **Space Horizontally** or **Space Vertically** to set them that far apart. Leave the gap on *Auto* to spread 3+ widgets evenly across their current width or height.
 - **Nudge** with the arrow keys (Shift = 10px). **P** hides the side panel so you can see the whole screen.
 - Grid size, safe margin, and turning guides or the grid off are in **Settings**.
 
@@ -81,6 +81,8 @@ With several widgets selected, every change applies to all of them. The first ti
 **Layout**
 - **Padding** and **Corner radius**. The stick's inner box uses the same corner radius as the widget, so the corners match.
 - **3D depth** (0 to 100%) gives the panel a beveled, raised edge, sinks the stick gate into the panel, and turns the stick's ball into a lit sphere with a shadow. It's drawn once with CSS shadows and gradients, so it adds no per-frame cost in OBS.
+
+  ![3D depth at 0, 50 and 100%](docs/depth.png)
 - **Bar direction:** throttles and single axes can be **Vertical** (default) or **Horizontal**. A horizontal bar starts at the same size as the pedals' rudder bar. On pedals, **Rudder bar** stands the rudder upright between the brakes or lays it flat (default).
 - **Width scale** and **Height scale** (buttons and pedals, 25 to 400%) stretch the box on one axis without changing the text size. A very narrow button cuts off its label.
 - **Inner sizes:** stick area for sticks (always a square 4×4 gate before any perspective), bar thickness and length for throttles and single axes, and rudder and brake bar sizes for pedals. These are in pixels before **Size**, which still scales the whole widget.
@@ -90,7 +92,7 @@ With several widgets selected, every change applies to all of them. The first ti
 
 Every slider's value is clickable: click it, type a number and press Enter (Escape keeps the old one).
 
-**Arrange in Grid** (under **Arrange** > **Rows and Columns**, several widgets selected) lines them up in rows and columns from the group's top-left corner. **Columns: Auto** keeps the rows your widgets already roughly sit in, so a loose layout tidies up the way it looks; 1 to 6 sets the columns, filled in reading order. Each column is as wide as its widest widget and every widget is centered in its cell, using the **Gap between** value (Auto uses the grid size). Match the sizes first for perfectly even cells. It runs once on click, so it costs nothing while you stream.
+**Arrange in Grid** (under **Arrange** > **Rows and Columns**, several widgets selected) lines them up in rows and columns from the group's top-left corner. **Columns: Auto** keeps the rows your widgets already roughly sit in, so a loose layout tidies up the way it looks; 1 to 6 sets the columns, filled in reading order. Each column is as wide as its widest widget and every widget is centered in its cell, using the **Gap** value (Auto uses the grid size). Match the sizes first for perfectly even cells. It runs once on click, so it costs nothing while you stream.
 
 Widgets keep a fixed size while you fly. The % values reserve room for their widest reading, so moving a stick never resizes anything.
 
@@ -99,7 +101,11 @@ Match your widgets to your ship's MFDs. Select widgets and look under **Color Th
 - **Default** (neutral white on a fully opaque charcoal background, what new widgets start with) and **AVS** (Avenger Squadron: white, blue and black) are tiles at the top.
 - **Ship manufacturer** is a dropdown with a color swatch on every row: Aegis Dynamics, Anvil Aerospace, AopoA, ARGO Astronautics, Banu Souli, Crusader Industries, Drake Interplanetary, Esperia, GATAC Manufacture, Greycat Industrial, Kruger Intergalactic, Mirai, MISC, Origin Jumpworks and Roberts Space Industries. Use the arrow keys or type a letter to jump.
 
-Most themes are sampled from that manufacturer's in-game power management screen: the stick dot, bars and pressed buttons use the color of a filled power pip, the widget outline uses an empty pip's outline, and the background matches the screen. Crusader, Banu and AopoA are fan picks for now. You can still fine-tune Highlight, Text, Border and Background by hand underneath. Click a color to open the picker: drag in the square for saturation and brightness (or use the arrow keys, Shift for bigger steps), drag the rainbow bar for hue, type a hex code, click a preset, or use **Pick** to grab a color from anywhere on screen (where the browser supports it). Escape or a click outside closes it.
+Most themes are sampled from that manufacturer's in-game power management screen: the stick dot, bars and pressed buttons use the color of a filled power pip, the widget outline uses an empty pip's outline, and the background matches the screen. Crusader, Banu and AopoA are fan picks for now. You can still fine-tune Highlight, Text, Border and Background by hand underneath.
+
+![The color picker](docs/color-picker.png)
+
+Click a color to open the picker: drag in the square for saturation and brightness (or use the arrow keys, Shift for bigger steps), drag the rainbow bar for hue, type a hex code, click a preset, or use **Pick** to grab a color from anywhere on screen (where the browser supports it). Escape or a click outside closes it.
 
 ## Cockpit Look (perspective and projection)
 Select a widget (or several) and use **Cockpit Look** in the side panel to make it sit naturally in your cockpit, either on an angled screen or projected like a hologram. Widgets start Flat; the looks are optional.
@@ -111,16 +117,18 @@ Select a widget (or several) and use **Cockpit Look** in the side panel to make 
 Perspective is a single CSS 3D transform per widget, which the GPU composites, and the projection effects are painted once. They cost nothing per frame, and flat widgets skip them entirely.
 
 ## Projector look
-Projector makes a widget look like a hologram emitted from a small projector base on your dashboard, the way the Gladius cockpit's center radar is: a disc of light floating above a dark pedestal, held up by thin rays reaching every corner, in your ship manufacturer's colors. It's off by default, and a widget that never turns it on looks exactly as before.
+Projector makes a widget look like a hologram emitted from a small projector base on your dashboard, the way the Gladius cockpit's center radar is: a disc of light floating above a dark pedestal, held up by thin rays reaching every corner, in your ship manufacturer's colors. It's off by default.
 
 ![Dash Radar in Aegis, Drake and AVS colors over the Gladius cockpit](docs/projector.png)
 
 - **Turn it on:** select a widget and choose **Projector** as the **Style** under **Cockpit Look**, then pick a preset (**Dash Radar**, **Dash**, **Left**, **Right**, **Overhead**) if you like; the **Projector** section with its own controls appears below. Switching it on gives a Stick its **Radar** face and leaves your background and scanlines as they were; switching back to Flat puts the face back. Motion, Float, Flicker and Color Fringe all start off, so you add the effects one at a time.
 - **Face** (Sticks, in the **Layout** section): **Square** is the usual gate with a grid, **Radar** a round disc with rings and rim ticks. Radar works with or without Projector, with the heatmap too.
 - **Motion:** **Still** paints everything once and costs nothing per frame. **Subtle** adds a slow float and a rare, gentle dropout. **Full** adds a color split and tear during dropouts, photons riding the rays, dust in the beam and a breathing base. If your system asks for reduced motion, Projector stays Still. If Full makes frames noticeably slower, it drops to Subtle for that session and tells you.
-- **Basics:** Motion, **Intensity**, and **Scene**. **Base & Beams:** **Projector position** (Below, Above, Left, Right), **Base size**, **Move left or right** and **Move up or down** (where the base sits), **Rays reach** (**Every Corner**, the default: one ray to each corner of the widget and any more spread around its outline, drawn over the widget like light through the hologram; or **Near Edge**: the older fan along the edge facing the base), **Rays** (0 hides them) and **Cone**. **Effects:** **Fade toward base** (how much the drawn face dims toward the base; 0 keeps it even, readouts and titles always stay full strength), then **Float**, **Flicker** and **Color Fringe**, which need Subtle or Full motion.
+- **Basics:** Motion, **Intensity** and **Scene**.
+- **Base and Beams:** **Projector position** (Below, Above, Left, Right), **Base size**, **Move left or right** and **Move up or down** (where the base sits), **Rays reach** (**Every Corner**, the default: one ray to each corner of the widget and any more spread around its outline, drawn over the widget like light through the hologram; or **Near Edge**: a fan along the edge facing the base), **Rays** (0 hides them) and **Cone**.
+- **Effects:** **Fade toward base** (how much the drawn face dims toward the base; 0 keeps it even, readouts and titles always stay full strength), then **Float**, **Flicker** and **Color Fringe**, which need Subtle or Full motion.
 - **Scene: Dark / Bright.** Over planet glare, clouds or a bright sky, low-alpha light disappears. **Bright** brightens the base, rays and cone, turns the scanlines into lines of your highlight color and firms up the border so readouts stay legible.
-- **Project From One Base** (with several widgets selected) aims every selected widget at one base under the group. Dragging the group keeps them together; moving one widget on its own breaks the group, and you can press it again.
+- **Project from One Base** (with several widgets selected) aims every selected widget at one base under the group. Dragging the group keeps them together; moving one widget on its own breaks the group, and you can press it again.
 - **Reset Projector** turns it off for the selected widgets; **Reset to Flat** removes it along with the rest of the look. While Projector is on, **3D depth** has no effect.
 
 Every color in the effect comes from the widget's theme, so switching the theme recolors the base, rays and glow. Themes with a near-white highlight borrow their border color (Esperia's pink) or use a cool white (RSI, Default).
@@ -141,7 +149,7 @@ The single-key shortcuts work when no button or field has focus: click an empty 
 | A | Open the round + menu (add a device, button or label) |
 | H | Show / hide the session heatmap |
 | R | Reset the session heatmap |
-| Delete | Remove the selected widgets |
+| Delete or Backspace | Remove the selected widgets |
 | Arrows / Shift+arrows | Nudge 1px / 10px |
 | Ctrl+A / Ctrl+D | Select all / duplicate |
 | Ctrl+Z / Ctrl+Y | Undo / redo (also Ctrl+Shift+Z; the small buttons above the + do the same) |
@@ -149,14 +157,14 @@ The single-key shortcuts work when no button or field has focus: click an empty 
 | Alt (while dragging) | Turn snapping off |
 
 ## Session heatmap
-Stay On Target quietly records where every stick, throttle and pedal spends its time. Press **H** to see it, for example which way you strafe most this session. Press **R** to start fresh.
+Stay On Target records where every stick, throttle and pedal spends its time. Press **H** to see it, for example which way you strafe most this session. Press **R** to start fresh.
 
-## Two identical sticks (e.g. 2× VIRPIL Alpha Prime)
-They report the same hardware name, so Stay On Target tells them apart by connection order, which Windows normally keeps stable. If left and right ever come up reversed, click either stick widget and press **Swap With Identical Device**.
+## Two identical sticks (for example, 2× VIRPIL Alpha Prime)
+They report the same hardware name, so Stay On Target tells them apart by the controller slot each one was set up in, which Windows normally keeps stable. If left and right ever come up reversed, click either stick widget and press **Swap with Identical Device**.
 For a permanent fix, give one stick a different USB Product ID in VPC Configurator, then re-add that stick.
 
 ## Starting over
-**Reset All** (next to **Import Profile** on the editor's home panel) asks for confirmation, then removes every widget and returns all settings, colors and the edit-mode background to their defaults. It can't be undone, so use **Save / Share** first if you might want the layout back.
+**Reset All** (on the editor's home panel, and in **Settings → Start Over**) asks for confirmation, then removes every widget and returns all settings, colors and the reference screenshot to their defaults. It can't be undone, so use **Save and Share** first if you might want the layout back.
 
 ## A device isn't showing up
 Open the editor and click **Check Devices** on the home panel. It lists every controller your browser is passing to Stay On Target, live, and which widgets are still waiting for theirs.
@@ -166,15 +174,15 @@ Open the editor and click **Check Devices** on the home panel. It lists every co
 - **Remap a widget.** Select it and click **Detect Device** under *Device*. You move the stick or pedals (or press the button) again, and the widget switches to whatever you used, keeping its name, place, size and colors.
 - Still missing? Close other apps that read controllers, unplug the device and plug it back in, then refresh.
 
-## Sharing with a trainee
-In **Save / Share**, click **Download .json** and send that file (plus `StayOnTarget.html` if they don't have it yet). They open the editor and choose **Import a Profile**. With the same hardware it just works. With different hardware they remove the widgets and use **+ Device** for their own.
+## Sharing a layout
+In **Save and Share**, click **Download .json** and send that file (plus `StayOnTarget.html` if they don't have it yet). They open the editor and choose **Import a Profile**. With the same hardware it works right away. With different hardware they remove the widgets and use **+ Device** for their own.
 
 Don't send your `profile.js`, and never use one someone else sent you. It's a personal backup that sits next to your own `StayOnTarget.html`, and it runs as a script when the overlay loads (see `SECURITY.md`). A `.json` is only data.
 
 ## License and credits
 - **License:** MIT (see `LICENSE`). Anyone can use, share and modify Stay On Target for free, as long as the license notice stays with it.
 - **Third-party code:** none. Stay On Target uses no libraries, frameworks, web fonts, analytics or online services. It's one HTML file using built-in browser features (Gamepad API, Canvas, CSS), and text uses the fonts already on the viewer's computer. Nothing is downloaded and nothing about you or your inputs leaves your PC.
-- **Design:** the editor follows Material Design (MUI) layout and accessibility conventions, re-created in plain CSS. No MUI code is included.
+- **Design:** the editor's layout borrows from Material Design (MUI), re-created in plain CSS. No MUI code is included.
 - **Color themes:** fan-made approximations of in-game MFD colors. They're not official assets.
 - **Sample screenshots:** captured from Star Citizen. Game imagery belongs to Cloud Imperium.
 

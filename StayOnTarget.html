@@ -546,7 +546,7 @@ body:not(.editing):not(.has-widgets) #enter-edit { display: flex; }
 </div>
 <div id="marquee"></div>
 <div id="enter-edit"><div class="card paper" role="region" aria-label="Stay On Target">
-  <button class="primary" id="enter-edit-btn">Open the Editor</button>
+  <button class="primary" id="enter-edit-btn">Open Editor</button>
   <p>or press <kbd>E</kbd> at any time</p>
 </div></div>
 
@@ -555,11 +555,11 @@ body:not(.editing):not(.has-widgets) #enter-edit { display: flex; }
 <div id="welcome" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
   <div class="dialog paper">
     <h2 id="welcome-title">Welcome to Stay On Target</h2>
-    <p class="lead">Show your sticks, throttle and pedals on stream, then watch your replays to see exactly what your hands and feet were doing.</p>
+    <p class="lead">Show your sticks, throttle and pedals on stream, then watch your replays to see what your hands and feet were doing.</p>
     <ol>
-      <li><button class="wstep" data-welcome="bg"><span class="num">1</span><span><b>Choose a background</b><small>A Star Citizen screenshot behind your widgets, so they sit around the HUD instead of on top of it. Only shown while editing.</small></span><span class="go" aria-hidden="true">›</span></button></li>
-      <li><button class="wstep" data-welcome="add"><span class="num">2</span><span><b>Add your devices</b><small>Pick Stick, Pedals or a Button, then move it when asked. We walk you through it right here.</small></span><span class="go" aria-hidden="true">›</span></button></li>
-      <li><button class="wstep" data-welcome="arrange"><span class="num">3</span><span><b>Arrange, then leave edit mode</b><small>Drag widgets into place, then switch <i>Edit Mode</i> off (top bar) or press <kbd>E</kbd>.</small></span><span class="go" aria-hidden="true">›</span></button></li>
+      <li><button class="wstep" data-welcome="bg"><span class="num">1</span><span><b>Choose a Reference Screenshot</b><small>A Star Citizen screenshot behind your widgets, so they sit around the HUD instead of on top of it. Only shown while editing.</small></span><span class="go" aria-hidden="true">›</span></button></li>
+      <li><button class="wstep" data-welcome="add"><span class="num">2</span><span><b>Add Your Devices</b><small>Pick Stick, Pedals or a Button, then move it when asked.</small></span><span class="go" aria-hidden="true">›</span></button></li>
+      <li><button class="wstep" data-welcome="arrange"><span class="num">3</span><span><b>Arrange, Then Leave Edit Mode</b><small>Drag widgets into place, then switch <i>Edit Mode</i> off (top bar) or press <kbd>E</kbd>.</small></span><span class="go" aria-hidden="true">›</span></button></li>
     </ol>
     <div class="foot">
       <span>Already have a setup? <button class="text" data-welcome="import">Import a Profile</button></span>
@@ -591,7 +591,7 @@ body:not(.editing):not(.has-widgets) #enter-edit { display: flex; }
     <button data-act="add-label">+ Label</button>
     <button data-act="heat" id="heat-btn">Session Heatmap</button>
     <button data-act="settings">Settings</button>
-    <button data-act="export">Save / Share</button>
+    <button data-act="export">Save and Share</button>
     <button data-act="help">Getting Started</button>
     <button data-act="panel" title="Show / hide the side panel (P)" aria-keyshortcuts="P">Panel</button>
   </div>
@@ -914,8 +914,8 @@ function writeProfile() {
   // A remembered screenshot is the only big thing in storage and it is optional: give its room to the layout.
   if (isQuotaError(err) && dropStoredReference()) err = write();
   if (!err) { saveFailed = false; return; }
-  if (!saveFailed) toast(isQuotaError(err) ? "Couldn't save your layout: browser storage is full. Use Save / Share to download a backup."
-    : "Couldn't save your layout in this browser. Use Save / Share to download a backup.", 6000);
+  if (!saveFailed) toast(isQuotaError(err) ? "Couldn't save your layout: browser storage is full. Use Save and Share to download a backup."
+    : "Couldn't save your layout in this browser. Use Save and Share to download a backup.", 6000);
   saveFailed = true;
 }
 // ---------- undo / redo ----------
@@ -995,14 +995,14 @@ const TYPES = {
     { key: "r", ask: "Push the RIGHT rudder pedal forward", dir: +1 },
     { key: "bl", ask: "Press the LEFT toe brake", dir: +1, optional: true },
     { key: "br", ask: "Press the RIGHT toe brake", dir: +1, optional: true } ] },
-  axis: { name: "Single axis", steps: [
+  axis: { name: "Single Axis", steps: [
     { key: "a", ask: "Move the axis to its MAXIMUM", dir: +1 } ] }
 };
 
 // ---------- wizard ----------
 let wiz = null;
 
-let wizAdded = [];   // names added since the wizard opened, for the "Add More" summary
+let wizAdded = [];   // names added since the wizard opened, for the "Added so far" summary
 let wizBg = false;   // this run started with the background step (first setup)
 function startSetup() { closeFab(); closeWelcome(); wizBg = true; wiz = { kind: "device", stage: "bg" }; renderWiz(); }
 function startDeviceWizard() { closeFab(); closeWelcome(); if (!wiz) wizBg = false; wiz = { kind: "device", stage: "type" }; renderWiz(); }
@@ -2687,7 +2687,7 @@ $("#ref-in").addEventListener("change", e => {
   r.onload = () => {
     if (!okReference(r.result)) { toast("Choose a PNG, JPEG or WebP screenshot."); return; }
     refImage = r.result; autoPicked = false; applyReference(); renderPanel(); if (wiz) renderWiz();
-    try { localStorage.setItem(REF_KEY, refImage); } catch (err) { toast("Screenshot shown, but too large to remember after reload"); }
+    try { localStorage.setItem(REF_KEY, refImage); } catch (err) { toast("Screenshot too large to save. It shows now but is gone after a reload."); }
   };
   r.readAsDataURL(f); e.target.value = "";
 });
@@ -2733,7 +2733,7 @@ function confirmDialog({ title, body, ok }) {
 }
 async function resetAll() {
   const ok = await confirmDialog({ title: "Reset Everything?",
-    body: "This removes every widget and puts all settings, colors and the edit-mode background back to their defaults. It can't be undone. Use Save / Share first if you might want this layout back.",
+    body: "This removes every widget and puts all settings, colors and the reference screenshot back to their defaults. This can't be undone. To keep a copy, cancel and use Save and Share first.",
     ok: "Reset All" });
   if (!ok) return;
   closeWizard();
@@ -2751,7 +2751,7 @@ $("#welcome").addEventListener("click", e => {
   closeWelcome();
   if (act === "device" || act === "bg") startSetup();
   else if (act === "add") startDeviceWizard();
-  else if (act === "arrange") { setSelection([]); toast(profile.widgets.length ? "Drag widgets to place them. Press E when you're done." : "Add a device first with the round + button."); }
+  else if (act === "arrange") { setSelection([]); toast(profile.widgets.length ? "Drag widgets to place them. Press E when you're done." : "Add a device first with + Device or the round + button."); }
   else if (act === "import") $("#file-in").click();
 });
 $("#welcome").addEventListener("keydown", e => {
@@ -3109,21 +3109,21 @@ function arrangeSection(p) {
     p.append(el("div", { class: "fields" }, fld("Gap", gapIn, "px")));
     p.append(el("div", { class: "hint small" }, "Leave it on Auto to spread 3 or more widgets evenly across their current width or height."));
     p.append(el("div", { class: "wide-row" },
-      el("button", { onclick: () => distribute(true, s.spaceGap) }, "Space Evenly ↔"),
-      el("button", { onclick: () => distribute(false, s.spaceGap) }, "Space Evenly ↕")));
+      el("button", { onclick: () => distribute(true, s.spaceGap) }, "Space Horizontally"),
+      el("button", { onclick: () => distribute(false, s.spaceGap) }, "Space Vertically")));
     p.append(el("h5", {}, "Rows and Columns"));
     const colsObj = { get v() { return String(s.gridCols || 0); }, set v(x) { s.gridCols = +x; } };
     choiceRow(p, "Columns", colsObj, "v", [["0", "Auto", "Keeps the rows your widgets already roughly sit in."], ...[1, 2, 3, 4, 5, 6].map(n => [String(n), String(n), `${n} per row, in reading order.`])], null, { aria: "Grid columns" });
     p.append(el("div", { class: "actions" }, el("button", { onclick: () => arrangeGrid(s.gridCols || 0, s.spaceGap), title: "Line the selected widgets up in rows and columns" }, "Arrange in Grid")));
-    p.append(el("div", { class: "hint small" }, "Uses the gap above (Auto: the grid size). Match Width or Height in Position and Size first for even cells."));
+    p.append(el("div", { class: "hint small" }, "Uses the Gap above, or the grid size on Auto. For even cells, use Match Both first."));
   }
   p.append(el("h5", {}, n > 1 ? "Place Group on Screen" : "Place on Screen"));
   p.append(el("div", { class: "wide-row" },
-    el("button", { onclick: () => placeOnScreen("center") }, "Snap to Center"),
+    el("button", { onclick: () => placeOnScreen("center") }, "Center on Screen"),
     el("button", { onclick: () => placeOnScreen("hcenter") }, "Center Horizontally"),
-    el("button", { onclick: () => placeOnScreen("bottom-center") }, "Bottom Center"),
-    el("button", { onclick: () => placeOnScreen("bottom") }, "Snap to Bottom")));
-  p.append(el("div", { class: "hint small" }, `Bottom keeps the ${profile.settings.margin}px safe margin from Settings. Arrow keys nudge 1px, Shift+arrow 10px; hold Alt while dragging to turn snapping off.`));
+    el("button", { onclick: () => placeOnScreen("bottom-center") }, "Center at Bottom"),
+    el("button", { onclick: () => placeOnScreen("bottom") }, "Move to Bottom")));
+  p.append(el("div", { class: "hint small" }, `Move to Bottom keeps the ${profile.settings.margin} px safe margin. Arrow keys nudge 1 px (Shift: 10 px). Hold Alt while dragging to skip snapping.`));
 }
 
 function renderPanel() {
@@ -3148,22 +3148,22 @@ function renderPanelView(p) {
 
 function renderHome(p) {
   p.append(el("h3", {}, "Setup"));
-  p.append(el("div", { class: "hint" }, "Add each device once with the round + button (bottom right) or + Device. Setup walks you through it in the middle of the screen, and new widgets line up along the bottom middle."));
-  p.append(el("div", { class: "hint" }, "Drag widgets to place them; they snap to the center lines, the screen edges and each other. Drag a box or Shift+click to select several. Switch Edit Mode off (top bar) or press E when you are done."));
+  p.append(el("div", { class: "hint" }, "Add each device once with + Device or the round + button. New widgets line up along the bottom middle."));
+  p.append(el("div", { class: "hint" }, "Drag widgets into place. Drag a box or Shift+click to select several. Press E or switch off Edit Mode when you're done."));
   const off = offscreenWidgets().length;
   if (off) p.append(el("div", { class: "hint", style: "color:#ffb547" }, `${off} widget${off > 1 ? "s are" : " is"} outside this window.`),
     el("div", { class: "actions" }, el("button", { onclick: bringIntoView }, "Bring Into View")));
   const missing = profile.widgets.filter(w => w.match && !padFor(w, connectedPads()));
-  if (!connectedPads().length) p.append(el("div", { class: "hint", style: "color:#ffb547" }, "No controllers seen yet. Move a stick or press a button so the browser detects them."));
+  if (!connectedPads().length) p.append(el("div", { class: "hint", style: "color:#ffb547" }, "No devices seen yet. Move a stick or press a button so the browser detects them."));
   else if (missing.length) p.append(el("div", { class: "hint", style: "color:#ffb547" }, `${missing.length} widget${missing.length > 1 ? "s are" : " is"} waiting for ${missing.length > 1 ? "their devices" : "its device"}. Open Check Devices to see why.`));
   p.append(el("div", { class: "actions" }, el("button", { onclick: () => setSelection([], "devices") }, "Check Devices")));
   p.append(el("div", { class: "actions" },
     el("button", { class: "primary", onclick: startDeviceWizard }, "+ Device"),
     el("button", { onclick: startButtonWizard }, "+ Button"),
-    el("button", { onclick: () => $("#file-in").click() }, "Import Profile"),
+    el("button", { onclick: () => $("#file-in").click() }, "Import a Profile"),
     el("button", { class: "danger", onclick: resetAll }, "Reset All")));
-  p.append(el("h4", {}, "Line Up Against the Game"));
-  p.append(el("div", { class: "hint" }, "Recommended: load a Star Citizen screenshot as a background so you can place widgets around your HUD. It only shows in edit mode and is hidden as soon as you leave it."));
+  p.append(el("h4", {}, "Reference Screenshot"));
+  p.append(el("div", { class: "hint" }, "Place widgets around your HUD with a Star Citizen screenshot behind them. It shows only while you edit."));
   if (availableSamples.length) {
     const sr = el("div", { class: "actions" });
     for (const sm of availableSamples) {
@@ -3174,7 +3174,7 @@ function renderHome(p) {
   }
   p.append(el("div", { class: "actions" },
     el("button", { onclick: () => $("#ref-in").click() }, "Load My Own Screenshot"),
-    refImage ? el("button", { onclick: clearReference }, "No Background") : null));
+    refImage ? el("button", { onclick: clearReference }, "No Screenshot") : null));
   if (profile.widgets.length) {
     p.append(el("h4", {}, "On Screen"));
     for (const w of profile.widgets) p.append(el("div", { class: "row" },
@@ -3188,7 +3188,7 @@ const ADD_ITEMS = [
   { key: "pedals", name: "Pedals", short: "Pedals", hint: "Rudder and toe brakes", icon: '<path d="M4 20l2-13h4l-1 13zM15 20l-1-13h4l2 13z"/>' },
   { key: "button", name: "Button", short: "Button", hint: "Any button or trigger", icon: '<circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="3"/>' },
   { key: "throttle", name: "Throttle", short: "Throttle", hint: "One forward axis", icon: '<rect x="8.5" y="3" width="7" height="5" rx="1.5"/><path d="M12 8v9M6 20h12M9 17h6"/>' },
-  { key: "axis", name: "Single axis", short: "Axis", hint: "Slider, dial or twist", icon: '<path d="M4 12h16M7 9l-3 3 3 3M17 9l3 3-3 3"/>' },
+  { key: "axis", name: "Single Axis", short: "Axis", hint: "Slider, dial or twist", icon: '<path d="M4 12h16M7 9l-3 3 3 3M17 9l3 3-3 3"/>' },
   { key: "label", name: "Label", short: "Label", hint: "Text on screen", icon: '<path d="M5 6h14M12 6v13M9 19h6"/>' }
 ];
 const devName = d => prettyName(d.id) + (d.nth ? " #" + (d.nth + 1) : "");
@@ -3212,8 +3212,8 @@ function renderWiz() {
   };
   // Clickable step tracker: steps already passed are buttons that jump back to them.
   const stepper = step => {
-    const names = [...(wizBg ? ["Background"] : []), "Device", wiz.kind === "button" ? "Press" : "Move", "Name"];
-    const jump = { Background: () => { wizBg = true; wiz = { kind: "device", stage: "bg" }; renderWiz(); },
+    const names = [...(wizBg ? ["Screenshot"] : []), "Device", wiz.kind === "button" ? "Press" : "Move", "Name"];
+    const jump = { Screenshot: () => { wizBg = true; wiz = { kind: "device", stage: "bg" }; renderWiz(); },
       Device: startDeviceWizard,
       Move: () => wizChooseType(wiz.type), Press: startButtonWizard };
     const ol = el("ol", { class: "wsteps", "aria-label": "Setup steps" });
@@ -3226,13 +3226,13 @@ function renderWiz() {
     return ol;
   };
   const noPad = () => { const n = el("p", { class: "warn", id: "wiz-nopad" },
-    "No controllers seen yet. Move any stick or press a button so your browser can see them."); n.hidden = connectedPads().length > 0; return n; };
+    "No devices seen yet. Move any stick or press a button so your browser can see them."); n.hidden = connectedPads().length > 0; return n; };
   const actions = (...xs) => b.append(el("div", { class: "actions" }, ...xs));
 
   if (wiz.stage === "bg") {
-    head(...st(0), "Choose a Background",
+    head(...st(0), "Choose a Reference Screenshot",
       "Pick the Star Citizen screenshot closest to your screen, so you can place widgets around the in-game HUD instead of on top of it. It only shows while you edit, never on stream.");
-    const g = el("div", { class: "shots", role: "group", "aria-label": "Background screenshots" });
+    const g = el("div", { class: "shots", role: "group", "aria-label": "Reference screenshots" });
     const tile = (src, label, on, click) => g.append(el("button", { class: "shot", "aria-pressed": on ? "true" : "false", onclick: click }, el("img", { src, alt: "" }), label));
     for (const sm of availableSamples) tile(SAMPLE_DIR + sm.file, sm.label, refImage === SAMPLE_DIR + sm.file, () => { useSample(sm); renderWiz(); });
     if (refImage && refImage.startsWith("data:")) tile(refImage, "Your Screenshot", true, () => {});
@@ -3240,23 +3240,22 @@ function renderWiz() {
     else b.append(el("p", { class: "warn" }, `No sample screenshots found. Put them in a folder called "${SAMPLE_DIR.slice(0, -1)}" next to StayOnTarget.html, or load your own.`));
     b.append(el("div", { class: "actions", style: "justify-content:flex-start;margin-top:0.6rem" },
       el("button", { onclick: () => $("#ref-in").click() }, "Load My Own Screenshot"),
-      refImage ? el("button", { onclick: () => { clearReference(); renderWiz(); } }, "No Background") : null));
+      refImage ? el("button", { onclick: () => { clearReference(); renderWiz(); } }, "No Screenshot") : null));
     actions(el("button", { class: "primary", "data-autofocus": "", onclick: startDeviceWizard }, "Next: Add a Device"));
   } else if (wiz.kind === "done") {
     head(0, "Added", `${wiz.last.label || "Your widget"} is on your overlay`,
-      "It's at the bottom middle of your screen, where most streamers keep their inputs. You can drag it anywhere later.");
+      "It's at the bottom middle of the screen. Drag it anywhere later.");
     if (wizAdded.length > 1) { const ul = el("ul", { class: "added", "aria-label": "Added so far" }); for (const n of wizAdded) ul.append(el("li", {}, n)); b.append(ul); }
     actions(el("button", { onclick: closeWizard }, "Done"),
       el("button", { onclick: startButtonWizard }, "Add a Button"),
-      el("button", { class: "primary", "data-autofocus": "", onclick: () => { wizBg = false; startDeviceWizard(); } }, "Add More"));
-    b.append(el("p", { class: "tip" }, "Tip: the round + button in the bottom-right corner adds more at any time."));
+      el("button", { class: "primary", "data-autofocus": "", onclick: () => { wizBg = false; startDeviceWizard(); } }, "Add Another Device"));
   } else if (wiz.kind === "button" && wiz.stage === "press") {
     head(...st(2, "Button"), "Press the Button You Want to Show", "Any button on any device. Hold it for a moment.");
     b.append(el("p", { class: "tip", id: "wiz-hint", "aria-live": "polite" }), noPad());
     actions(wiz.remap ? null : el("button", { onclick: startDeviceWizard }, "Back"), el("button", { onclick: closeWizard }, "Cancel"));
   } else if (wiz.stage === "type") {
     head(...(wizAdded.length ? [0, "Add Another"] : st(1)), "What Are You Adding?",
-      "Pick one and we'll set it up right here. It appears at the bottom middle of your screen.");
+      "Pick one. It appears at the bottom middle of your screen.");
     const g = el("div", { class: "types" });
     for (const it of ADD_ITEMS) g.append(el("button", { onclick: () => wizChooseType(it.key) },
       el("span", { html: `<svg viewBox="0 0 24 24">${it.icon}</svg>`, style: "display:contents" }), it.name, el("small", {}, it.hint)));
@@ -3265,7 +3264,7 @@ function renderWiz() {
   } else if (wiz.stage === "steps") {
     const steps = TYPES[wiz.type].steps, cur = steps[wiz.step];
     head(...st(2, TYPES[wiz.type].name), cur.ask.charAt(0) + cur.ask.slice(1).toLowerCase() + (cur.optional ? " (if you have it)" : ""),
-      (steps.length > 1 ? `Movement ${wiz.step + 1} of ${steps.length}. ` : "") + (wiz.step === 0 ? "Start with everything at rest, then move it all the way and let go." : "Move it all the way and let go."));
+      (wiz.step === 0 ? "Start with everything at rest, then move it all the way and let go." : "Move it all the way and let go."));
     b.append(el("div", { class: "live", role: "progressbar", "aria-label": "Movement detected", "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": "0" }, el("i", { id: "wiz-live" })));
     if (steps.length > 1) steps.forEach((s, i) => b.append(el("div", { class: i < wiz.step ? "step done" : i === wiz.step ? "step active" : "step" }, s.ask.charAt(0) + s.ask.slice(1).toLowerCase())));
     if (wiz.dev) b.append(el("p", { class: "tip" }, "Device: " + devName(wiz.dev)));
@@ -3534,7 +3533,7 @@ function perspectiveSection(p, ws) {
   const shows = el("div", { class: "hint small" });
   const paintShows = () => {
     const a = w0.bgAlpha ?? profile.settings.panelAlpha, f = w0.proj.fade || 0;
-    shows.textContent = `Background shows at ${Math.round(a * (1 - f / 100))}%: Background opacity ${a}% in Colors` + (f ? `, faded ${f}% here.` : ", not faded.");
+    shows.textContent = `Background shows at ${Math.round(a * (1 - f / 100))}% (opacity ${a}%` + (f ? `, faded ${f}%).` : ", no fade).");
   };
   slider("Background fade", pproxy, "fade", 0, 100, "%", () => { paintShows(); updProj(); }, "How much of the background drops out so the scene shows through.");
   paintShows(); p.append(shows);
@@ -3576,7 +3575,7 @@ function boxSizeRows(p, ws, extra) {
   }
   if (extra) extra(p);
   p.append(el("div", { class: "hint small" }, (ws.length > 1 ? "Match uses the largest selected widget. " : "")
-    + "A box can't be smaller than its content; Size below scales the content itself."));
+    + "The box can't be smaller than its content. To shrink the content, use Size."));
   if (fixed) p.append(el("div", { class: "actions" }, el("button", { class: "subtle", onclick: () => { for (const w of ws) { delete w.boxW; delete w.boxH; } upd(); } }, "Fit to Content")));
 }
 // Flat or Projector for every widget in ws. Projector gives a Stick its radar disc; Flat
@@ -3615,7 +3614,7 @@ function projectorSection(p, ws) {
   if (REDUCED_MOTION) p.append(el("div", { class: "hint small" }, "Your system asks for less motion, so the projector stays still."));
   sliderRow(p, "Intensity", proxy, "intensity", 0, 100, "%", updIntensity).addEventListener("change", upd);
   choiceRow(p, "Scene", proxy, "footage", [["dark", "Dark", "Space and dim cockpits."], ["bright", "Bright", "Planet glare and clouds: brighter light and lines so readouts stay legible."]], upd, { aria: "Scene brightness" });
-  p.append(el("h5", {}, "Base & Beams"));
+  p.append(el("h5", {}, "Base and Beams"));
   choiceRow(p, "Projector position", bproxy, "side", [["below", "Below"], ["above", "Above"], ["left", "Left"], ["right", "Right"]], upd, { aria: "Projector position" });
   sliderRow(p, "Base size", bproxy, "size", 50, 200, "%", upd);
   sliderRow(p, "Move left or right", bproxy, "dx", -200, 200, " px", updBase, { fmt: px }).addEventListener("change", upd);
@@ -3634,9 +3633,9 @@ function projectorSection(p, ws) {
   toggleRow(p, "Flicker", proxy, "flicker", upd, "A rare, gentle dropout.");
   toggleRow(p, "Color Fringe", proxy, "fringe", upd, "A slight color split at the edges; in Full it shows during dropouts.");
   p.append(el("div", { class: "actions" },
-    ws.length > 1 ? el("button", { onclick: () => { projectFromOneBase(ws); save(); upd(); renderPanel(); } }, "Project From One Base") : null,
+    ws.length > 1 ? el("button", { onclick: () => { projectFromOneBase(ws); save(); upd(); renderPanel(); } }, "Project from One Base") : null,
     el("button", { class: "subtle", onclick: () => { for (const w of ws) { delete w.holo; delete w.face; } save(); upd(); renderPanel(); } }, "Reset Projector")));
-  if (ws.length > 1) p.append(el("div", { class: "hint small" }, "Project From One Base aims every selected widget at a single base under the group. Moving one widget on its own breaks the group; press it again to regroup."));
+  if (ws.length > 1) p.append(el("div", { class: "hint small" }, "Project from One Base aims every selected widget at a single base under the group. Moving one widget on its own breaks the group; press it again to regroup."));
 }
 // One projector for a group: every selected widget's rays converge on a base under the selection's bottom center,
 // sized from the group's width, and only the leftmost widget draws the disc. Offsets stay per widget, so the group
@@ -3663,10 +3662,10 @@ const sizeRow = (p, ws, upd) => pctRow(p, "Size", ws, w => w.size || 1, (w, v) =
 
 function renderWidgetPanel(p) {
   const w = selectedWidgets()[0]; if (!w) return;
-  const names = { stick: "Stick", throttle: "Throttle", pedals: "Pedals", axis: "Single axis", button: "Button", label: "Label" };
+  const names = { stick: "Stick", throttle: "Throttle", pedals: "Pedals", axis: "Single Axis", button: "Button", label: "Label" };
   const upd = () => { refreshWidget(w); syncSelectionClasses(); };
   const seen = w.match && padFor(w, connectedPads());
-  panelHead(p, names[w.type] || w.type, w.type !== "label" && w.match && !seen ? "Its device is not connected. See Device below." : "", el("div", { class: "fields" }, fld("Name", textIn(w, "label", upd), null, true)));
+  panelHead(p, names[w.type] || w.type, w.type !== "label" && w.match && !seen ? "Device not connected. See Device below." : "", el("div", { class: "fields" }, fld("Name", textIn(w, "label", upd), null, true)));
   positionSection(p, [w]);
   arrangeSection(p);
   layoutSection(p, [w]);
@@ -3678,9 +3677,9 @@ function renderWidgetPanel(p) {
   if (w.type !== "label") {
     const name = w.match ? prettyName(w.match) + (w.nth ? " #" + (w.nth + 1) : "") : "";
     const d = section(p, "Device", { key: "device", summary: name ? name + (seen ? "" : " (not connected)") : "None yet" });
-    d.append(el("div", { class: "hint small" }, name ? name + (seen ? " is connected." : " is not connected.") : "No device yet."));
+    d.append(el("div", { class: "hint small" }, !name ? "No device yet." : seen ? "Connected." : "Not connected. Move it or press a button to wake it."));
     d.append(el("div", { class: "actions" }, el("button", { onclick: () => startRemap(w), title: w.type === "button" ? "Press the button again to remap it" : "Move the device again to remap it" }, "Detect Device"),
-      w.match && twinsOf(w, connectedPads()) > 1 ? el("button", { onclick: () => swapTwins(w.match) }, "Swap With Identical Device") : null));
+      w.match && twinsOf(w, connectedPads()) > 1 ? el("button", { onclick: () => swapTwins(w.match) }, "Swap with Identical Device") : null));
     if (w.match && w.type !== "button" && TYPES[w.type]) {
       for (const s of TYPES[w.type].steps) if (w.axes[s.key] != null) {
         const lbl = { x: "Invert X", y: "Invert Y", t: "Invert throttle", r: "Invert rudder", bl: "Invert left brake", br: "Invert right brake", a: "Invert axis" }[s.key];
@@ -3693,7 +3692,7 @@ function renderWidgetPanel(p) {
 
 function renderMultiPanel(p) {
   const ws = selectedWidgets();
-  panelHead(p, ws.length + " widgets selected", "Every change here applies to all of them. Drag any one to move the group; Shift+click adds or removes one.");
+  panelHead(p, ws.length + " widgets selected", "Changes apply to all selected widgets. Shift+click a widget to add or remove it.");
   positionSection(p, ws);
   arrangeSection(p);
   layoutSection(p, ws);
@@ -3702,14 +3701,14 @@ function renderMultiPanel(p) {
   colorSection(p, ws);
   perspectiveSection(p, ws);
   projectorSection(p, ws);
-  panelFoot(p, "Remove All");
+  panelFoot(p, "Remove " + ws.length + " Widgets");
 }
 
 // Device check: every controller slot the browser exposes, live, plus which widgets are still waiting.
 const PAD_SLOTS = 4;   // Chrome, Edge and OBS hand a page at most 4 game controllers
 function renderDevicesPanel(p) {
   p.append(el("h3", {}, "Check Devices"));
-  p.append(el("div", { class: "hint" }, "Every game controller your browser is passing to Stay On Target, updated live. Move or press something on each device to see it light up."));
+  p.append(el("div", { class: "hint" }, "Every device your browser is passing to Stay On Target, updated live. Move or press something on each device to see it light up."));
   // The list refreshes five times a second, so it is not a live region; only connects and disconnects are announced.
   const body = el("div", { id: "dev-body" }), news = el("div", { class: "sr-only", "aria-live": "polite" });
   body._news = news;
@@ -3742,7 +3741,7 @@ function fillDevices(body) {
   body._names = names;
   const frag = document.createDocumentFragment();
   frag.append(el("h4", {}, `Seen by the browser (${pads.length}${slots ? " of " + slots + " slots" : ""})`));
-  if (!pads.length) frag.append(el("div", { class: "hint", style: "color:#ffb547" }, "Nothing yet. Browsers hide controllers until you press a button or move an axis fully after the page opens."));
+  if (!pads.length) frag.append(el("div", { class: "hint", style: "color:#ffb547" }, "Nothing yet. Browsers hide devices until you press a button or move an axis fully after the page opens."));
   for (const d of pads) {
     const act = Math.max(0, ...d.pad.axes.map(a => Math.abs(a))), pressed = d.pad.buttons.some(b => b.pressed);
     const meter = el("span", { class: "dev-meter", "aria-hidden": "true" }, el("i", { style: `width:${Math.round(act * 100)}%` }));
@@ -3759,8 +3758,8 @@ function fillDevices(body) {
       el("small", {}, prettyName(w.match) + (w.nth ? " #" + (w.nth + 1) : "") + (w.type === "pedals" ? " · push a pedal or a toe brake all the way once" : " · press a button or move it all the way once"))));
   }
   if (slots && pads.length >= Math.min(slots, PAD_SLOTS) && missing.length)
-    frag.append(el("div", { class: "hint warn-box" }, `All ${pads.length} controller slots are taken, so another device can't get in. Browsers and OBS show at most ${PAD_SLOTS} game controllers at once. Check the list above for devices you don't need on stream (a second throttle, a button box, a virtual controller from Steam, vJoy or a racing wheel), and unplug or disable one in Windows Device Manager, then reopen this page.`));
-  frag.append(el("div", { class: "hint" }, "Still missing? Close other browser tabs or apps that read controllers, unplug the device and plug it back in, then refresh. Windows lists every controller under Win+R, joy.cpl."));
+    frag.append(el("div", { class: "hint warn-box" }, `All ${pads.length} controller slots are taken, so another device can't connect. Browsers and OBS show at most ${PAD_SLOTS} game controllers. Unplug or disable one you don't need on stream (a spare throttle, a wheel, a virtual controller from Steam or vJoy), then reload this page.`));
+  frag.append(el("div", { class: "hint" }, "Still missing? Close other browser tabs or apps that read devices, unplug the device and plug it back in, then refresh. Windows lists every device under Win+R, joy.cpl."));
   body.replaceChildren(frag);
 }
 
@@ -3779,18 +3778,18 @@ function renderSettingsPanel(p) {
   if (s.scaleMode !== "auto") size.append(el("div", { class: "fields" }, fld("Overlay scale", numIn(s, "scale", 0.3, 4, 0.05, rebuildAll), "×", true)));
   choiceRow(size, "Editor text size", s, "uiScale", [["auto", "Auto", "Grows with the screen, so 4K stays readable."], [1, "100%"], [1.25, "125%"], [1.5, "150%"], [2, "200%"], [2.5, "250%"]], applySettings, { wrap: true });
   themeSection(p, profile.widgets.filter(w => w.type !== "label"), true);
-  const bg = section(p, "Background", { key: "s-bg" });
-  toggleRow(bg, "Solid background", { get v() { return s.background === "solid"; }, set v(x) { s.background = x ? "solid" : "transparent"; } }, "v", applySettings,
+  const bg = section(p, "Page Background", { key: "s-bg" });
+  toggleRow(bg, "Solid page background", { get v() { return s.background === "solid"; }, set v(x) { s.background = x ? "solid" : "transparent"; } }, "v", applySettings,
     "Leave it off for OBS. A solid color is only for tools without transparency.");
-  bg.append(el("div", { class: "cgrid" }, ccell("Background color", colorIn(s, "bgColor", applySettings, "Background color"))));
+  bg.append(el("div", { class: "cgrid" }, ccell("Page color", colorIn(s, "bgColor", applySettings, "Page background color"))));
   const heat = section(p, "Session Heatmap", { key: "s-heat" });
-  heat.append(el("div", { class: "hint small" }, "Shows where each stick, throttle and pedal spent its time this session, e.g. which way you strafe most. Toggle with H, reset with R."));
+  heat.append(el("div", { class: "hint small" }, "Shows where each stick, throttle and pedal spent its time this session, for example, which way you strafe most. Toggle with H, reset with R."));
   heat.append(el("div", { class: "actions" }, el("button", { onclick: toggleHeat }, showHeat ? "Hide Heatmap" : "Show Heatmap"), el("button", { class: "subtle", onclick: resetHeat }, "Reset Heatmap")));
   const about = section(p, "About", { key: "s-about", open: false });
   about.append(el("div", { class: "hint" }, "Stay On Target is free, open-source software under the MIT License. It uses no third-party libraries, fonts, trackers or online services: everything runs offline from this one file."));
   about.append(el("div", { class: "hint" }, "This is an unofficial Star Citizen fan project, not affiliated with the Cloud Imperium group of companies. Star Citizen®, Roberts Space Industries® and Cloud Imperium® are trademarks of Cloud Imperium Rights LLC. Manufacturer names are used only to describe fan-made color themes."));
   const over = section(p, "Start Over", { key: "s-reset", open: false });
-  over.append(el("div", { class: "hint small" }, "Removes every widget and setting on this computer. Download a backup first if you may want it back."));
+  over.append(el("div", { class: "hint small" }, "Removes every widget and setting on this computer. Download profile.js first to keep a backup."));
   over.append(el("div", { class: "actions" }, el("button", { class: "danger", onclick: resetAll }, "Reset All")));
 }
 
@@ -3799,7 +3798,7 @@ function renderExportPanel(p) {
   p.append(el("div", { class: "hint" }, "Your setup saves automatically. For a personal backup that survives OBS clearing its cache, download profile.js and put it in the same folder as StayOnTarget.html. It's for your own computer only: don't share it."));
   p.append(el("div", { class: "actions" }, el("button", { class: "primary", onclick: () => exportProfile(true) }, "Download profile.js")));
   p.append(el("h4", {}, "Share With Another Pilot"));
-  p.append(el("div", { class: "hint" }, "Download .json and send that file. The other pilot opens the editor and chooses Import a Profile. With the same hardware it works straight away; otherwise they remove the widgets and add their own devices."));
+  p.append(el("div", { class: "hint" }, "Download .json and send that file. The other pilot opens the editor and chooses Import a Profile. With the same hardware it works right away; otherwise they remove the widgets and add their own devices."));
   p.append(el("div", { class: "actions" }, el("button", { onclick: () => exportProfile(false) }, "Download .json"), el("button", { onclick: () => $("#file-in").click() }, "Import a Profile")));
 }
 
