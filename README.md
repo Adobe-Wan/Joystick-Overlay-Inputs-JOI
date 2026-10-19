@@ -69,7 +69,7 @@ Drop a new one into the folder and it appears in the editor on the next load. Ke
 ## Widget layout
 Select a widget (or several). The side panel runs like Figma's: what you selected and the align icons stay pinned at the top, **Duplicate** and **Remove** stay pinned at the bottom, and the sections in between go from where the widget sits, to its box, to how it looks:
 
-**Position and Size**, **Arrange**, **Layout**, **Show**, **Color Theme**, **Colors**, **Cockpit Look**, **Projector**, then **Device** for a single widget.
+**Position and Size**, **Arrange**, **Layout**, **Show**, **Color Theme**, **Colors**, **Effects**, **Cockpit Look**, **Projector**, then **Device** for a single widget.
 
 With several widgets selected, every change applies to all of them. The first time setup finishes with two or more widgets, a tip points this out (once per browser).
 
@@ -119,6 +119,8 @@ Most themes are sampled from that manufacturer's in-game power management screen
 ![The color picker](docs/color-picker.png)
 
 Click a color to open the picker: drag in the square for saturation and brightness (or use the arrow keys, Shift for bigger steps), drag the rainbow bar for hue, type a hex code, click a preset, or use **Pick** to grab a color from anywhere on screen (where the browser supports it). Escape or a click outside closes it.
+
+**Effects** adds a **Drop Shadow** and an **Outer Glow**, for the text (name, values and axis labels) and for the container (the widget's box). All four start off. Turn one on to set its Color, Opacity and Blur, plus X and Y offset for a shadow. A glow uses your Highlight color until you pick another, so it follows the theme. Container effects show only while Background opacity is above 0%. **Use These Effects for All Widgets** copies them to every widget; **Reset Effects** turns them off again.
 
 ## Cockpit Look (perspective and projection)
 Select a widget (or several) and use **Cockpit Look** in the side panel to make it sit naturally in your cockpit, either on an angled screen or projected like a hologram. Widgets start Flat; the looks are optional.
