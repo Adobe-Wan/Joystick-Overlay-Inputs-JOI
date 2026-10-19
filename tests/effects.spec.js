@@ -144,8 +144,8 @@ test.describe("Effects", () => {
     await open(app, base([stick(), btn()]));
     await edit(page, ["s1"]);
     await toggle(page, "Text glow");
-    await page.waitForTimeout(300);
-    await page.reload(); await app.frames(2);
+    await app.flushSave();
+    await app.reload("?transparent");
     expect(await page.evaluate(() => profile.widgets[0].fx)).toEqual({ textGlow: { on: true } });
     await edit(page, ["s1"]);
     await page.evaluate(() => [...document.querySelectorAll("#sec-effects button")].find(b => b.textContent === "Use These Effects for All Widgets").click());
