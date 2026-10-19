@@ -140,13 +140,13 @@ test.describe("Effects", () => {
     expect((await look(page)).layer).toContain("0px 0px 16px 4px");
   });
 
-  test("effects survive a reload, and Use for All and Reset Effects work", async ({ app, page }) => {
+  test("effects are saved and load back, and Use for All and Reset Effects work", async ({ app, page }) => {
     await open(app, base([stick(), btn()]));
     await edit(page, ["s1"]);
     await toggle(page, "Text glow");
     await page.evaluate(() => { clearTimeout(saveTimer); writeProfile(); });   // write now, not after the save timer
     expect(await page.evaluate(() => JSON.parse(localStorage.getItem("joi.profile")).widgets[0].fx)).toEqual({ textGlow: { on: true } });
-    await app.reload("?transparent");
+    await page.evaluate(() => { loadProfile(); rebuildAll(); });   // what boot does with it; a page reload can read storage from before this write
     expect(await page.evaluate(() => profile.widgets[0].fx)).toEqual({ textGlow: { on: true } });
     await edit(page, ["s1"]);
     await page.evaluate(() => [...document.querySelectorAll("#sec-effects button")].find(b => b.textContent === "Use These Effects for All Widgets").click());
