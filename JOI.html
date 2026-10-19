@@ -884,6 +884,9 @@ function newProfile() { return { ver: PROFILE_VER, savedAt: 0, settings: { ...DE
 const WIDGET_TYPES = new Set(["stick", "throttle", "pedals", "axis", "button", "label"]);
 const AXIS_TYPES = new Set(["stick", "throttle", "pedals", "axis"]);
 const isRadar = w => w.type === "stick" && w.face === "radar";
+// The stick gate's grid: cells per side on the square face (1 = no inner lines), rings inside the radar's rim.
+const GRID_DEF = 4, RINGS_DEF = 2;
+const gridOf = w => w.grid ?? GRID_DEF, ringsOf = w => w.rings ?? RINGS_DEF;
 const isBar = w => w.type === "throttle" || w.type === "axis";
 const ID_RE = /^[\w-]{1,32}$/;
 const isObj = v => !!v && typeof v === "object" && !Array.isArray(v);
@@ -949,6 +952,7 @@ const WIDGET_CHECK = {
   label: textMax(200), match: textMax(256), nth: intRange(0, 15), slot: intRange(0, 15), button: intRange(0, 127), hat: intRange(0, 63), hatDir: intRange(0, 7),
   x: numRange(-10000, 10000), y: numRange(-10000, 10000), size: numRange(0.25, 4), scaleW: numRange(0.25, 4), scaleH: numRange(0.25, 4),   // scaleW / scaleH: buttons only; pedals' are read once, to migrate
   boxW: numRange(0, 4000), boxH: numRange(0, 4000), fill: optBool, orient: v => oneOf(v, ["h", "v", "c"]), face: v => oneOf(v, ["square", "radar"]),
+  grid: intRange(1, 8), rings: intRange(0, 4), outline: optBool, cross: optBool,
   key: v => typeof v === "string" && KEY_CODE_RE.test(v) ? v : undefined, shape: v => oneOf(v, Object.keys(SHAPES)),
   pad: numRange(0, 100), radius: numRange(0, 100), depth: numRange(0, 100),
   dims: v => pickFields(v, { box: numRange(1, 1000), bw: numRange(1, 1000), bh: numRange(1, 1000), rw: numRange(1, 1000), rh: numRange(1, 1000), cd: numRange(1, 1000) }),
@@ -2193,8 +2197,13 @@ function stickFace(w, rt, c) {
   // way every line on the Gladius radar is one cyan: dim rings, a brighter rim, bright ticks.
   const line = holo ? rt.holoColors.rays : ink;
   g.strokeStyle = hexA(line, holo ? 0.22 : 0.16); g.lineWidth = 1;
-  if (radar) for (const f of [1 / 3, 2 / 3]) { g.beginPath(); g.arc(R, R, (R - 0.5) * f, 0, Math.PI * 2); g.stroke(); }
-  else for (let k = 1; k < 4; k++) { const p = Math.round(S * k / 4) + 0.5; g.beginPath(); g.moveTo(p, 0); g.lineTo(p, S); g.moveTo(0, p); g.lineTo(S, p); g.stroke(); }
+  // The grid is the user's: N by N cells on the square (4 by default, 1 for none), evenly spaced rings on the radar.
+  if (radar) { const n = ringsOf(w); for (let i = 1; i <= n; i++) { g.beginPath(); g.arc(R, R, (R - 0.5) * i / (n + 1), 0, Math.PI * 2); g.stroke(); } }
+  else { const n = gridOf(w); for (let k = 1; k < n; k++) { const p = Math.round(S * k / n) + 0.5; g.beginPath(); g.moveTo(p, 0); g.lineTo(p, S); g.moveTo(0, p); g.lineTo(S, p); g.stroke(); } }
+  if (w.cross) {   // Bold Center Lines: the two main lines as bright as the rim, over whatever grid is under them
+    const p = Math.round(R) + 0.5;
+    g.strokeStyle = hexA(line, holo ? 0.5 : 0.4); g.beginPath(); g.moveTo(p, 0); g.lineTo(p, S); g.moveTo(0, p); g.lineTo(S, p); g.stroke();
+  }
   const depth = depthOf(w);
   if (depth > 0) {   // recessed gate: shadow under the top lip, faint light on the bottom edge
     const lip = g.createLinearGradient(0, 0, 0, S * 0.3);
@@ -2206,8 +2215,9 @@ function stickFace(w, rt, c) {
   }
   g.restore();
   if (holo) g.globalCompositeOperation = "lighter";
-  if (holo && radar) { g.strokeStyle = hexA(rt.holoColors.glow, 0.3); g.lineWidth = 3; face(); g.stroke(); }   // rim bloom: the rim is the brightest part
-  g.strokeStyle = hexA(line, holo ? 0.5 : 0.4); g.lineWidth = lw; face(); g.stroke();
+  const rim = w.outline !== false;   // Outer Border off: no rim line, the face keeps its shape and the grid stops at it
+  if (rim && holo && radar) { g.strokeStyle = hexA(rt.holoColors.glow, 0.3); g.lineWidth = 3; face(); g.stroke(); }   // rim bloom: the rim is the brightest part
+  if (rim) { g.strokeStyle = hexA(line, holo ? 0.5 : 0.4); g.lineWidth = lw; face(); g.stroke(); }
   if (radar) {   // 36 rim ticks every 10°, the four cardinal ones longer and in the highlight color
     for (let i = 0; i < 36; i++) {
       const a = i * Math.PI / 18, card = i % 9 === 0, len = card ? 7 : 3.5;
@@ -3864,6 +3874,23 @@ function dimRows(p, ws, upd) {
   if (w0.type === "pedals" && ws.some(w => w.axes && (w.axes.bl != null || w.axes.br != null)))
     p.append(el("div", { class: "hint small" }, "The brake bars follow the rudder's thickness."));
 }
+// The gate's grid, under Face: cells on a square face, rings on a radar, and the center lines and border on either.
+// A mixed selection shows both choices; each only touches the widgets with its face.
+function gridRows(p, ws, upd) {
+  p.append(el("h5", {}, "Grid"));
+  const sq = ws.filter(w => w.face !== "radar"), rd = ws.filter(w => w.face === "radar");
+  const pick = (list, get, set) => new Proxy({}, { get: () => String(get(list[0])), set: (_, k, v) => { for (const w of list) set(w, +v); return true; } });
+  if (sq.length) choiceRow(p, "Lines", pick(sq, gridOf, (w, n) => { if (n === GRID_DEF) delete w.grid; else w.grid = n; }), "v", [
+    ["1", "None", "No inner lines, just the gate."], ["2", "2×2", "The two center lines only, splitting the gate into quadrants."],
+    ["3", "3×3", "Nine cells."], ["4", "4×4", "Sixteen cells, the default."], ["6", "6×6", "Thirty-six cells."], ["8", "8×8", "A fine grid of sixty-four cells."]
+  ], upd, { aria: "Grid lines", wrap: true });
+  if (rd.length) choiceRow(p, "Rings", pick(rd, ringsOf, (w, n) => { if (n === RINGS_DEF) delete w.rings; else w.rings = n; }), "v",
+    [0, 1, 2, 3, 4].map(n => [String(n), n ? String(n) : "None", n ? `${n} evenly spaced ring${n > 1 ? "s" : ""} inside the rim${n === RINGS_DEF ? ", the default" : ""}.` : "No rings, just the rim."]),
+    upd, { aria: "Radar rings" });
+  const flag = (key, def) => new Proxy({}, { get: () => (ws[0][key] ?? def), set: (_, k, v) => { for (const w of ws) { if (v === def) delete w[key]; else w[key] = v; } return true; } });
+  toggleRow(p, "Bold Center Lines", flag("cross", false), "v", upd, "The two main lines drawn as bright as the border.");
+  toggleRow(p, "Outer Border", flag("outline", true), "v", upd, "Off leaves the grid open at its edges.");
+}
 const dimsOfDefault = w => ({ ...(DIMS[w.type] || {}), ...(isBar(w) && w.orient === "h" ? DIMS_H : {}) });
 // Padding, corner radius, what to show, and the inner container sizes (same-type selections).
 function layoutSection(p, ws) {
@@ -3875,7 +3902,7 @@ function layoutSection(p, ws) {
   if (sticks) {
     // The radar face is what the Gladius projects, but it works on its own too, so it lives with the other layout choices.
     const face = new Proxy({}, { get: () => w0.face || "square", set: (_, k, v) => { for (const w of ws) w.face = v; return true; } });
-    choiceRow(p, "Face", face, "v", [["square", "Square", "A square gate with a grid."], ["radar", "Radar", "A round radar disc with rings and rim ticks."]], upd, { aria: "Stick face" });
+    choiceRow(p, "Face", face, "v", [["square", "Square", "A square gate with a grid."], ["radar", "Radar", "A round radar disc with rings and rim ticks."]], () => { upd(); renderPanel(); }, { aria: "Stick face" });
   }
   slider("Padding", all(w => w.pad ?? PAD, (w, k, v) => { w.pad = v; }), "v", 0, 48);
   slider("Corner radius", all(w => w.radius ?? RADIUS, (w, k, v) => { w.radius = v; }), "v", 0, 32);
@@ -3897,8 +3924,9 @@ function layoutSection(p, ws) {
     pctRow(p, "Height scale", ws, w => w.scaleH || 1, (w, v) => { w.scaleH = v; }, 25, 400, upd);
   }
   if (ws.every(w => w.type === w0.type && FILL_TYPES.has(w.type))) dimRows(p, ws, upd);
+  if (sticks) gridRows(p, ws, upd);   // last, so its heading groups only the grid
   p.append(el("div", { class: "actions" }, el("button", { class: "subtle", onclick: () => {
-    const keys = ["pad", "radius", "depth", "dims", "showTitle", "showValues", "showAxisLabels", "scaleW", "scaleH", "orient", "boxW", "boxH", "fill", "fonts", "shape"];
+    const keys = ["pad", "radius", "depth", "dims", "grid", "rings", "outline", "cross", "showTitle", "showValues", "showAxisLabels", "scaleW", "scaleH", "orient", "boxW", "boxH", "fill", "fonts", "shape"];
     for (const w of ws) for (const k of keys) delete w[k];
     upd(); save(); renderPanel();
   } }, "Reset Layout")));

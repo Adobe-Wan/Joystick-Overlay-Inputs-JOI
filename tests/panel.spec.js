@@ -182,7 +182,7 @@ test.describe("fonts", () => {
     await edit(page, ["s1"]);
     const nests = () => page.evaluate(() => [...document.querySelectorAll("#panel .nest")].map(n => !n.hidden));
     expect(await nests()).toEqual([true, true, true]);
-    await page.evaluate(() => document.querySelector('#panel .trow input[type=checkbox]').click());
+    await page.evaluate(() => document.querySelector('#panel input[role=switch][aria-label="Name"]').click());
     expect(await nests()).toEqual([false, true, true]);
   });
   test("a chosen font and size reach the widget", async ({ app, page }) => {
