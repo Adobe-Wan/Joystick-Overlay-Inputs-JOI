@@ -180,9 +180,9 @@ test.describe("fonts", () => {
   test("the options sit under their switch and hide when it is off", async ({ app, page }) => {
     await open(app, base([stick()]));
     await edit(page, ["s1"]);
-    const nests = () => page.evaluate(() => [...document.querySelectorAll("#panel .nest")].map(n => !n.hidden));
+    const nests = () => page.evaluate(() => [...document.querySelectorAll("#sec-show .nest")].map(n => !n.hidden));
     expect(await nests()).toEqual([true, true, true]);
-    await page.evaluate(() => document.querySelector('#panel .trow input[type=checkbox]').click());
+    await page.evaluate(() => document.querySelector('#sec-show .trow input[type=checkbox]').click());
     expect(await nests()).toEqual([false, true, true]);
   });
   test("a chosen font and size reach the widget", async ({ app, page }) => {
