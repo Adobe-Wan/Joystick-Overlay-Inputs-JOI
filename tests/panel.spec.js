@@ -102,14 +102,23 @@ test.describe("sizes", () => {
     await app.flushSave();
     expect((await app.storedProfile()).ver).toBe(2);
   });
-  test("the Width and Height sliders run 20 to 240 px, and Percent follows the default", async ({ app, page }) => {
+  test("the Width and Height sliders run 20 to 240 px (thickness from 8), and Percent follows the default", async ({ app, page }) => {
     await open(app, base([bar()]));
     await edit(page, ["t1"]);
     const px = await page.evaluate(() => [...document.querySelectorAll("#panel input[type=range]")].filter(r => /^(Width|Height)$/.test(r.getAttribute("aria-label"))).map(r => [r.getAttribute("aria-label"), +r.min, +r.max, +r.value]));
-    expect(px).toEqual([["Width", 20, 240, 20], ["Height", 20, 240, 104]]);
+    expect(px).toEqual([["Width", 8, 240, 20], ["Height", 20, 240, 104]]);
     await page.evaluate(() => [...document.querySelectorAll("#panel .tiles button")].find(b => b.textContent === "Percent").click());
     const pct = await page.evaluate(() => [...document.querySelectorAll("#panel input[type=range]")].filter(r => /^(Width|Height)$/.test(r.getAttribute("aria-label"))).map(r => [r.getAttribute("aria-label"), +r.value]));
     expect(pct).toEqual([["Width", 100], ["Height", 100]]);
+  });
+  test("a horizontal bar's Height (its thickness) goes down to 8 px", async ({ app, page }) => {
+    await open(app, base([bar({ orient: "h" })]));
+    await edit(page, ["t1"]);
+    const min = await page.evaluate(() => +[...document.querySelectorAll("#panel input[type=range]")].find(x => x.getAttribute("aria-label") === "Height").min);
+    expect(min).toBe(8);
+    await page.evaluate(() => { const r = [...document.querySelectorAll("#panel input[type=range]")].find(x => x.getAttribute("aria-label") === "Height"); r.value = 4; r.dispatchEvent(new Event("input", { bubbles: true })); });
+    expect(await page.evaluate(() => profile.widgets[0].dims)).toEqual({ bw: 8 });
+    expect(await page.evaluate(() => runtime.t1.canvas._h)).toBe(8);
   });
   test("a horizontal bar's Width is its length", async ({ app, page }) => {
     await open(app, base([bar({ orient: "h" })]));
