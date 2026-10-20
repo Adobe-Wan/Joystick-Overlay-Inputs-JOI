@@ -952,7 +952,7 @@ const WIDGET_CHECK = {
   label: textMax(200), match: textMax(256), nth: intRange(0, 15), slot: intRange(0, 15), button: intRange(0, 127), hat: intRange(0, 63), hatDir: intRange(0, 7),
   x: numRange(-10000, 10000), y: numRange(-10000, 10000), size: numRange(0.25, 4), scaleW: numRange(0.25, 4), scaleH: numRange(0.25, 4),   // scaleW / scaleH: buttons only; pedals' are read once, to migrate
   boxW: numRange(0, 4000), boxH: numRange(0, 4000), fill: optBool, orient: v => oneOf(v, ["h", "v", "c"]), face: v => oneOf(v, ["square", "radar"]),
-  grid: intRange(1, 8), rings: intRange(0, 4), outline: optBool, cross: optBool,
+  grid: intRange(1, 8), rings: intRange(0, 4), outline: optBool, cross: optBool, areaBg: optHex, areaAlpha: numRange(0, 100),
   key: v => typeof v === "string" && KEY_CODE_RE.test(v) ? v : undefined, shape: v => oneOf(v, Object.keys(SHAPES)),
   pad: numRange(0, 100), radius: numRange(0, 100), depth: numRange(0, 100),
   dims: v => pickFields(v, { box: numRange(1, 1000), bw: numRange(1, 1000), bh: numRange(1, 1000), rw: numRange(1, 1000), rh: numRange(1, 1000), cd: numRange(1, 1000) }),
@@ -2234,6 +2234,12 @@ function drawStick(w, rt, pad) {
   const x = readAxis(pad, w, "x"), y = readAxis(pad, w, "y");
   const face = stickFace(w, rt, c), holo = rt.holo;
   g.clearRect(0, 0, S, S);
+  // Stick area fill: the gate's own background, independent of the widget's, so a radar can be a true disc with
+  // contrast behind it on a clear widget. Under everything, like the heat cells, so a projected face's light adds onto it.
+  if (w.areaAlpha > 0) {
+    g.fillStyle = hexA(w.areaBg || w.bg || profile.settings.panel, w.areaAlpha / 100);
+    stickFacePath(g, face._radar, S, face._lw, face._rad); g.fill();
+  }
   // Projector: what must darken (heat cells) goes first with source-over, then everything is light that adds up, so
   // overlapping strokes brighten toward white.
   if (showHeat) {
@@ -3813,6 +3819,16 @@ function colorSection(p, ws) {
     ccell("Background", colorIn(proxy, "bg", upd, "Background"))));
   // Opacity is not part of a theme's palette, so it leaves the theme chosen.
   sliderRow(p, "Background opacity", proxy, "bgAlpha", 0, 100, "%", () => { for (const w of ws) refreshWidget(w); syncSelectionClasses(); syncOpacity(); });
+  if (ws.every(w => w.type === "stick")) {
+    // The gate's own fill, apart from the widget's. Not part of a theme, so changing it keeps the theme chosen.
+    const redraw = () => { for (const w of ws) refreshWidget(w); };
+    const area = new Proxy({}, { get: (_, k) => k === "areaBg" ? w0.areaBg || w0.bg || profile.settings.panel : w0.areaAlpha || 0,
+      set: (_, k, v) => { for (const w of ws) { if (k === "areaAlpha" && !v) delete w.areaAlpha; else w[k] = v; } return true; } });
+    p.append(el("h5", {}, "Stick Area"));
+    p.append(el("div", { class: "cgrid" }, ccell("Stick area fill", colorIn(area, "areaBg", redraw, "Stick area fill"))));
+    sliderRow(p, "Stick area opacity", area, "areaAlpha", 0, 100, "%", redraw,
+      { hint: "A background just behind the stick, square or radar. With Background opacity at 0, a radar reads as a true circle." });
+  }
   p.append(el("div", { class: "actions" }, el("button", { onclick: () => {
     const s = profile.settings; Object.assign(s, { accent: w0.accent, text: w0.text, panel: w0.bg, panelAlpha: w0.bgAlpha, border: w0.border || "", theme: w0.theme || "" });
     for (const o of profile.widgets) if (o.type !== "label") Object.assign(o, { accent: w0.accent, text: w0.text, bg: w0.bg, bgAlpha: w0.bgAlpha, border: w0.border, theme: w0.theme });

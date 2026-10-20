@@ -116,4 +116,30 @@ test.describe("stick grid", () => {
     const w = await w0(page);
     for (const k of ["grid", "rings", "cross", "outline"]) expect(w).not.toHaveProperty(k);
   });
+
+  test("Stick Area fills just the gate: a disc on a radar, nothing outside it", async ({ app, page }) => {
+    await open(app, base([stick({ face: "radar", bgAlpha: 0 })]));
+    // The canvas alpha at a point, as a fraction of the stick size: inside the disc between lines, and the corner outside it.
+    const alphaAt = (fx, fy) => page.evaluate(([fx, fy]) => {
+      const rt = runtime.s1, c = rt.canvas; drawStick(profile.widgets[0], rt, null);
+      return c.getContext("2d").getImageData(Math.round(c.width * fx), Math.round(c.height * fy), 1, 1).data[3];
+    }, [fx, fy]);
+    expect(await alphaAt(0.6, 0.42)).toBeLessThan(40);   // at most a ring's antialiased edge
+    await edit(page, ["s1"]);
+    await expect(page.locator('#panel button.cpick[aria-label^="Stick area fill"]')).toHaveCount(1);
+    await page.evaluate(() => { const r = document.querySelector('#panel input[aria-label="Stick area opacity"]'); r.value = 80; r.dispatchEvent(new Event("input", { bubbles: true })); });
+    expect((await w0(page)).areaAlpha).toBe(80);
+    expect(await alphaAt(0.6, 0.42)).toBeGreaterThan(150);
+    expect(await alphaAt(0.03, 0.03)).toBe(0);
+    await page.evaluate(() => undo());
+    expect(await w0(page)).not.toHaveProperty("areaAlpha");
+  });
+
+  test("Stick Area shows only when every selected widget is a stick, and its values are checked on load", async ({ app, page }) => {
+    await open(app, base([stick({ areaBg: "nope", areaAlpha: 140 }), { id: "t1", type: "throttle", x: 800, y: 300, label: "Throttle", match: VID, nth: 0, axes: { t: 2 }, inv: {} }]));
+    expect(await w0(page)).toMatchObject({ areaAlpha: 100 });
+    expect(await w0(page)).not.toHaveProperty("areaBg");
+    await edit(page, ["s1", "t1"]);
+    await expect(page.locator('#panel input[aria-label="Stick area opacity"]')).toHaveCount(0);
+  });
 });
