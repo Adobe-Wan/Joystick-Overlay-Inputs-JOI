@@ -36,7 +36,7 @@ Download the new zip and replace `JOI.html` in your folder. Keep your `profile.j
    New widgets line up along the bottom middle of the screen, where most streamers keep their inputs. The round **+** button (bottom right, or press **A**) adds more at any time.
 5. Drag the widgets where you want them (see *Positioning* below). Click one to change its name, size or colors.
 6. Switch **Edit Mode** off in the top bar (or press **E**). The reference screenshot disappears with the editor.
-7. **Save and Share → Download profile.js**, and save it in the same folder as `JOI.html`. This keeps the setup safe if OBS clears its cache.
+7. **Save and Share → Download profile.js**, and save it in the same folder as `JOI.html`. This keeps the setup safe if OBS clears its cache. OBS's own browser can't download files, so when you edit inside OBS (**Interact**) the button shows the file's text instead: select **Copy**, paste it into Notepad, and save it as `profile.js` with **Save as type** set to **All files**.
 
 ## Opening it in a normal browser
 Outside OBS the page shows a dark preview background with a note that it's transparent in OBS. In OBS it stays fully transparent. If another streaming app shows the dark background, add `?transparent` to the end of the file URL. Add `?edit` to open straight into the editor.
