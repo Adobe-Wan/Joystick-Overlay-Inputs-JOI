@@ -107,7 +107,7 @@ For movement keys, press **Add W, A, S and D Keys** in the same step. It adds th
 
 ![Circular displays, WASD keycaps (W held) and the Circle, Pill and Rounded Square shapes](docs/keys-and-dials.png)
 
-**The catch in OBS:** a Browser source only receives key presses while it has keyboard focus, which in OBS means while its **Interact** window is open and focused. With the game in front, Windows sends the keys to the game, not to OBS, so the keycaps won't light during play from the browser source alone. Showing keys while you play needs a helper that listens to the keyboard system-wide; the planned in-game companion app is where that fits. Device buttons and axes are not affected: the browser reads controllers whether or not it has focus.
+**The catch in OBS:** a Browser source only receives key presses while it has keyboard focus, which in OBS means while its **Interact** window is open and focused. With the game in front, Windows sends the keys to the game, not to OBS, so the keycaps won't light during play from the browser source alone. Showing keys while you play needs a helper that listens to the keyboard system-wide; the planned in-game companion app is where that fits. Device buttons and axes normally keep working with the game in front; if they freeze too, see [Inputs freeze while the game is in front](#inputs-freeze-while-the-game-is-in-front).
 
 ## Color themes
 Match your widgets to your ship's MFDs. Select widgets and look under **Color Theme** in the side panel, or use the same controls in **Settings** to color every widget (new widgets then use it too).
@@ -188,6 +188,20 @@ Open the editor and click **Check Devices** on the home panel. It lists every co
 - **Different browsers.** A layout made in OBS also works in Chrome, Edge or Firefox; devices are matched by their USB ids.
 - **Remap a widget.** Select it and click **Detect Device** under *Device*. You move the stick or pedals (or press the button) again, and the widget switches to whatever you used, keeping its name, place, size and colors.
 - Still missing? Close other apps that read controllers, unplug the device and plug it back in, then refresh.
+
+## Inputs freeze while the game is in front
+If the widgets move while OBS is the active window but stop as soon as you click into Star Citizen, work down this list. JOI itself doesn't pause when it loses focus; it can only show what OBS's browser passes it.
+- **Only keycaps freeze?** That's expected: see [Keyboard keys](#keyboard-keys-wasd-overlays). Device buttons and axes are separate.
+- **Is the source on air?** To save work, JOI pauses while OBS reports the source hidden or not in the live Program scene (for example, only in the Studio Mode preview). Edit mode keeps it running. Put the scene on Program and check again.
+- **OBS 31 and newer: turn off Windows.Gaming.Input.** The browser inside OBS 31 reads Xbox-style controllers through Windows.Gaming.Input, which only reports to the window in front. Close OBS, right-click its shortcut, choose **Properties**, and add this to the end of **Target**, after the closing quote and a space:
+
+  ```
+  --disable-features=EnableWindowsGamingInputDataFetcher
+  ```
+
+  Start OBS from that shortcut every time (pin it to the taskbar from there). OBS users report this restores background input for gamepad overlays.
+- **Run OBS at the same level as the game.** Windows doesn't pass input from an app running as administrator to one that isn't. If Star Citizen or the RSI Launcher runs as administrator, run OBS as administrator too (shortcut **Properties → Compatibility → Run this program as an administrator**), or run neither that way.
+- **Still frozen?** Note your OBS version (Help → About) and which widgets freeze (sticks, pedals, buttons, or all of them), and open an issue.
 
 ## Sharing a layout
 In **Save and Share**, click **Download .json** and send that file (plus `JOI.html` if they don't have it yet). They open the editor and choose **Import a Profile**. With the same hardware it works right away. With different hardware they remove the widgets and use **+ Device** for their own.
