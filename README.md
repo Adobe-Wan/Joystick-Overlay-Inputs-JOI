@@ -109,6 +109,28 @@ For movement keys, press **Add W, A, S and D Keys** in the same step. It adds th
 
 **The catch in OBS:** a Browser source only receives key presses while it has keyboard focus, which in OBS means while its **Interact** window is open and focused. With the game in front, Windows sends the keys to the game, not to OBS, so the keycaps won't light during play from the browser source alone. Showing keys while you play needs a helper that listens to the keyboard system-wide; the planned in-game companion app is where that fits. Device buttons and axes are not affected: the browser reads controllers whether or not it has focus.
 
+## Profiles and presets
+Keep a layout for each ship or controller setup and swap between them. With nothing selected, the side panel has two tabs: **Setup** and **Profiles** (the Profiles tab shows which profile is on screen).
+
+- **Switch** by clicking a profile in the list. Each profile has its own widgets, positions, colors and theme. Editor preferences (grid, snapping, guides, overlay scale, editor text size) belong to your computer and stay the same whichever profile is on screen.
+- **+ New Profile** starts an empty one in your current colors. **Duplicate** copies the profile on screen, for a ship that's almost the same. Type in **Name** to rename it. **Delete** asks first; your only profile can't be deleted.
+- **Download .json** saves the profile on screen as a file to share or keep. **Import a Profile** adds a file as a new profile next to yours; it never replaces one (an empty profile makes room for it). `profile.js` (in **Save and Share**) backs up every profile at once.
+- **Undo** (Ctrl+Z) takes back a switch, rename, duplicate, delete, import or preset like any other edit.
+
+**Start From a Preset** adds the widgets for a common setup as a new profile, in your current colors, lined up along the bottom middle:
+
+| Preset | Widgets |
+|---|---|
+| **WASD + Mouse** | Q W E / A S D, Ctrl and Space keycaps, a mouse **Pitch / Yaw** widget and LMB / RMB keys |
+| **HOSAS + Pedals** | Strafe (left stick), Up / Down, Pedals, Pitch / Yaw (right stick), Roll |
+| **HOTAS + Pedals** | Throttle, Strafe (the throttle's thumbstick), Pedals, Pitch / Yaw (stick), Roll |
+| **HOSAM** (Hands on Stick and Mouse) | Strafe (stick), Up / Down, Roll, a mouse **Pitch / Yaw** widget, LMB / RMB |
+| **Directional Inputs** | Up, Left, Right and Down in a cross, for a hat, D-pad or arrow keys |
+
+Every flight preset covers all six ways a ship moves: pitch and yaw, roll, and strafe left / right, up / down and forward / back. Widgets are named for what they fly. **Roll** is a dial (a circular Single Axis): bind it to the axis you roll with, usually a stick's twist. **Up / Down** is a bar for your vertical strafe axis. Rename or rebind any of them to match your own bindings. Keyboard keys and the mouse work straight away. Sticks, throttles, pedals and hat directions can't be guessed (every pilot's devices differ), so they start **not bound yet** and **Bind Inputs** opens: it asks you to move each device or press each button in turn, with the same steps as **+ Device**. **Skip for Now** leaves one for later, and the **Bind Inputs** button on both tabs picks up the rest.
+
+The mouse **Pitch / Yaw** widget is a stick that shows which way and how fast the mouse moves, easing back to center when it stops. Like keys, the mouse reaches a Browser source only while its OBS **Interact** window has focus (see the catch under Keyboard keys), so it shows during play only with the planned in-game companion app. **Use a Device Instead** in its **Input** section turns it into a normal stick.
+
 ## Color themes
 Match your widgets to your ship's MFDs. Select widgets and look under **Color Theme** in the side panel, or use the same controls in **Settings** to color every widget (new widgets then use it too).
 - **Default** (neutral white on a fully opaque charcoal background, what new widgets start with) and **AVS** (Avenger Squadron: white, blue and black) are tiles at the top.
@@ -151,9 +173,14 @@ Every color in the effect comes from the widget's theme, so switching the theme 
 **OBS tips.** The page can't add light to the game footage behind it (OBS composites the overlay on top), so the hologram fakes it with low alphas and white-pushed cores. For true additive light, right-click the browser source in OBS and set **Blending Mode** to **Screen** or **Additive**. The Subtle and Full tiers depend on **Enable Browser Source Hardware Acceleration** (see below).
 
 ## Performance in OBS
-- Widgets only redraw when an input actually changes. Hands off the controls means near-zero drawing work.
+If the overlay lags behind your game, or OBS's stats show rendering lag or skipped frames:
+- **Settings → Performance → Draw rate: 30 FPS** halves the frames OBS has to draw for JOI, while you fly and while the Projector's motion plays. Inputs still show within a frame or two. It applies to every profile.
+- **Projector Subtle and Full** animate even when nothing moves, so OBS keeps redrawing the source (60 times a second, or 30 at a 30 FPS draw rate). **Static** or **Flat** costs nothing while your hands are off the controls.
+- Make the Browser source the same size as your OBS canvas (Base Resolution), not larger: a 4K source is four times the work of a 1080p one. JOI scales its layout to the source size.
+- Widgets only redraw when an input actually changes. Small wobbles a stick, throttle or pedal makes at rest (under half a percent) are ignored, so a resting device costs nothing to draw.
 - Keep **Enable Browser Source Hardware Acceleration** on (OBS Settings, Advanced). That's the default. The Projector look's Subtle and Full motion tiers rely on it: without it their float and glow are drawn on the CPU every frame.
-- Set the Browser Source FPS to 60. Going higher only adds load.
+- Set the Browser Source FPS to 60. Going higher only adds load. If OBS is still struggling, tick **Use custom frame rate** in the source's properties and set it to 30: OBS then asks the page for only 30 frames a second, whatever is on screen.
+- If the overlay is always a little behind the game but smooth, it's latency rather than load: add a **Render Delay** filter to your game capture (start around 30 to 50 ms) to line the two up.
 
 ## Keys (in edit mode or OBS Interact)
 The single-key shortcuts work when no button or field has focus: click an empty part of the screen first.
@@ -190,7 +217,7 @@ Open the editor and click **Check Devices** on the home panel. It lists every co
 - Still missing? Close other apps that read controllers, unplug the device and plug it back in, then refresh.
 
 ## Sharing a layout
-In **Save and Share**, click **Download .json** and send that file (plus `JOI.html` if they don't have it yet). They open the editor and choose **Import a Profile**. With the same hardware it works right away. With different hardware they remove the widgets and use **+ Device** for their own.
+In **Save and Share** (or on the **Profiles** tab), click **Download .json** and send that file (plus `JOI.html` if they don't have it yet). It holds the profile on screen. They open the editor and choose **Import a Profile**, which adds it as a new profile next to theirs. With the same hardware it works right away. With different hardware they select each widget and press **Detect Device** to use their own.
 
 Don't send your `profile.js`, and never use one someone else sent you. It's a personal backup that sits next to your own `JOI.html`, and it runs as a script when the overlay loads (see `SECURITY.md`). A `.json` is only data.
 
