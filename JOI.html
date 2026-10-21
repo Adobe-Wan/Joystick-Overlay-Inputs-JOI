@@ -1299,20 +1299,24 @@ async function deleteLayout(id) {
 const PRESET_KEY = (code, label, col, row) => ({ w: { type: "button", label, key: code, button: 0, shape: "keycap" }, at: [col, row] });
 const PRESET_HAT = (label, col, row) => ({ w: { type: "button", label, button: 0, shape: "circle" }, at: [col, row] });
 const PRESET_STICK = label => ({ w: { type: "stick", label, axes: {}, inv: {} } });
-const PRESET_MOUSE = { w: { type: "stick", label: "Mouse", mouse: true, axes: { x: 0, y: 1 }, inv: {} } };
-// Every flight setup but the keyboard shows roll: the stick's twist (or whichever axis the pilot rolls with) as a dial.
+const PRESET_MOUSE = { w: { type: "stick", label: "Pitch / Yaw", mouse: true, axes: { x: 0, y: 1 }, inv: {} } };
+// Every flight setup covers all six ways a ship moves: pitch and yaw, roll, and strafe left / right, up / down and
+// forward / back. Widgets are named for what they fly, so a viewer reads "Strafe" rather than "Left Stick".
 const PRESET_ROLL = [{ w: { type: "axis", label: "Roll", orient: "c", axes: {}, inv: {} } }];
+const PRESET_UPDOWN = [{ w: { type: "axis", label: "Up / Down", axes: {}, inv: {} } }];
+const PRESET_PEDALS = [{ w: { type: "pedals", label: "Pedals", axes: {}, inv: {} } }];
 const PRESET_CLICKS = [PRESET_KEY("MouseLeft", "LMB", 0, 0), PRESET_KEY("MouseRight", "RMB", 1, 0)];
 const PRESETS = [
-  { id: "wasd-mouse", name: "WASD + Mouse", hint: "Q W E / A S D keys, mouse movement and clicks. Ready to go, nothing to bind.",
+  { id: "wasd-mouse", name: "WASD + Mouse", hint: "W A S D strafe, Space and Ctrl go up and down, Q and E roll, the mouse pitches and yaws. Nothing to bind.",
     groups: [[PRESET_KEY("KeyQ", "Q", 0, 0), PRESET_KEY("KeyW", "W", 1, 0), PRESET_KEY("KeyE", "E", 2, 0),
-      PRESET_KEY("KeyA", "A", 0, 1), PRESET_KEY("KeyS", "S", 1, 1), PRESET_KEY("KeyD", "D", 2, 1)], [PRESET_MOUSE], PRESET_CLICKS] },
-  { id: "hosas-pedals", name: "HOSAS + Pedals", hint: "Two sticks with rudder pedals between them, and a Roll dial.",
-    groups: [[PRESET_STICK("Left Stick")], [{ w: { type: "pedals", label: "Pedals", axes: {}, inv: {} } }], [PRESET_STICK("Right Stick")], PRESET_ROLL] },
-  { id: "hotas-pedals", name: "HOTAS + Pedals", hint: "A throttle, rudder pedals, a stick and a Roll dial.",
-    groups: [[{ w: { type: "throttle", label: "Throttle", axes: {}, inv: {} } }], [{ w: { type: "pedals", label: "Pedals", axes: {}, inv: {} } }], [PRESET_STICK("Stick")], PRESET_ROLL] },
-  { id: "hosam", name: "HOSAM", hint: "Hands on Stick and Mouse: a stick and its Roll dial in the left hand, the mouse in the right.",
-    groups: [[PRESET_STICK("Stick")], PRESET_ROLL, [PRESET_MOUSE], PRESET_CLICKS] },
+      PRESET_KEY("KeyA", "A", 0, 1), PRESET_KEY("KeyS", "S", 1, 1), PRESET_KEY("KeyD", "D", 2, 1)],
+      [PRESET_KEY("ControlLeft", "Ctrl", 0, 0)], [PRESET_KEY("Space", "Space", 0, 0)], [PRESET_MOUSE], PRESET_CLICKS] },
+  { id: "hosas-pedals", name: "HOSAS + Pedals", hint: "Left stick strafes, right stick pitches and yaws, with Up / Down, Roll and the pedals.",
+    groups: [[PRESET_STICK("Strafe")], PRESET_UPDOWN, PRESET_PEDALS, [PRESET_STICK("Pitch / Yaw")], PRESET_ROLL] },
+  { id: "hotas-pedals", name: "HOTAS + Pedals", hint: "Throttle for forward and back, its thumbstick strafes, the stick pitches and yaws, plus Roll and the pedals.",
+    groups: [[{ w: { type: "throttle", label: "Throttle", axes: {}, inv: {} } }], [PRESET_STICK("Strafe")], PRESET_PEDALS, [PRESET_STICK("Pitch / Yaw")], PRESET_ROLL] },
+  { id: "hosam", name: "HOSAM", hint: "Hands on Stick and Mouse: the stick strafes, with Up / Down and Roll; the mouse pitches and yaws.",
+    groups: [[PRESET_STICK("Strafe")], PRESET_UPDOWN, PRESET_ROLL, [PRESET_MOUSE], PRESET_CLICKS] },
   { id: "directional", name: "Directional Inputs", hint: "Up, down, left and right, for a hat, D-pad or arrow keys.",
     groups: [[PRESET_HAT("↑", 1, 0), PRESET_HAT("←", 0, 1), PRESET_HAT("→", 2, 1), PRESET_HAT("↓", 1, 2)]] }
 ];

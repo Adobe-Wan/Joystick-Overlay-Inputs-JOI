@@ -121,15 +121,15 @@ Keep a layout for each ship or controller setup and swap between them. With noth
 
 | Preset | Widgets |
 |---|---|
-| **WASD + Mouse** | Q W E / A S D keycaps, a **Mouse** widget and LMB / RMB keys |
-| **HOSAS + Pedals** | Left Stick, Pedals, Right Stick, Roll |
-| **HOTAS + Pedals** | Throttle, Pedals, Stick, Roll |
-| **HOSAM** (Hands on Stick and Mouse) | Stick, Roll, Mouse, LMB / RMB |
+| **WASD + Mouse** | Q W E / A S D, Ctrl and Space keycaps, a mouse **Pitch / Yaw** widget and LMB / RMB keys |
+| **HOSAS + Pedals** | Strafe (left stick), Up / Down, Pedals, Pitch / Yaw (right stick), Roll |
+| **HOTAS + Pedals** | Throttle, Strafe (the throttle's thumbstick), Pedals, Pitch / Yaw (stick), Roll |
+| **HOSAM** (Hands on Stick and Mouse) | Strafe (stick), Up / Down, Roll, a mouse **Pitch / Yaw** widget, LMB / RMB |
 | **Directional Inputs** | Up, Left, Right and Down in a cross, for a hat, D-pad or arrow keys |
 
-Every device preset has a **Roll** dial (a circular Single Axis): bind it to the axis you roll with, usually a stick's twist. Keyboard keys and the mouse work straight away. Sticks, throttles, pedals and hat directions can't be guessed (every pilot's devices differ), so they start **not bound yet** and **Bind Inputs** opens: it asks you to move each device or press each button in turn, with the same steps as **+ Device**. **Skip for Now** leaves one for later, and the **Bind Inputs** button on both tabs picks up the rest.
+Every flight preset covers all six ways a ship moves: pitch and yaw, roll, and strafe left / right, up / down and forward / back. Widgets are named for what they fly. **Roll** is a dial (a circular Single Axis): bind it to the axis you roll with, usually a stick's twist. **Up / Down** is a bar for your vertical strafe axis. Rename or rebind any of them to match your own bindings. Keyboard keys and the mouse work straight away. Sticks, throttles, pedals and hat directions can't be guessed (every pilot's devices differ), so they start **not bound yet** and **Bind Inputs** opens: it asks you to move each device or press each button in turn, with the same steps as **+ Device**. **Skip for Now** leaves one for later, and the **Bind Inputs** button on both tabs picks up the rest.
 
-The **Mouse** widget is a stick that shows which way and how fast the mouse moves, easing back to center when it stops. Like keys, the mouse reaches a Browser source only while its OBS **Interact** window has focus (see the catch under Keyboard keys), so it shows during play only with the planned in-game companion app. **Use a Device Instead** in its **Input** section turns it into a normal stick.
+The mouse **Pitch / Yaw** widget is a stick that shows which way and how fast the mouse moves, easing back to center when it stops. Like keys, the mouse reaches a Browser source only while its OBS **Interact** window has focus (see the catch under Keyboard keys), so it shows during play only with the planned in-game companion app. **Use a Device Instead** in its **Input** section turns it into a normal stick.
 
 ## Color themes
 Match your widgets to your ship's MFDs. Select widgets and look under **Color Theme** in the side panel, or use the same controls in **Settings** to color every widget (new widgets then use it too).

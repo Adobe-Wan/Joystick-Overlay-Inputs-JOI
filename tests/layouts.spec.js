@@ -151,28 +151,31 @@ test.describe("presets", () => {
     await page.evaluate(() => closeWelcome());
     await openProfilesTab(page);
     await page.click('.presets button:has-text("HOTAS + Pedals")');
-    await expect(page.locator("#wiz-body .kicker")).toHaveText("Bind Inputs · 1 of 4 · Throttle");
-    expect(await page.evaluate(() => [...document.querySelectorAll("#stage .widget.unbound")].length)).toBe(4);
+    await expect(page.locator("#wiz-body .kicker")).toHaveText("Bind Inputs · 1 of 5 · Throttle");
+    expect(await page.evaluate(() => [...document.querySelectorAll("#stage .widget.unbound")].length)).toBe(5);
     await page.click('#wiz-body button:has-text("Skip for Now")');
-    await expect(page.locator("#wiz-body .kicker")).toHaveText("Bind Inputs · 2 of 4 · Pedals");
+    await expect(page.locator("#wiz-body .kicker")).toHaveText("Bind Inputs · 2 of 5 · Strafe");
     await page.click('#wiz-body button:has-text("Cancel")');
     expect(await page.evaluate(() => !!wiz)).toBe(false);
     await expect(page.locator('#panel button:has-text("Bind Inputs")')).toBeVisible();
   });
 
-  test("HOSAM binds its stick and Roll dial by moving them, and the mouse needs nothing", async ({ app, page }) => {
+  test("HOSAM binds its stick, Up / Down and Roll by moving them, and the mouse needs nothing", async ({ app, page }) => {
     await app.open({ query: "?edit", devices: [h.DEV.virpil()] });
     await page.evaluate(() => closeWelcome());
     await page.evaluate(() => addPreset("hosam"));
-    await expect(page.locator("#wiz-body .kicker")).toHaveText("Bind Inputs · 1 of 2 · Stick");
+    await expect(page.locator("#wiz-body .kicker")).toHaveText("Bind Inputs · 1 of 3 · Strafe");
     await h.play(page, h.stickXY(0));
-    await expect(page.locator("#wiz-body .kicker")).toHaveText("Bind Inputs · 2 of 2 · Roll");
+    await expect(page.locator("#wiz-body .kicker")).toHaveText("Bind Inputs · 2 of 3 · Up / Down");
+    await h.play(page, h.throwAxis(0, 5, 2, 0, 1));
+    await expect(page.locator("#wiz-body .kicker")).toHaveText("Bind Inputs · 3 of 3 · Roll");
     await h.play(page, h.throwAxis(0, 5, h.AX.twist, 0, 1));
     await expect.poll(() => page.evaluate(() => !!wiz)).toBe(false);
     const ws = await h.widgets(page);
-    const s = ws.find(w => w.label === "Stick");
+    const s = ws.find(w => w.label === "Strafe");
     expect(s.match).toBe(h.DEV.virpil().id);
     expect(s.axes).toEqual({ x: 0, y: 1 });
+    expect(ws.find(w => w.label === "Up / Down").axes).toEqual({ a: 2 });
     expect(ws.find(w => w.label === "Roll").axes).toEqual({ a: h.AX.twist });
     expect(await page.evaluate(() => profile.widgets.filter(isUnbound).length)).toBe(0);
     expect(await app.toast()).toMatch(/all inputs bound/i);
@@ -184,7 +187,7 @@ test.describe("presets", () => {
     await page.evaluate(() => addPreset("wasd-mouse"));
     expect(await page.evaluate(() => !!wiz)).toBe(false);
     const labels = (await h.widgets(page)).map(w => w.label);
-    expect(labels).toEqual(["Q", "W", "E", "A", "S", "D", "Mouse", "LMB", "RMB"]);
+    expect(labels).toEqual(["Q", "W", "E", "A", "S", "D", "Ctrl", "Space", "Pitch / Yaw", "LMB", "RMB"]);
     await page.evaluate(() => setEditing(false));
     // Mouse movement swings the Mouse widget right; it eases back to center when the mouse stops.
     await page.mouse.move(200, 200);
