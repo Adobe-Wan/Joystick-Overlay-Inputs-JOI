@@ -47,8 +47,11 @@ body.preview:not(.editing).has-widgets #preview-chip { display: flex; }
   margin-bottom: 8px; white-space: nowrap;
 }
 .widget.offline { opacity: 0.45; }
-.widget.offline .title::after { content: " · not connected"; color: var(--hot); letter-spacing: 0.04em; text-transform: none; }
-.widget.offline.unbound .title::after { content: " · not bound yet"; color: #ffb547; }
+/* The note sits above the title, outside the layout, so a device coming or going never resizes the widget. */
+.widget.offline .title { position: relative; }
+.widget.offline .title::after { content: "not connected"; position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%); margin-bottom: 2px;
+  color: var(--hot); font-size: 11px; letter-spacing: 0.04em; text-transform: none; white-space: nowrap; }
+.widget.offline.unbound .title::after { content: "not bound yet"; color: #ffb547; }
 .widget canvas { display: block; margin: 0 auto; }
 .readout {
   font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 12px; font-weight: 600;
