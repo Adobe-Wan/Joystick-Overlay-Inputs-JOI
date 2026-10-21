@@ -50,3 +50,29 @@ test("Draw rate 30 FPS halves the passes while inputs move, and is shared by eve
   await page.evaluate(() => { addBlankLayout(); });
   expect(await page.evaluate(() => profile.settings.fps)).toBe(30);
 });
+
+test("Draw rate 30 also steps Projector motion, which runs freely again at 60", async ({ app, page }) => {
+  await app.open({ profile: VALID, devices: DEVICES, query: "?transparent" });
+  await page.evaluate(() => { for (const w of profile.widgets) w.holo = { on: true, tier: "subtle" }; save(); rebuildAll(); });
+  const state = () => page.evaluate(() => document.getAnimations().filter(a => a.animationName === "holo-env").map(a => [a.playState, a.currentTime]));
+  await page.waitForTimeout(200);
+  const free = await state();
+  expect(free.length).toBeGreaterThan(0);
+  expect(free.every(([s]) => s === "running")).toBe(true);
+  await page.evaluate(() => { profile.settings.fps = 30; save(); applySettings(); });
+  await page.waitForTimeout(200);
+  const a = await state();
+  expect(a.every(([s]) => s === "paused")).toBe(true);
+  await page.waitForTimeout(300);
+  const b = await state();
+  expect(b[0][1] - a[0][1]).toBeGreaterThan(200);   // still moving, a step at a time
+  expect(b[0][1] - a[0][1]).toBeLessThan(400);
+  // A rebuild makes new animations, which are paused on the next step.
+  await page.evaluate(() => rebuildAll());
+  await page.waitForTimeout(150);
+  expect((await state()).every(([s]) => s === "paused")).toBe(true);
+  await page.evaluate(() => { profile.settings.fps = 60; save(); applySettings(); });
+  const c = await state();
+  expect(c.every(([s]) => s === "running")).toBe(true);
+  expect(await page.evaluate(() => stepT)).toBe(0);
+});

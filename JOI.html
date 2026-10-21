@@ -2282,6 +2282,34 @@ function syncHoloList() {
   for (const rt of holoDrops) { clearTimeout(rt.dropT); if (rt.dropOn) endDrop(rt, false); }
   holoDrops.clear();
   for (const [, rt] of holoAnim) if (rt.holoCfg.flicker) { holoDrops.add(rt); scheduleDrop(rt); }
+  syncMotionRate();
+}
+// Draw rate 30 steps the Projector's motion too. Its CSS animations otherwise run on the compositor at the display's
+// rate, so OBS composites a new frame 60 times a second for as long as a Subtle or Full widget is on screen, hands on
+// the controls or not. Paused and moved along from a 30 Hz timer they look the same and cost half. A pass that draws
+// inputs steps them as well (frame), so both land in the same frame instead of making 30 each.
+const HOLO_KEYFRAMES = new Set(["holo-env", "holo-float", "holo-roll", "holo-breathe", "holo-dust", "holo-photon"]);
+let stepOffset = new WeakMap(), stepT = 0, steppedAt = 0;
+const holoAnimations = () => document.getAnimations().filter(a => HOLO_KEYFRAMES.has(a.animationName));
+// Each animation keeps its own phase (the negative delays in buildWidget): the offset from the timeline is taken when
+// it is first paused. A widget rebuilt or a dropout ending makes new animations, which are picked up on the next step.
+function stepHolo(now) {
+  steppedAt = now;
+  const t = document.timeline.currentTime;
+  for (const a of holoAnimations()) {
+    if (!stepOffset.has(a)) { stepOffset.set(a, a.currentTime - t); a.pause(); }
+    a.currentTime = t + stepOffset.get(a);
+  }
+}
+function syncMotionRate() {
+  const on = profile.settings.fps === 30 && holoAnim.length > 0;
+  if (on && !stepT) stepT = setInterval(() => { const now = performance.now(); if (!loopPaused() && now - steppedAt >= 1000 / 30 - 4) stepHolo(now); }, 1000 / 30);
+  if (!on && stepT) {
+    clearInterval(stepT); stepT = 0;
+    const t = document.timeline.currentTime;
+    for (const a of holoAnimations()) if (stepOffset.has(a)) { a.currentTime = t + stepOffset.get(a); a.play(); }
+    stepOffset = new WeakMap();
+  }
 }
 
 function rebuildAll() {
@@ -2383,6 +2411,7 @@ function applySettings() {
   $("#center-lines .h").style.top = Math.round(C.h / 2) + "px";
   $("#heat-btn").classList.toggle("on", showHeat);
   drawGrid();
+  syncMotionRate();
 }
 // The grid shows only while editing. Outside it the canvas holds no bitmap at all: at 4K a full-window one is 32 MB.
 function drawGrid() {
@@ -2770,6 +2799,7 @@ function frame(now, timed) {
   const gapOk = profile.settings.fps !== 30 || now - drawnAt >= 1000 / 30 - 2;
   if ((movePending && gapOk) || passDue || heatDue || check) {
     movePending = false; drawnAt = now;
+    if (stepT) stepHolo(now);
     const all = redrawAll; passDue = redrawAll = false;
     if (check) checkAt = now;
     if (heatDue) heatShown = heatTick;
@@ -4606,8 +4636,8 @@ function renderSettingsPanel(p) {
   if (s.scaleMode !== "auto") size.append(el("div", { class: "fields" }, fld("Overlay scale", numIn(s, "scale", 0.3, 4, 0.05, rebuildAll), "×", true)));
   choiceRow(size, "Editor text size", s, "uiScale", [["auto", "Auto", "Grows with the screen, so 4K stays readable."], [1, "100%"], [1.25, "125%"], [1.5, "150%"], [2, "200%"], [2.5, "250%"]], applySettings, { wrap: true });
   const perfSec = section(p, "Performance", { key: "s-perf" });
-  choiceRow(perfSec, "Draw rate", s, "fps", [[60, "60 FPS", "Every frame, the smoothest."], [30, "30 FPS", "Half the drawing work for OBS. Pick it if the overlay lags behind your game or OBS shows rendering lag."]], undefined, { aria: "Draw rate" });
-  perfSec.append(el("div", { class: "hint small" }, "Small wobbles a device makes at rest are never drawn. Projector Subtle and Full keep OBS drawing every frame even when nothing moves; Static or Flat don't."));
+  choiceRow(perfSec, "Draw rate", s, "fps", [[60, "60 FPS", "Every frame, the smoothest."], [30, "30 FPS", "Half the drawing work for OBS, Projector motion included. Pick it if the overlay lags behind your game or OBS shows rendering lag."]], applySettings, { aria: "Draw rate" });
+  perfSec.append(el("div", { class: "hint small" }, "Small wobbles a device makes at rest are never drawn. Projector Subtle and Full keep OBS drawing even when nothing moves (30 times a second at 30 FPS); Static or Flat don't."));
   themeSection(p, profile.widgets.filter(w => w.type !== "label"), true);
   const bg = section(p, "Page Background", { key: "s-bg" });
   toggleRow(bg, "Solid page background", { get v() { return s.background === "solid"; }, set v(x) { s.background = x ? "solid" : "transparent"; } }, "v", applySettings,

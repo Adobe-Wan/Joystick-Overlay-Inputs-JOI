@@ -174,12 +174,13 @@ Every color in the effect comes from the widget's theme, so switching the theme 
 
 ## Performance in OBS
 If the overlay lags behind your game, or OBS's stats show rendering lag or skipped frames:
-- **Settings → Performance → Draw rate: 30 FPS** halves the frames OBS has to draw for JOI while you fly. Inputs still show within a frame or two. It applies to every profile.
-- **Projector Subtle and Full** animate even when nothing moves, so OBS redraws the source every frame. **Static** or **Flat** costs nothing while your hands are off the controls.
+- **Settings → Performance → Draw rate: 30 FPS** halves the frames OBS has to draw for JOI, while you fly and while the Projector's motion plays. Inputs still show within a frame or two. It applies to every profile.
+- **Projector Subtle and Full** animate even when nothing moves, so OBS keeps redrawing the source (60 times a second, or 30 at a 30 FPS draw rate). **Static** or **Flat** costs nothing while your hands are off the controls.
 - Make the Browser source the same size as your OBS canvas (Base Resolution), not larger: a 4K source is four times the work of a 1080p one. JOI scales its layout to the source size.
 - Widgets only redraw when an input actually changes. Small wobbles a stick, throttle or pedal makes at rest (under half a percent) are ignored, so a resting device costs nothing to draw.
 - Keep **Enable Browser Source Hardware Acceleration** on (OBS Settings, Advanced). That's the default. The Projector look's Subtle and Full motion tiers rely on it: without it their float and glow are drawn on the CPU every frame.
-- Set the Browser Source FPS to 60. Going higher only adds load.
+- Set the Browser Source FPS to 60. Going higher only adds load. If OBS is still struggling, tick **Use custom frame rate** in the source's properties and set it to 30: OBS then asks the page for only 30 frames a second, whatever is on screen.
+- If the overlay is always a little behind the game but smooth, it's latency rather than load: add a **Render Delay** filter to your game capture (start around 30 to 50 ms) to line the two up.
 
 ## Keys (in edit mode or OBS Interact)
 The single-key shortcuts work when no button or field has focus: click an empty part of the screen first.
