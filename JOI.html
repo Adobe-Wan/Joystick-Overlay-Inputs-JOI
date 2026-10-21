@@ -290,6 +290,7 @@ button.primary { background: var(--ui-accent); color: #00131c; border-color: var
   box-shadow: 0 0.2rem 0.1rem -0.1rem rgba(0,0,0,0.2), 0 0.15rem 0.15rem rgba(0,0,0,0.14); }
 button.primary:hover { background: #7fdfff; }
 button.text { border-color: transparent; color: var(--ui-accent); }
+#panel .hint .text { display: inline; min-height: 0; padding: 0; font: inherit; }
 button.on { border-color: var(--ui-accent); color: var(--ui-accent); }
 button.danger:hover { border-color: var(--hot); color: var(--hot); background: rgba(255,93,115,0.08); }
 button:focus-visible, select:focus-visible, input:focus-visible, .switch:focus-within {
@@ -374,6 +375,18 @@ input[type=checkbox] { accent-color: var(--ui-accent); width: 1.3rem; height: 1.
 #panel .row select, #panel .row input[type=text], #panel .row input[type=number] { width: 11rem; }
 #panel .hint { color: #a9b6c4; line-height: 1.5; margin: 0.6rem 0; }
 #panel .hint.warn { color: #ffb547; }
+#panel .hint.ok { color: #7fe0a8; }
+#panel .bind-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin: 0.35rem 0 0.1rem; }
+#panel .bind-row .hint { margin: 0; }
+#panel .bind-row button { min-height: 1.9rem; padding: 0.15rem 0.7rem; font-size: 0.9rem; white-space: nowrap; }
+#panel .review-list { display: grid; gap: 0.45rem; margin: 0.4rem 0 0.6rem; }
+#panel .review-list .row { display: block; }
+#panel .review-list b { display: block; font-weight: 600; }
+#panel .review-list .meter { display: flex; height: 0.45rem; margin: 0.25rem 0; border-radius: 0.3rem; overflow: hidden; background: rgba(255,255,255,0.08); }
+#panel .review-list .meter i { display: block; height: 100%; }
+#panel .review-list .meter .full { background: #ffb547; }
+#panel .review-list .meter .rest { background: rgba(255,255,255,0.28); }
+#panel .review-list small { color: #a9b6c4; font-size: 0.86rem; }
 #panel .actions { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.9rem; }
 /* Setup and Profiles tabs on the home panel, pinned like a widget panel's head. */
 #panel .p-tabs { position: sticky; top: -1.1rem; z-index: 3; display: flex; gap: 0.25rem; margin: -1.1rem -1.1rem 0.9rem; padding: 0.7rem 1.1rem 0; background: #121a24;
@@ -391,6 +404,9 @@ input[type=checkbox] { accent-color: var(--ui-accent); width: 1.3rem; height: 1.
 .presets { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; margin: 0.4rem 0 0.6rem; }
 .presets button { display: grid; gap: 0.2rem; align-content: start; text-align: left; padding: 0.55rem 0.6rem; font-weight: 600; }
 .presets button small { color: #a9b6c4; font-size: 0.8rem; font-weight: 500; line-height: 1.35; }
+.presets button small.full { color: var(--ui-accent); margin-top: -0.15rem; }
+.presets .icons { display: flex; gap: 0.3rem; color: #b6c3d1; }
+.presets .icons svg { width: 1.3rem; height: 1.3rem; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 /* Panel sections: a header you can collapse (remembered per browser), an optional switch or summary beside it.
    Three levels of grouping, each with its own shape: a family label (colored, with a rule), a section card (colored
    edge, icon, bold title) and, inside it, sub-headings (h5) and indented groups (.nest). Open sections sit a step
@@ -513,29 +529,30 @@ body.panel-hidden #coach::after { display: none; }
 #confirm button.danger.solid:hover { filter: brightness(1.1); color: #1a0508; }
 #welcome .dialog { width: min(40rem, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); overflow: auto; padding: 1.8rem 2rem; font-size: 1.07rem; line-height: 1.55; }
 #welcome h2 { margin: 0 0 0.4rem; font-size: 1.8rem; font-weight: 600; }
-#welcome .lead { color: #b6c3d1; margin: 0 0 1.2rem; }
-#welcome ol { list-style: none; padding: 0; margin: 0 0 1.2rem; display: grid; gap: 0.7rem; }
-#welcome li { display: block; }
-#welcome .wstep { width: 100%; display: grid; grid-template-columns: 2.2rem 1fr auto; align-items: center; gap: 0.8rem; text-align: left;
-  padding: 0.8rem 1rem; border: 1px solid rgba(255,255,255,0.14); border-radius: 0.5rem; letter-spacing: normal; line-height: 1.45; }
-#welcome .wstep:hover { border-color: var(--ui-accent); background: rgba(79,209,255,0.06); }
-#welcome .wstep .go { font-size: 1.6rem; color: #a9b6c4; transition: transform 120ms, color 120ms; }
-#welcome .wstep:hover .go, #welcome .wstep:focus-visible .go { color: var(--ui-accent); transform: translateX(0.15rem); }
-#welcome li .num { width: 2.2rem; height: 2.2rem; border-radius: 50%; display: grid; place-items: center; font-weight: 700;
-  background: rgba(79,209,255,0.16); color: var(--ui-accent); }
-#welcome li b { display: block; }
-#welcome li small { color: #a9b6c4; font-size: 0.93rem; }
+#welcome .lead { color: #b6c3d1; margin: 0 0 1rem; }
+#welcome .lead.where { color: var(--ui-accent); font-size: 0.95rem; margin-top: -0.4rem; }
+#welcome .wq { margin: 0.2rem 0 0.5rem; font-size: 1.25rem; font-weight: 600; }
+#welcome .presets { grid-template-columns: repeat(3, 1fr); margin: 0 0 0.8rem; }
+#welcome .wsub { color: #a9b6c4; font-size: 0.95rem; margin: 0 0 1.1rem; }
 #welcome .foot { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; flex-wrap: wrap; color: #a9b6c4; }
+#welcome .keys { margin-top: 1.2rem; font-size: 0.93rem; color: #b6c3d1; }
+#welcome .keys summary { cursor: pointer; color: #a9b6c4; font-weight: 600; }
+#welcome .keys .hint-k { font-weight: 400; }
+#welcome .keys table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
+#welcome .keys td { padding: 0.25rem 0.5rem 0.25rem 0; vertical-align: top; }
+#welcome .keys td:nth-child(odd) { white-space: nowrap; color: #e6ecf1; }
+#empty-edit { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; z-index: 9; pointer-events: none; }
+body.editing:not(.has-widgets) #empty-edit { display: flex; }
+body:has(#welcome.open) #empty-edit, body:has(#wizard.open) #empty-edit { display: none; }
+#empty-edit .card { pointer-events: auto; text-align: center; padding: 1.6rem 2rem; max-width: min(28rem, calc(100vw - 26rem)); line-height: 1.5; }
+#empty-edit h2 { margin: 0 0 0.4rem; font-size: 1.3rem; font-weight: 600; }
+#empty-edit p { margin: 0 0 1rem; color: #b6c3d1; }
+#empty-edit .foot { display: flex; justify-content: center; gap: 0.5rem; flex-wrap: wrap; }
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 kbd { font: 600 0.9em var(--mono); padding: 0.1em 0.45em; border: 1px solid rgba(255,255,255,0.35); border-bottom-width: 2px; border-radius: 0.3em; background: rgba(255,255,255,0.08); color: #fff; }
 /* Setup wizard: walks through each device in the middle of the screen */
 #wizard { position: fixed; inset: 0; z-index: 50; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.4); }
 #wizard.open { display: flex; }
-#wizard.see-through { background: rgba(0,0,0,0.12); }
-#wizard .shots { display: grid; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); gap: 0.7rem; margin: 0.4rem 0; }
-#wizard .shot { display: flex; flex-direction: column; gap: 0.4rem; padding: 0.45rem; font-weight: 600; }
-#wizard .shot img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 0.3rem; }
-#wizard .shot[aria-pressed=true] { border-color: var(--ui-accent); box-shadow: inset 0 0 0 1px var(--ui-accent); color: var(--ui-accent); }
 #wizard .dialog { position: relative; width: min(38rem, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); overflow: auto; padding: 1.8rem 2rem; font-size: 1.07rem; line-height: 1.55; }
 #wizard .close { position: absolute; top: 0.9rem; right: 0.9rem; min-height: 0; padding: 0.3rem 0.6rem; color: #b6c3d1; }
 #wizard .kicker { display: flex; align-items: center; gap: 0.7rem; color: var(--ui-accent); font-size: 0.85rem; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 700; }
@@ -617,25 +634,37 @@ body:not(.editing):not(.has-widgets) #enter-edit { display: flex; }
   <p>or press <kbd>E</kbd> at any time</p>
 </div></div>
 
+<div id="empty-edit"><div class="card paper" role="region" aria-label="Empty overlay">
+  <h2>Nothing on the overlay yet</h2>
+  <p>Pick a setup to add the widgets for your hardware, or add devices one at a time.</p>
+  <div class="foot"><button class="primary" id="empty-presets">Pick a Setup</button><button id="empty-device">+ Device</button></div>
+</div></div>
+
 <div id="preview-chip" class="paper" role="note"><span>Browser preview. In OBS this background is transparent.</span><span class="warn" id="offscreen-note" hidden></span><button class="text" id="preview-edit">Open Editor (E)</button></div>
 
 <div id="welcome" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
   <div class="dialog paper">
     <h2 id="welcome-title">Welcome to Joystick Overlay Inputs</h2>
     <p class="lead">Show your sticks, throttle and pedals on stream, then watch your replays to see what your hands and feet were doing.</p>
-    <ol>
-      <li><button class="wstep" data-welcome="bg"><span class="num">1</span><span><b>Choose a Reference Screenshot</b>
-        <small>A Star Citizen screenshot behind your widgets, so they sit around the HUD instead of on top of it. Only shown while editing.</small></span>
-        <span class="go" aria-hidden="true">›</span></button></li>
-      <li><button class="wstep" data-welcome="add"><span class="num">2</span><span><b>Add Your Devices</b><small>Pick Stick, Pedals or a Button/Key, then move or press it when asked.</small></span><span class="go" aria-hidden="true">›</span></button></li>
-      <li><button class="wstep" data-welcome="arrange"><span class="num">3</span><span><b>Arrange, Then Leave Edit Mode</b>
-        <small>Drag widgets into place, then switch <i>Edit Mode</i> off (top bar) or press <kbd>E</kbd>.</small></span>
-        <span class="go" aria-hidden="true">›</span></button></li>
-    </ol>
+    <p class="lead where" id="welcome-where" hidden>You're previewing in a browser. When the layout is ready, add <code>JOI.html</code> to OBS as a Browser source; it is transparent there.</p>
+    <h3 class="wq">What do you fly with?</h3>
+    <div class="presets" id="welcome-presets" role="group" aria-label="Starter setups"></div>
+    <p class="wsub">Pick one and its widgets appear at the bottom of the screen. Then move each stick, throttle or pedal once when asked, drag the widgets where you want them, and press <kbd>E</kbd> to leave edit mode.</p>
     <div class="foot">
       <span>Already have a setup? <button class="text" data-welcome="import">Import a Profile</button></span>
-      <span style="display:flex;gap:0.5rem;flex-wrap:wrap"><button data-welcome="close">Explore on My Own</button><button class="primary" data-welcome="device">Get Started</button></span>
+      <span style="display:flex;gap:0.5rem;flex-wrap:wrap"><button data-welcome="close">Explore on My Own</button><button data-welcome="device">Add Devices One by One</button></span>
     </div>
+    <details class="keys" id="welcome-keys">
+      <summary>Keyboard shortcuts <span class="hint-k">(press <kbd>?</kbd> in the editor)</span></summary>
+      <table>
+        <tr><td><kbd>E</kbd></td><td>Open or close the editor</td><td><kbd>A</kbd></td><td>Add a device, button or label</td></tr>
+        <tr><td><kbd>P</kbd></td><td>Hide or show the side panel</td><td><kbd>H</kbd> / <kbd>R</kbd></td><td>Show / reset the session heatmap</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Y</kbd></td><td>Undo / redo</td><td><kbd>Ctrl</kbd>+<kbd>A</kbd> / <kbd>D</kbd></td><td>Select all / duplicate</td></tr>
+        <tr><td>Arrows</td><td>Nudge 1 px (Shift: 10 px)</td><td><kbd>Delete</kbd></td><td>Remove the selection</td></tr>
+        <tr><td><kbd>Shift</kbd> / <kbd>Ctrl</kbd> while resizing</td><td>Keep proportions / from the center</td><td><kbd>Alt</kbd> while dragging</td><td>No snapping</td></tr>
+        <tr><td><kbd>Esc</kbd></td><td>Clear the selection, then leave the editor</td><td><kbd>?</kbd></td><td>This list</td></tr>
+      </table>
+    </details>
   </div>
 </div>
 <div id="coach" class="paper" role="dialog" aria-labelledby="coach-title">
@@ -657,14 +686,12 @@ body:not(.editing):not(.has-widgets) #enter-edit { display: flex; }
   <div id="toolbar" class="paper">
     <label class="switch" title="Leave edit mode (E)"><input type="checkbox" role="switch" id="edit-switch" checked><span class="track"><span class="thumb"></span></span>Edit Mode</label>
     <span class="divider"></span>
-    <button class="primary" data-act="add-device">+ Device</button>
-    <button data-act="add-button">+ Button/Key</button>
-    <button data-act="add-label">+ Label</button>
-    <button data-act="heat" id="heat-btn">Session Heatmap</button>
+    <button class="primary" data-act="add-device" title="Add a stick, pedals, button, throttle, axis or label">+ Add</button>
+    <button data-act="review" id="heat-btn" title="Session heatmap and what it says about your flying">Review</button>
     <button data-act="settings">Settings</button>
     <button data-act="export">Save and Share</button>
-    <button data-act="help">Getting Started</button>
-    <button data-act="panel" title="Show / hide the side panel (P)" aria-keyshortcuts="P">Panel</button>
+    <button data-act="help" title="Starter setups and keyboard shortcuts (?)">Help</button>
+    <button data-act="panel" id="panel-btn" title="Show / hide the side panel (P)" aria-keyshortcuts="P">Hide Panel</button>
   </div>
   <div id="panel" class="paper" role="complementary" aria-label="Editor panel"></div>
   <div id="fab-wrap">
@@ -715,7 +742,7 @@ const DESIGN_W = 1920, DESIGN_H = 1080;       // the canvas layouts are designed
 const BASE_FONT_PX = 14;                      // the editor's rem at 100% (html font-size in the CSS)
 const PLACE_GAP = 16, CASCADE = 24;           // px between placed widgets; offset for a copy or a widget on another's spot
 const DEFAULT_SETTINGS = { scaleMode: "auto", scale: 1, uiScale: "auto", background: "transparent", bgColor: "#00ff00",
-  accent: "#ffffff", text: "#ffffff", panel: "#121212", panelAlpha: 100, border: "", theme: "default", spaceGap: "",
+  accent: "#4fd1ff", text: "#ffffff", panel: "#121212", panelAlpha: 100, border: "", theme: "default", spaceGap: "",
   gridSnap: true, gridSize: 16, smartGuides: true, centerLines: true, margin: 24, fps: 60 };
 
 let profile = null;     // { savedAt, settings, widgets: [] }
@@ -751,7 +778,7 @@ const MFG_THEMES = [
 ];
 // Featured palettes shown as tiles above the manufacturer list. border: "" keeps the subtle default edge.
 const FEATURED_THEMES = [
-  { id: "default", name: "Default", colors: { primary: "#FFFFFF", accent: "#FFFFFF", background: "#121212" }, border: "", alpha: 100 },   // neutral: white on opaque charcoal
+  { id: "default", name: "Default", colors: { primary: "#FFFFFF", accent: "#4FD1FF", background: "#121212" }, border: "", alpha: 100 },   // neutral: white on opaque charcoal, the live mark in the editor's cyan so it is the one thing that stands out
   { id: "avs", name: "AVS", title: "Avenger Squadron", colors: { primary: "#FFFFFF", accent: "#1E8FE8", background: "#000000" }, border: "#1E8FE8" }
 ];
 const themeColors = t => ({ accent: t.colors.accent.toLowerCase(), text: t.colors.primary.toLowerCase(),
@@ -987,7 +1014,7 @@ const WIDGET_CHECK = {
   key: v => typeof v === "string" && KEY_CODE_RE.test(v) ? v : undefined, shape: v => oneOf(v, Object.keys(SHAPES)), mouse: optBool,
   pad: numRange(0, 100), radius: numRange(0, 100), depth: numRange(0, 100),
   dims: v => pickFields(v, { box: numRange(1, 1000), bw: numRange(1, 1000), bh: numRange(1, 1000), rw: numRange(1, 1000), rh: numRange(1, 1000), cd: numRange(1, 1000) }),
-  showTitle: optBool, showValues: optBool, showAxisLabels: optBool,
+  showTitle: optBool, showValues: optBool, showAxisLabels: optBool, axisNames: v => oneOf(v, ["xy", "flight", "strafe", "strafefb", "yaw", "roll", "rudder"]),
   fonts: v => isObj(v) ? pickFields(v, { title: FONT_CHECK, values: FONT_CHECK, labels: FONT_CHECK }) : undefined,
   accent: optHex, text: optHex, bg: optHex, border: optHex, bgAlpha: numRange(0, 100), theme: idText,
   axes: AXIS_MAP, inv: BOOL_MAP,
@@ -1298,8 +1325,8 @@ async function deleteLayout(id) {
 // A group is one widget, or keys / buttons on a grid of [col, row] cells; groups sit side by side, bottom-aligned.
 const PRESET_KEY = (code, label, col, row) => ({ w: { type: "button", label, key: code, button: 0, shape: "keycap" }, at: [col, row] });
 const PRESET_HAT = (label, col, row) => ({ w: { type: "button", label, button: 0, shape: "circle" }, at: [col, row] });
-const PRESET_STICK = label => ({ w: { type: "stick", label, axes: {}, inv: {} } });
-const PRESET_MOUSE = { w: { type: "stick", label: "Pitch / Yaw", mouse: true, axes: { x: 0, y: 1 }, inv: {} } };
+const PRESET_STICK = (label, axisNames) => ({ w: { type: "stick", label, axisNames, axes: {}, inv: {} } });
+const PRESET_MOUSE = { w: { type: "stick", label: "Pitch / Yaw", axisNames: "flight", mouse: true, axes: { x: 0, y: 1 }, inv: {} } };
 // Every flight setup covers all six ways a ship moves: pitch and yaw, roll, and strafe left / right, up / down and
 // forward / back. Widgets are named for what they fly, so a viewer reads "Strafe" rather than "Left Stick".
 const PRESET_ROLL = [{ w: { type: "axis", label: "Roll", orient: "c", axes: {}, inv: {} } }];
@@ -1311,16 +1338,27 @@ const PRESETS = [
     groups: [[PRESET_KEY("KeyQ", "Q", 0, 0), PRESET_KEY("KeyW", "W", 1, 0), PRESET_KEY("KeyE", "E", 2, 0),
       PRESET_KEY("KeyA", "A", 0, 1), PRESET_KEY("KeyS", "S", 1, 1), PRESET_KEY("KeyD", "D", 2, 1)],
       [PRESET_KEY("ControlLeft", "Ctrl", 0, 0)], [PRESET_KEY("Space", "Space", 0, 0)], [PRESET_MOUSE], PRESET_CLICKS] },
-  { id: "hosas-pedals", name: "HOSAS + Pedals", hint: "Left stick strafes, right stick pitches and yaws, with Up / Down, Roll and the pedals.",
-    groups: [[PRESET_STICK("Strafe")], PRESET_UPDOWN, PRESET_PEDALS, [PRESET_STICK("Pitch / Yaw")], PRESET_ROLL] },
-  { id: "hotas-pedals", name: "HOTAS + Pedals", hint: "Throttle for forward and back, its thumbstick strafes, the stick pitches and yaws, plus Roll and the pedals.",
-    groups: [[{ w: { type: "throttle", label: "Throttle", axes: {}, inv: {} } }], [PRESET_STICK("Strafe")], PRESET_PEDALS, [PRESET_STICK("Pitch / Yaw")], PRESET_ROLL] },
-  { id: "hosam", name: "HOSAM", hint: "Hands on Stick and Mouse: the stick strafes, with Up / Down and Roll; the mouse pitches and yaws.",
-    groups: [[PRESET_STICK("Strafe")], PRESET_UPDOWN, PRESET_ROLL, [PRESET_MOUSE], PRESET_CLICKS] },
+  { id: "hosas-pedals", name: "HOSAS + Pedals", full: "Hands On Stick And Stick", hint: "Left stick strafes, right stick pitches and yaws, with Up / Down, Roll and the pedals.",
+    groups: [[PRESET_STICK("Strafe", "strafe")], PRESET_UPDOWN, PRESET_PEDALS, [PRESET_STICK("Pitch / Yaw", "flight")], PRESET_ROLL] },
+  { id: "hotas-pedals", name: "HOTAS + Pedals", full: "Hands On Throttle And Stick", hint: "Throttle for forward and back, its thumbstick strafes, the stick pitches and yaws, plus Roll and the pedals.",
+    groups: [[{ w: { type: "throttle", label: "Throttle", axes: {}, inv: {} } }], [PRESET_STICK("Strafe", "strafe")], PRESET_PEDALS, [PRESET_STICK("Pitch / Yaw", "flight")], PRESET_ROLL] },
+  { id: "hosam", name: "HOSAM", full: "Hands On Stick And Mouse", hint: "The stick strafes, with Up / Down and Roll; the mouse pitches and yaws.",
+    groups: [[PRESET_STICK("Strafe", "strafe")], PRESET_UPDOWN, PRESET_ROLL, [PRESET_MOUSE], PRESET_CLICKS] },
   { id: "directional", name: "Directional Inputs", hint: "Up, down, left and right, for a hat, D-pad or arrow keys.",
     groups: [[PRESET_HAT("↑", 1, 0), PRESET_HAT("←", 0, 1), PRESET_HAT("→", 2, 1), PRESET_HAT("↓", 1, 2)]] }
 ];
 const isUnbound = w => w.type !== "label" && !w.match && !w.key && !w.mouse;
+// Readout labels by flight function. Star Citizen's keybinding screen says Pitch, Yaw, Roll and Strafe, so a stick can
+// say the same instead of X and Y, and the overlay repeats the words a new pilot is learning. w.axisNames picks the set.
+const STICK_NAMES = {
+  xy: { x: "X", y: "Y", name: "X and Y" },
+  flight: { x: "YAW", y: "PIT", name: "Yaw and Pitch", hint: "The stick that aims the ship: left and right is yaw, forward and back is pitch." },
+  strafe: { x: "L/R", y: "U/D", name: "Strafe: Left / Right and Up / Down", hint: "The stick that slides the ship sideways and up or down." },
+  strafefb: { x: "L/R", y: "F/B", name: "Strafe: Left / Right and Forward / Back", hint: "Sideways and forward or back, for a throttle's thumbstick." }
+};
+const PEDAL_NAMES = { yaw: { r: "YAW", word: "Yaw", hint: "Pedals usually yaw the ship in Star Citizen." }, roll: { r: "ROLL", word: "Roll" }, rudder: { r: "RUD", word: "Rudder", hint: "Flight-sim wording." } };
+const stickNames = w => STICK_NAMES[w.axisNames] || STICK_NAMES.xy;
+const pedalNames = w => PEDAL_NAMES[w.axisNames] || PEDAL_NAMES.yaw;
 function addPreset(id) {
   const pr = PRESETS.find(o => o.id === id); if (!pr) return;
   closeWizard();
@@ -1380,9 +1418,9 @@ const TYPES = {
   throttle: { name: "Throttle", steps: [
     { key: "t", ask: "Push the throttle fully FORWARD", dir: +1, stays: true } ] },
   pedals: { name: "Pedals", steps: [
-    { key: "r", ask: "Push the RIGHT rudder pedal forward", dir: +1 },
-    { key: "bl", ask: "Press the LEFT toe brake", dir: +1, optional: true },
-    { key: "br", ask: "Press the RIGHT toe brake", dir: +1, optional: true } ] },
+    { key: "r", ask: "Push the RIGHT pedal forward", dir: +1 },
+    { key: "bl", ask: "Press the LEFT toe pedal", dir: +1, optional: true },
+    { key: "br", ask: "Press the RIGHT toe pedal", dir: +1, optional: true } ] },
   axis: { name: "Single Axis", steps: [
     { key: "a", ask: "Move the axis to its MAXIMUM", dir: +1 } ] }
 };
@@ -1391,14 +1429,12 @@ const TYPES = {
 let wiz = null;
 
 let wizAdded = [];   // names added since the wizard opened, for the "Added so far" summary
-let wizBg = false;   // this run started with the background step (first setup)
-function startSetup() { closeFab(); closeWelcome(); wizBg = true; wiz = { kind: "device", stage: "bg" }; renderWiz(); }
-function startDeviceWizard() { closeFab(); closeWelcome(); if (!wiz) wizBg = false; wiz = { kind: "device", stage: "type" }; renderWiz(); }
+function startDeviceWizard() { closeFab(); closeWelcome(); wiz = { kind: "device", stage: "type" }; renderWiz(); }
 function startButtonWizard() { closeFab(); closeWelcome(); wiz = { kind: "button", stage: "press" }; renderWiz(); }
 function closeWizard() {
   const finished = wiz && wiz.kind === "done";
   const stopped = bindQueue.length > 0;
-  wiz = null; wizAdded = []; wizBg = false; bindQueue = []; renderWiz();
+  wiz = null; wizAdded = []; bindQueue = []; renderWiz();
   if (stopped) setSelection([]);   // back to the tab with Bind Inputs on it
   if (finished) maybeTip("groups");
 }
@@ -1426,7 +1462,7 @@ function wizChooseType(t) {
 // Detect Device: rerun the move/press steps for an existing widget and rebind it in place,
 // keeping its name, position, size and colors.
 function startRemap(w) {
-  closeFab(); closeWelcome(); wizBg = false; wizAdded = [];
+  closeFab(); closeWelcome(); wizAdded = [];
   wiz = w.type === "button"
     ? { kind: "button", stage: "press", remap: w.id, label: w.label }
     : { kind: "device", type: w.type, name: w.label, label: w.label, stage: "steps", step: 0, axes: {}, inv: {}, remap: w.id };
@@ -1930,7 +1966,8 @@ function buildWidget(w, grow) {
     // A projected radar's faint face fill is CSS on the canvas element, painted once and kept out of the canvas
     // pixels, so the Full tier's fringe copies only the rings and ticks, not a tinted disc.
     if (holo.on && w.face === "radar") rt.canvas.style.setProperty("--holo-face", `radial-gradient(circle closest-side, ${hexA(w.bg || profile.settings.panel, 0.25)} 98%, transparent 100%)`);
-    const ro = readout(el("span", {}, lab("X"), span("x")), el("span", {}, lab("Y"), span("y")));
+    const sn = stickNames(w);
+    const ro = readout(el("span", {}, lab(sn.x), span("x")), el("span", {}, lab(sn.y), span("y")));
     if (ro) { ro.classList.add("pair"); ro.style.minWidth = rt.canvas.style.width; }
     root.append(...[title, rt.canvas, ro].filter(Boolean));
   } else if (isBar(w) && isDial(w)) {
@@ -1954,12 +1991,12 @@ function buildWidget(w, grow) {
       rt.brakeL = makeCanvas(D.rh * k, bh * k); rt.brakeR = makeCanvas(D.rh * k, bh * k);
       parts.push(el("div", { class: "bars" },
         w.axes.bl != null ? el("div", { class: "col" }, rt.brakeL, cap("L")) : null,
-        el("div", { class: "col" }, rudder, cap("Rudder")),
+        el("div", { class: "col" }, rudder, cap(pedalNames(w).word)),
         w.axes.br != null ? el("div", { class: "col" }, rt.brakeR, cap("R")) : null));
     } else parts.push(rudder);
     const ro = round && !hasBrakes ? null : readout(
       w.axes.bl != null ? el("span", { class: "bl" }, lab("L"), span("bl")) : null,
-      round ? null : el("span", { class: "rud" }, lab("RUD"), Object.assign(span("r"), { _sign: true })),
+      round ? null : el("span", { class: "rud" }, lab(pedalNames(w).r), Object.assign(span("r"), { _sign: true })),
       w.axes.br != null ? el("span", { class: "br" }, lab("R"), span("br")) : null);
     if (ro && !showAx && !round) ro.classList.add("ped-split");
     parts.push(ro);
@@ -2480,7 +2517,7 @@ function stickFace(w, rt, c) {
   // Projected, the gate's structure (grid, rings, rim) is drawn in the beam's hue rather than the text color, the
   // way every line on the Gladius radar is one cyan: dim rings, a brighter rim, bright ticks.
   const line = holo ? rt.holoColors.rays : ink;
-  g.strokeStyle = hexA(line, holo ? 0.22 : 0.16); g.lineWidth = 1;
+  g.strokeStyle = hexA(line, holo ? 0.22 : 0.1); g.lineWidth = 1;   // the grid sits well behind the rim and the dot
   // The grid is the user's: N by N cells on the square (4 by default, 1 for none), evenly spaced rings on the radar.
   if (radar) { const n = ringsOf(w); for (let i = 1; i <= n; i++) { g.beginPath(); g.arc(R, R, (R - 0.5) * i / (n + 1), 0, Math.PI * 2); g.stroke(); } }
   else { const n = gridOf(w); for (let k = 1; k < n; k++) { const p = Math.round(S * k / n) + 0.5; g.beginPath(); g.moveTo(p, 0); g.lineTo(p, S); g.moveTo(0, p); g.lineTo(S, p); g.stroke(); } }
@@ -2512,6 +2549,7 @@ function stickFace(w, rt, c) {
   g.globalCompositeOperation = "source-over";
   return f;
 }
+const DOT_R = 8.5;   // the live mark is the point of the widget, so it is bigger than the lines around it
 function drawStick(w, rt, pad) {
   const c = rt.canvas, g = c._g, S = c._w, R = S / 2;
   const accent = w.accent || profile.settings.accent;
@@ -2542,13 +2580,13 @@ function drawStick(w, rt, pad) {
   }
   g.save(); g.setTransform(1, 0, 0, 1, 0, 0); if (holo) g.globalCompositeOperation = "lighter"; g.drawImage(face, 0, 0); g.restore();
   if (holo) g.globalCompositeOperation = "lighter";
-  const depth = depthOf(w), px = R + x * (R - 7), py = R - y * (R - 7);
+  const depth = depthOf(w), px = R + x * (R - DOT_R - 1), py = R - y * (R - DOT_R - 1);
   g.strokeStyle = hexA(accent, 0.5); g.setLineDash([3, 3]);
   g.beginPath(); g.moveTo(px, 0); g.lineTo(px, S); g.moveTo(0, py); g.lineTo(S, py); g.stroke(); g.setLineDash([]);
   if (depth > 0) {
     // A lit sphere: soft shadow cast down-right, accent glow, then a radial gradient with a specular highlight.
     // The blur stays a live filter: a cached sprite would land on other subpixel positions and shift the pixels.
-    const r = 6.5 + 2.5 * depth;
+    const r = DOT_R + 2.5 * depth;
     g.fillStyle = `rgba(0,0,0,${0.55 * depth})`; g.filter = `blur(${(1.5 + 2 * depth).toFixed(1)}px)`;
     g.beginPath(); g.ellipse(px + 2 * depth, py + 3.5 * depth, r, r * 0.8, 0, 0, Math.PI * 2); g.fill(); g.filter = "none";
     g.shadowColor = accent; g.shadowBlur = 10;
@@ -2557,12 +2595,12 @@ function drawStick(w, rt, pad) {
     g.fillStyle = ball; g.beginPath(); g.arc(px, py, r, 0, Math.PI * 2); g.fill(); g.shadowBlur = 0;
   } else if (holo) {   // the glow is a sprite under the dot, no shadowBlur in the projected path
     g.drawImage(holoSprite(rt, rt.holoColors.glow), px - 20, py - 20, 40, 40);
-    g.fillStyle = accent; g.beginPath(); g.arc(px, py, 6.5, 0, Math.PI * 2); g.fill();
+    g.fillStyle = accent; g.beginPath(); g.arc(px, py, DOT_R, 0, Math.PI * 2); g.fill();
     g.globalCompositeOperation = "source-over";
     tearStrip(c, rt);
   } else {
     g.fillStyle = accent; g.shadowColor = accent; g.shadowBlur = 12;
-    g.beginPath(); g.arc(px, py, 6.5, 0, Math.PI * 2); g.fill(); g.shadowBlur = 0;
+    g.beginPath(); g.arc(px, py, DOT_R, 0, Math.PI * 2); g.fill(); g.shadowBlur = 0;
   }
   setText(rt.spans.x, x); setText(rt.spans.y, y);
 }
@@ -3077,7 +3115,7 @@ function placeOnScreen(where) {
 let drag = null, marquee = null, sizing = null, baseDrag = null;
 document.addEventListener("pointerdown", e => {
   if (!editing || e.button !== 0) return;
-  if (e.target.closest("#ui, #welcome, #wizard, #enter-edit, #coach")) return;
+  if (e.target.closest("#ui, #welcome, #wizard, #enter-edit, #empty-edit, #coach")) return;
   // A projector base: drag it where you like. It moves with its widget's offset (holo.base.dx / dy), so presets,
   // undo and Project from One Base keep working. With several projector widgets selected, they all follow.
   // A base sitting under one of the selected widget's edge handles still wins the click (the strips are invisible).
@@ -3228,7 +3266,8 @@ document.addEventListener("keydown", e => {
   else if (onCanvas && !mod && !e.altKey && k === "r") resetHeat();
   else if (!editing) return;
   else if (onCanvas && !mod && !e.altKey && k === "a") openFab();
-  else if (onCanvas && !mod && !e.altKey && k === "p") document.body.classList.toggle("panel-hidden");
+  else if (onCanvas && !mod && !e.altKey && k === "p") togglePanel();
+  else if (onCanvas && !mod && e.key === "?") { e.preventDefault(); openWelcome(true); }
   else if ((e.key === "Delete" || e.key === "Backspace") && selected.size) deleteSelected();
   else if (e.key === "Escape") { if (selected.size) setSelection([]); else if (onCanvas) setEditing(false); }
   else if (k === "a" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); setSelection(profile.widgets.map(w => w.id)); }
@@ -3243,14 +3282,20 @@ document.addEventListener("keydown", e => {
     moveWidgets(selectedWidgets(), dx, dy); save(); renderPanel();
   }
 });
-document.addEventListener("dblclick", e => { if (!editing && !e.target.closest("#ui, #welcome, #wizard, #enter-edit, #coach")) setEditing(true); });
+document.addEventListener("dblclick", e => { if (!editing && !e.target.closest("#ui, #welcome, #wizard, #enter-edit, #empty-edit, #coach")) setEditing(true); });
 
 // ---------- edit mode ----------
 function setEditing(on) {
+  const leaving = editing && !on;
   editing = on;
   document.body.classList.toggle("editing", on);
   $("#edit-switch").checked = on;
   if (!on) { closeWelcome(); closeFab(); if (wiz) closeWizard(); }
+  // First time out of the editor with a layout and no profile.js next to the page: say once how to keep it.
+  if (leaving && profile.widgets.length && !tipsSeen.backup && !window.JOI_PROFILE && !window.STAYONTARGET_PROFILE && !window.JOYVIZ_PROFILE) {
+    tipsSeen.backup = true; try { localStorage.setItem(TIPS_KEY, JSON.stringify(tipsSeen)); } catch (e) {}
+    toast("Keep this layout safe: Save and Share → Download profile.js, saved next to JOI.html.", 7000);
+  }
   applyReference(); drawGrid();
   setSelection([]); placeResize();
   wake();
@@ -3355,10 +3400,23 @@ $("#enter-edit-btn").addEventListener("click", () => setEditing(true));
 // Closing hands focus back to what opened the dialog, or to Getting Started when it opened on its own (first run,
 // Reset All). A step that opens the wizard moves focus on again from there.
 let welcomeBack = null;
-function openWelcome() {
+function openWelcome(keys) {
   welcomeBack = document.activeElement;
+  $("#welcome-where").hidden = !document.body.classList.contains("preview");   // in OBS the page is already where it belongs
+  const tiles = $("#welcome-presets"); tiles.innerHTML = ""; presetTiles(tiles, "data-welcome-preset");
+  $("#welcome-keys").open = !!keys;
   $("#welcome").classList.add("open");
-  setTimeout(() => $("#welcome [data-welcome=device]").focus(), 0);
+  setTimeout(() => (keys ? $("#welcome-keys summary") : $("#welcome-presets button")).focus(), 0);
+}
+// Preset tiles, on the welcome and the Profiles tab: the hardware as icons, the acronym spelled out, what it adds.
+function presetTiles(box, attr) {
+  for (const pr of PRESETS) {
+    const kinds = [...new Set(pr.groups.map(g => g[0].w.type))];
+    const icons = el("span", { class: "icons", "aria-hidden": "true" });
+    for (const k of kinds) { const it = ADD_ITEMS.find(i => i.key === k); if (it) icons.append(el("span", { html: `<svg viewBox="0 0 24 24">${it.icon}</svg>`, style: "display:contents" })); }
+    box.append(el("button", { [attr]: pr.id, title: "New profile: " + pr.name, "aria-label": pr.name + (pr.full ? ", " + pr.full : "") },
+      icons, pr.name, pr.full ? el("small", { class: "full" }, pr.full) : null, el("small", {}, pr.hint)));
+  }
 }
 function closeWelcome() {
   const w = $("#welcome"); if (!w.classList.contains("open")) return;
@@ -3407,29 +3465,33 @@ async function resetAll() {
   openWelcome();
 }
 $("#welcome").addEventListener("click", e => {
+  const pick = e.target.closest("[data-welcome-preset]");
+  if (pick) { closeWelcome(); return addPreset(pick.dataset.welcomePreset); }
   const act = e.target.closest("[data-welcome]")?.dataset.welcome;
   if (e.target.id === "welcome") return closeWelcome();
   if (!act) return;
   closeWelcome();
-  if (act === "device" || act === "bg") startSetup();
-  else if (act === "add") startDeviceWizard();
-  else if (act === "arrange") { setSelection([]); toast(profile.widgets.length ? "Drag widgets to place them. Press E when you're done." : "Add a device first with + Device or the round + button."); }
+  if (act === "device") startDeviceWizard();
   else if (act === "import") $("#file-in").click();
 });
 $("#welcome").addEventListener("keydown", e => {
   if (e.key === "Escape") { e.stopPropagation(); closeWelcome(); }
-  trapTab(e, $("#welcome"));
+  trapTab(e, $("#welcome"), "button, summary");
 });
+$("#empty-presets").addEventListener("click", () => openWelcome());
+$("#empty-device").addEventListener("click", startDeviceWizard);
 
+function togglePanel() {
+  const hidden = document.body.classList.toggle("panel-hidden");
+  $("#panel-btn").textContent = hidden ? "Show Panel" : "Hide Panel";
+}
 $("#toolbar").addEventListener("click", e => {
   const act = e.target.dataset && e.target.dataset.act; if (!act) return;
-  if (act === "add-device") profile.widgets.length ? startDeviceWizard() : startSetup();
-  else if (act === "add-button") startButtonWizard();
-  else if (act === "add-label") addLabel();
-  else if (act === "heat") toggleHeat();
+  if (act === "add-device") startDeviceWizard();
+  else if (act === "review") setSelection([], "review");
   else if (act === "settings") setSelection([], "settings");
   else if (act === "export") setSelection([], "export");
-  else if (act === "panel") document.body.classList.toggle("panel-hidden");
+  else if (act === "panel") togglePanel();
   else if (act === "help") openWelcome();
 });
 $("#file-in").addEventListener("change", async e => {
@@ -3779,26 +3841,44 @@ function positionSection(p, ws) {
       () => { refreshKeepingCenters(ws); syncSelectionClasses(); placeResize(); }, { aria: "Content sizing" });
   });
   sizeRow(p, ws, () => { refreshKeepingCenters(ws); syncSelectionClasses(); });
-  p.append(el("div", { class: "hint small" }, `The icons at the top place ${ws.length > 1 ? "the group" : "the widget"} on the screen and keep the ${profile.settings.margin} px safe margin. Arrow keys nudge 1 px (Shift: 10 px). Hold Alt while dragging to skip snapping.`));
+  p.append(el("div", { class: "hint small" }, "Arrow keys nudge 1 px (Shift: 10 px). Alt drags without snapping."));
 }
-// What to show inside the widget.
+// What to show inside the widget, and which words to use for the axes.
 function showSection(p, ws) {
   const live = ws.filter(w => w.type !== "button" && w.type !== "label");
   if (!live.length) return;
   const upd = () => { refreshKeepingCenters(ws); syncSelectionClasses(); };
   const flag = key => new Proxy({}, { get: () => ws[0][key] !== false, set: (_, k, v) => { for (const w of ws) w[key] = v; return true; } });
   p = section(p, "Show", { key: "show", fam: "widget", icon: "show" });
-  // Each switch brings its own font and size, nested under it while it is on.
-  const withText = (label, key, part, hint) => {
-    const nest = fontRows(ws, part, upd), on = flag(key);
-    nest.hidden = !on.v;
-    toggleRow(p, label, on, "v", () => { nest.hidden = !on.v; upd(); }, hint);
-    p.append(nest);
-  };
-  withText("Name", "showTitle", "title");
-  withText("Values", "showValues", "values", "The percentage readouts under the widget.");
-  withText("Axis labels", "showAxisLabels", "labels");
+  toggleRow(p, "Name", flag("showTitle"), "v", upd);
+  toggleRow(p, "Values", flag("showValues"), "v", upd, "The percentage readouts under the widget.");
+  const labels = flag("showAxisLabels"), names = axisNameRows(ws, upd);
+  names.hidden = !labels.v;
+  toggleRow(p, "Axis labels", labels, "v", () => { names.hidden = !labels.v; upd(); });
+  p.append(names);
+  // Text: one font and size for everything on the widget, or each piece of text on its own.
+  p.append(el("h5", {}, "Text"));
+  const split = { get v() { return secOpen("fonts-split", fontsDiffer(ws)); }, set v(x) { secState["fonts-split"] = x; persistSec(); } };
+  const all = fontRows(ws, "all", upd);
+  const each = el("div", { class: "nest" });
+  for (const part of FONT_PARTS) { each.append(el("div", { class: "hint small" }, FONT_PART_NAMES[part]), fontRows(ws, part, upd)); }
+  const show = () => { all.hidden = split.v; each.hidden = !split.v; };
+  toggleRow(p, "Set each text separately", split, "v", show, "Its own font and size for the name, the values and the axis labels.");
+  show(); p.append(all, each);
 }
+// Yaw and Pitch, Strafe or X and Y for a stick; Yaw, Roll or Rudder for pedals. Nested under the Axis labels switch.
+function axisNameRows(ws, upd) {
+  const nest = el("div", { class: "nest" });
+  const kind = ws.every(w => w.type === "stick") ? "stick" : ws.every(w => w.type === "pedals") ? "pedals" : "";
+  if (!kind) return nest;
+  const def = kind === "stick" ? "xy" : "yaw", table = kind === "stick" ? STICK_NAMES : PEDAL_NAMES;
+  const names = { get v() { return table[ws[0].axisNames] ? ws[0].axisNames : def; }, set v(x) { for (const w of ws) { if (x === def) delete w.axisNames; else w.axisNames = x; } } };
+  choiceRow(nest, "Call them", names, "v", Object.entries(table).map(([k, t]) => [k, t.name || t.word, t.hint]), upd, { wrap: true, aria: "Axis names" });
+  return nest;
+}
+const FONT_PARTS = ["title", "values", "labels"], FONT_PART_NAMES = { title: "Name", values: "Values", labels: "Axis labels" };
+const fontsDiffer = ws => ws.some(w => { const f = w.fonts || {}; const key = part => JSON.stringify([f[part] && f[part].f || "default", f[part] && f[part].s || TEXT_SIZE]); return FONT_PARTS.some(part => key(part) !== key("title")); });
+function persistSec() { try { localStorage.setItem(SEC_KEY, JSON.stringify(secState)); } catch (e) {} }
 // Font and Size for one piece of text (fonts.title, .values or .labels), in a nested group that sits under its switch.
 const FONT_TILES = [["default", "Default", "The overlay's usual font."], ["bahn", "Bahnschrift", "Close to Star Citizen's HUD lettering."], ["segoe", "Segoe UI"],
   ["cascadia", "Cascadia Mono"], ["consolas", "Consolas"], ["arial", "Arial"]];
@@ -3806,8 +3886,11 @@ const TEXT_SIZE = 12;   // px; every piece of text starts here
 function fontRows(ws, part, upd) {
   const nest = el("div", { class: "nest" });
   const get = k => ws[0].fonts && ws[0].fonts[part] && ws[0].fonts[part][k];
-  const put = (k, v) => { for (const w of ws) { w.fonts = { ...(w.fonts || {}) }; w.fonts[part] = { ...(w.fonts[part] || {}), [k]: v }; if (k === "f" && v === "default") delete w.fonts[part].f; } };
-  const label = { title: "Name", values: "Values", labels: "Axis labels" }[part];
+  // "all" reads the name's font and writes every part.
+  const parts = part === "all" ? FONT_PARTS : [part];
+  if (part === "all") part = "title";
+  const put = (k, v) => { for (const w of ws) for (const pt of parts) { w.fonts = { ...(w.fonts || {}) }; w.fonts[pt] = { ...(w.fonts[pt] || {}), [k]: v }; if (k === "f" && v === "default") delete w.fonts[pt].f; } };
+  const label = parts.length > 1 ? "Text" : FONT_PART_NAMES[part];
   const face = { get v() { return get("f") || "default"; }, set v(x) { put("f", x); } };
   const size = { get v() { return get("s") || TEXT_SIZE; }, set v(x) { put("s", x); } };
   choiceRow(nest, "Font", face, "v", FONT_TILES, upd, { wrap: true, aria: label + " font" });
@@ -3855,6 +3938,7 @@ function renderPanelView(p) {
   if (panelMode === "multi" && selected.size > 1) return renderMultiPanel(p);
   if (panelMode === "settings") return renderSettingsPanel(p);
   if (panelMode === "export") return renderExportPanel(p);
+  if (panelMode === "review") return renderReviewPanel(p);
   if (panelMode === "devices") return renderDevicesPanel(p);
   panelTabs(p);
   if (panelMode === "profiles") return renderProfilesPanel(p);
@@ -3906,31 +3990,36 @@ function renderProfilesPanel(p) {
     el("button", { onclick: () => exportLayout(cur.id), title: "Download this profile as a .json file to share or keep" }, "Download .json"),
     Object.assign(el("button", { class: "danger", onclick: () => deleteLayout(cur.id), title: lib.list.length < 2 ? "Your only profile can't be deleted" : "Delete this profile" }, "Delete"), { disabled: lib.list.length < 2 })));
   box.append(el("h5", {}, "Start From a Preset"));
-  box.append(el("div", { class: "hint small" }, "Adds the widgets for a common setup as a new profile, in your current colors. Keys and the mouse work right away; then move each stick, throttle or pedal once, or press each button, to bind it."));
-  const g = el("div", { class: "presets" });
-  for (const pr of PRESETS) g.append(el("button", { onclick: () => addPreset(pr.id), title: "New profile: " + pr.name }, pr.name, el("small", {}, pr.hint)));
+  box.append(el("div", { class: "hint small" }, "Adds a common setup as a new profile. Keys and the mouse work right away; move each stick, throttle or pedal once to bind it."));
+  const g = el("div", { class: "presets" }); presetTiles(g, "data-preset");
+  g.addEventListener("click", e => { const b = e.target.closest("[data-preset]"); if (b) addPreset(b.dataset.preset); });
   box.append(g);
 }
 
 function renderHome(p) {
   p.append(el("h3", {}, "Setup"));
-  p.append(el("div", { class: "hint" }, "Add each device once with + Device or the round + button. New widgets line up along the bottom middle."));
-  p.append(el("div", { class: "hint" }, "Drag widgets into place. Drag a box or Shift+click to select several. Press E or switch off Edit Mode when you're done."));
-  const off = offscreenWidgets().length;
-  if (off) p.append(el("div", { class: "hint warn" }, `${widgetsAre(off)} outside this window.`),
-    el("div", { class: "actions" }, el("button", { onclick: bringIntoView }, "Bring Into View")));
-  const missing = profile.widgets.filter(w => w.match && !padFor(w, connectedPads()));
-  if (!connectedPads().length) p.append(el("div", { class: "hint warn" }, "No devices seen yet. Move a stick or press a button so the browser detects them."));
-  else if (missing.length) p.append(el("div", { class: "hint warn" }, `${widgetsAre(missing.length)} waiting for ${missing.length > 1 ? "their devices" : "its device"}. Open Check Devices to see why.`));
+  // What to press comes first; the explanation follows it.
   const unbound = profile.widgets.filter(isUnbound).length;
   if (unbound) p.append(el("div", { class: "hint warn" }, `${widgetsAre(unbound)} not bound to an input yet.`),
     el("div", { class: "actions" }, el("button", { class: "primary", onclick: startBinding }, "Bind Inputs")));
-  p.append(el("div", { class: "actions" }, el("button", { onclick: () => setSelection([], "devices") }, "Check Devices")));
   p.append(el("div", { class: "actions" },
-    el("button", { class: "primary", onclick: startDeviceWizard }, "+ Device"),
-    el("button", { onclick: startButtonWizard }, "+ Button/Key"),
-    el("button", { onclick: () => $("#file-in").click() }, "Import a Profile"),
-    el("button", { class: "danger", onclick: resetAll }, "Reset All")));
+    el("button", { class: unbound ? "" : "primary", onclick: startDeviceWizard }, "+ Device"),
+    el("button", { onclick: startButtonWizard }, "+ Button/Key")));
+  p.append(el("div", { class: "actions" },
+    el("button", { onclick: () => openWelcome(), title: "Add the widgets for a common HOTAS, HOSAS or keyboard setup" }, "Pick a Setup"),
+    el("button", { onclick: () => $("#file-in").click() }, "Import a Profile")));
+  p.append(el("div", { class: "hint" }, "Add each device once. New widgets line up along the bottom middle: drag them into place, drag a box or Shift+click to select several, and press E when you're done."));
+  const pads = connectedPads();
+  // The browser lists a controller only after it has moved, so a still device is normal here, not a fault.
+  if (!pads.length) p.append(el("div", { class: "hint" }, "Wiggle a stick or press a button so the browser wakes it up. Keyboard keys work right away."));
+  else p.append(el("div", { class: "hint ok" }, "Seen: " + pads.map(devName).join(", ")));
+  const missing = profile.widgets.filter(w => w.match && !padFor(w, pads));
+  if (pads.length && missing.length) p.append(el("div", { class: "hint warn" }, `${widgetsAre(missing.length)} waiting for ${missing.length > 1 ? "their devices" : "its device"}. Open Check Devices to see why.`));
+  const off = offscreenWidgets().length;
+  if (off) p.append(el("div", { class: "hint warn" }, `${widgetsAre(off)} outside this window.`),
+    el("div", { class: "actions" }, el("button", { onclick: bringIntoView }, "Bring Into View")));
+  p.append(el("div", { class: "actions" }, el("button", { onclick: () => setSelection([], "devices") }, "Check Devices")));
+  devTimer = setInterval(() => { if (connectedPads().length !== pads.length) renderPanel(); }, 500);   // the line above flips as devices wake
   p.append(el("h4", {}, "Reference Screenshot"));
   p.append(el("div", { class: "hint" }, "Place widgets around your HUD with a Star Citizen screenshot behind them. It shows only while you edit."));
   if (availableSamples.length) {
@@ -3949,12 +4038,14 @@ function renderHome(p) {
     for (const w of profile.widgets) p.append(el("div", { class: "row" },
       el("button", { "aria-label": "Edit " + (w.label || w.type), onclick: () => setSelection([w.id]) }, "Edit"), el("span", {}, w.label || w.type)));
   }
+  p.append(el("div", { class: "hint small" }, "Text too small? ", el("button", { class: "text", onclick: () => setSelection([], "settings") }, "Change the editor text size in Settings")));
+  p.append(el("div", { class: "actions" }, el("button", { class: "danger subtle", onclick: resetAll, title: "Remove every widget and setting" }, "Reset All")));
 }
 
 // ---------- setup wizard dialog ----------
 const ADD_ITEMS = [
   { key: "stick", name: "Stick", short: "Stick", hint: "X and Y", icon: '<circle cx="12" cy="6" r="3"/><path d="M12 9v8M6 20h12M9 17h6"/>' },
-  { key: "pedals", name: "Pedals", short: "Pedals", hint: "Rudder and toe brakes", icon: '<path d="M4 20l2-13h4l-1 13zM15 20l-1-13h4l2 13z"/>' },
+  { key: "pedals", name: "Pedals", short: "Pedals", hint: "Yaw, plus toe pedals if you have them", icon: '<path d="M4 20l2-13h4l-1 13zM15 20l-1-13h4l2 13z"/>' },
   { key: "button", name: "Button/Key", short: "Button/Key", hint: "Any button, trigger or keyboard key", icon: '<circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="3"/>' },
   { key: "throttle", name: "Throttle", short: "Throttle", hint: "One forward axis", icon: '<rect x="8.5" y="3" width="7" height="5" rx="1.5"/><path d="M12 8v9M6 20h12M9 17h6"/>' },
   { key: "axis", name: "Single Axis", short: "Axis", hint: "Slider, dial or twist", icon: '<path d="M4 12h16M7 9l-3 3 3 3M17 9l3 3-3 3"/>' },
@@ -3967,15 +4058,14 @@ function renderWiz() {
   const host = $("#wizard"), b = $("#wiz-body");
   const was = host.classList.contains("open");
   host.classList.toggle("open", !!wiz);
-  host.classList.toggle("see-through", !!wiz && wiz.stage === "bg");
   b.innerHTML = "";
   if (wiz) wake();   // the steps poll the devices every frame
   if (!wiz) { if (was && editing) $("#fab").focus(); return; }
   if (wiz.remap && wiz.stage === "name") return finishRemap();   // re-detecting keeps the widget's name
-  const off = wizBg ? 1 : 0, total = 3 + off;
+  const total = 3;
   const queued = !!wiz.remap && bindQueue[0] === wiz.remap;
   const st = (k, suffix) => queued ? [0, `Bind Inputs · ${bindTotal - bindQueue.length + 1} of ${bindTotal} · ${wiz.label || suffix}`]
-    : wiz.remap ? [0, "Detect Device" + (suffix ? " · " + suffix : "")] : [k + off, `Step ${k + off} of ${total}` + (suffix ? " · " + suffix : "")];
+    : wiz.remap ? [0, "Detect Device" + (suffix ? " · " + suffix : "")] : [k, `Step ${k} of ${total}` + (suffix ? " · " + suffix : "")];
   const skip = () => queued ? el("button", { onclick: skipBinding }, "Skip for Now") : null;
   const head = (step, kicker, title, lead) => {
     const k = el("div", { class: "kicker" });
@@ -3986,9 +4076,8 @@ function renderWiz() {
   };
   // Clickable step tracker: steps already passed are buttons that jump back to them.
   const stepper = step => {
-    const names = [...(wizBg ? ["Screenshot"] : []), "Device", wiz.kind === "button" ? "Press" : "Move", "Name"];
-    const jump = { Screenshot: () => { wizBg = true; wiz = { kind: "device", stage: "bg" }; renderWiz(); },
-      Device: startDeviceWizard,
+    const names = ["Device", wiz.kind === "button" ? "Press" : "Move", "Name"];
+    const jump = { Device: startDeviceWizard,
       Move: () => wizChooseType(wiz.type), Press: startButtonWizard };
     const ol = el("ol", { class: "wsteps", "aria-label": "Setup steps" });
     names.forEach((n, i) => {
@@ -3999,35 +4088,22 @@ function renderWiz() {
     });
     return ol;
   };
-  const noPad = text => { const n = el("p", { class: "warn", id: "wiz-nopad" },
-    text || "No devices seen yet. Move any stick or press a button so your browser can see them."); n.hidden = connectedPads().length > 0; return n; };
+  const noPad = text => { const n = el("p", { class: "tip", id: "wiz-nopad" },
+    text || "Wiggle a stick or press a button first: the browser only lists a device once it has moved."); n.hidden = connectedPads().length > 0; return n; };
   const actions = (...xs) => b.append(el("div", { class: "actions" }, ...xs));
 
-  if (wiz.stage === "bg") {
-    head(...st(0), "Choose a Reference Screenshot",
-      "Pick the Star Citizen screenshot closest to your screen, so you can place widgets around the in-game HUD instead of on top of it. It only shows while you edit, never on stream.");
-    const g = el("div", { class: "shots", role: "group", "aria-label": "Reference screenshots" });
-    const tile = (src, label, on, click) => g.append(el("button", { class: "shot", "aria-pressed": on ? "true" : "false", onclick: click }, el("img", { src, alt: "" }), label));
-    for (const sm of availableSamples) tile(SAMPLE_DIR + sm.file, sm.label, refImage === SAMPLE_DIR + sm.file, () => { useSample(sm); renderWiz(); });
-    if (refImage && refImage.startsWith("data:")) tile(refImage, "Your Screenshot", true, () => {});
-    if (g.children.length) b.append(g);
-    else b.append(el("p", { class: "warn" }, `No sample screenshots found. Put them in a folder called "${SAMPLE_DIR.slice(0, -1)}" next to JOI.html, or load your own.`));
-    b.append(el("div", { class: "actions", style: "justify-content:flex-start;margin-top:0.6rem" },
-      el("button", { onclick: () => $("#ref-in").click() }, "Load My Own Screenshot"),
-      refImage ? el("button", { onclick: () => { clearReference(); renderWiz(); } }, "No Screenshot") : null));
-    actions(el("button", { class: "primary", "data-autofocus": "", onclick: startDeviceWizard }, "Next: Add a Device"));
-  } else if (wiz.kind === "done") {
+  if (wiz.kind === "done") {
     head(0, "Added", `${wiz.last.label || "Your widget"} is on your overlay`,
-      "It's at the bottom middle of the screen. Drag it anywhere later.");
+      "It's at the bottom middle of the screen. Drag it anywhere later; a reference screenshot (Setup tab) shows the in-game HUD to place it around.");
     if (wizAdded.length > 1) { const ul = el("ul", { class: "added", "aria-label": "Added so far" }); for (const n of wizAdded) ul.append(el("li", {}, n)); b.append(ul); }
     actions(el("button", { onclick: closeWizard }, "Done"),
       el("button", { onclick: startButtonWizard }, "Add a Button/Key"),
-      el("button", { class: "primary", "data-autofocus": "", onclick: () => { wizBg = false; startDeviceWizard(); } }, "Add Another Device"));
+      el("button", { class: "primary", "data-autofocus": "", onclick: startDeviceWizard }, "Add Another Device"));
   } else if (wiz.kind === "button" && wiz.stage === "press") {
     head(...st(2, "Button/Key"), queued ? `Press the Button or Key for ${wiz.label || "This Widget"}` : "Press the Button or Key You Want to Show", "Any button on any device (hold it for a moment), or any key on your keyboard.");
     Object.assign(b.querySelector("#wiz-title"), { tabIndex: -1 }).dataset.autofocus = "";
     b.append(el("p", { class: "tip", id: "wiz-hint", "aria-live": "polite" }),
-      noPad("No game devices seen yet. Keyboard keys work anyway; for a device button, press it once so your browser can see the device."));
+      noPad("Keyboard keys work right away. For a device button, press it once so the browser lists the device."));
     if (!wiz.remap) b.append(el("p", { class: "tip" }, "Showing movement keys? ", el("button", { class: "text", onclick: addWasd, title: "Add W, A, S and D as keycaps, laid out like a keyboard" }, "Add W, A, S and D Keys")));
     actions(wiz.remap ? null : el("button", { onclick: startDeviceWizard }, "Back"), skip(), el("button", { onclick: closeWizard }, "Cancel"));
   } else if (wiz.stage === "type") {
@@ -4131,7 +4207,7 @@ function applyThemeTo(t, ws, all) {
 function themeSection(p, ws, all) {
   const common = ws.length && ws.every(w => w.theme === ws[0].theme) ? ws[0].theme : "";
   const cur = [...FEATURED_THEMES, ...MFG_THEMES].find(t => t.id === common);
-  p = section(p, "Color Theme", { key: "theme", fam: "style", icon: "theme", summary: cur ? cur.name : "" });
+  p = section(p, "Color Theme", { key: "theme", open: !!all, fam: "style", icon: "theme", summary: cur ? cur.name : "" });
   p.append(el("div", { class: "hint small" }, all ? "Match your ship's MFDs. Colors every widget, and new widgets use it too."
     : `Match your ship's MFDs. Colors the selected widget${ws.length > 1 ? "s" : ""}.`));
   const tiles = el("div", { class: "themes", role: "group", "aria-label": "Featured color themes" });
@@ -4196,7 +4272,7 @@ function colorSection(p, ws) {
   const w0 = ws[0], upd = () => { for (const w of ws) { w.theme = ""; refreshWidget(w); } syncSelectionClasses(); };
   // Edit all selected widgets together through a proxy of the first one.
   const proxy = new Proxy({}, { get: (_, k) => w0[k], set: (_, k, v) => { for (const w of ws) w[k] = v; return true; } });
-  p = section(p, "Colors", { key: "colors", fam: "style", icon: "colors" });
+  p = section(p, "Colors", { key: "colors", open: false, fam: "style", icon: "colors" });
   p.append(el("div", { class: "cgrid" },
     ccell("Highlight", colorIn(proxy, "accent", upd, "Highlight")),
     ccell("Text", colorIn(proxy, "text", upd, "Text")),
@@ -4345,7 +4421,7 @@ function perspectiveSection(p, ws) {
   const pproxy = new Proxy({}, { get: (_, k) => w0.proj[k], set: (_, k, v) => { for (const w of ws) w.proj[k] = v; return true; } });
   const current = LOOK_PRESETS.find(l => ws.every(w => sameLook(w, l)));
   const proj = !!holoOf(w0).on;
-  p = section(p, "Cockpit Look", { key: "look", fam: "style", icon: "look", summary: (proj ? "Projector" : "Flat") + (current && current.name !== (proj ? "Projector" : "Flat") ? " · " + current.name : "") });
+  p = section(p, "Cockpit Look", { key: "look", open: false, fam: "style", icon: "look", summary: (proj ? "Projector" : "Flat") + (current && current.name !== (proj ? "Projector" : "Flat") ? " · " + current.name : "") });
   const style = { get v() { return proj ? "projector" : "flat"; }, set v(x) { setProjector(ws, x === "projector"); } };
   choiceRow(p, "Style", style, "v", [["flat", "Flat", "A panel on a cockpit screen or a hologram floating on its own."],
     ["projector", "Projector", "A hologram standing in a beam from a base on the dash, like the Gladius radar."]], () => { save(); updProj(); renderPanel(); }, { aria: "Cockpit Look style" });
@@ -4456,7 +4532,7 @@ function projectorSection(p, ws) {
   const updBase = () => { for (const [w, rt] of rigs()) layoutHolo(w, rt); };
   // Chosen with Style in Cockpit Look; while a widget is Flat there is nothing projector-only to show.
   if (!h0.on) return;
-  p = section(p, "Projector", { key: "projector", fam: "style", icon: "projector" });
+  p = section(p, "Projector", { key: "projector", open: false, fam: "style", icon: "projector" });
   const px = v => (v > 0 ? "+" : "") + v + " px";
   p.append(el("h5", {}, "Basics"));
   choiceRow(p, "Motion", proxy, "tier", [["static", "Still", "No motion. Costs nothing per frame."], ["subtle", "Subtle", "A slow float and a rare, gentle dropout."],
@@ -4514,7 +4590,7 @@ function renderWidgetPanel(p) {
   const names = { stick: "Stick", throttle: "Throttle", pedals: "Pedals", axis: "Single Axis", button: "Button/Key", label: "Label" };
   const upd = () => { refreshWidget(w); syncSelectionClasses(); };
   const seen = w.match && padFor(w, connectedPads());
-  panelHead(p, w.mouse ? "Mouse" : names[w.type] || w.type, w.type !== "label" && w.match && !seen ? "Device not connected. See Device below." : "", el("div", { class: "fields" }, fld("Name", textIn(w, "label", upd), null, true)));
+  panelHead(p, w.mouse ? "Mouse" : names[w.type] || w.type, "", el("div", {}, el("div", { class: "fields" }, fld("Name", textIn(w, "label", upd), null, true)), bindRow(w, seen)));
   positionSection(p, [w]);
   arrangeSection(p);
   layoutSection(p, [w]);
@@ -4539,7 +4615,7 @@ function renderWidgetPanel(p) {
       w.match && twinsOf(w, connectedPads()) > 1 ? el("button", { onclick: () => swapTwins(w.match) }, "Swap with Identical Device") : null));
     if (w.match && w.type !== "button" && TYPES[w.type]) {
       for (const s of TYPES[w.type].steps) if (w.axes[s.key] != null) {
-        const lbl = { x: "Invert X", y: "Invert Y", t: "Invert throttle", r: "Invert rudder", bl: "Invert left brake", br: "Invert right brake", a: "Invert axis" }[s.key];
+        const lbl = { x: "Invert X", y: "Invert Y", t: "Invert throttle", r: "Invert pedals", bl: "Invert left toe pedal", br: "Invert right toe pedal", a: "Invert axis" }[s.key];
         toggleRow(d, lbl, w.inv, s.key);
       }
     }
@@ -4547,6 +4623,17 @@ function renderWidgetPanel(p) {
   panelFoot(p, "Remove");
 }
 
+// What the widget listens to, right under its name, so a quiet or wrongly bound widget is fixed from the top of the
+// panel instead of after every styling section. The Device section further down keeps the invert switches and Swap.
+function bindRow(w, seen) {
+  if (w.type === "label") return null;
+  let text, cls = "", btn = "Rebind", title = w.type === "button" ? "Press another button or key" : "Move the device again to bind it";
+  if (w.key) text = `Key: ${keyLabel(w.key)}`;
+  else if (w.mouse) { text = "The mouse"; btn = "Use a Device Instead"; title = "Move a stick to show it here instead of the mouse"; }
+  else if (!w.match) { text = "Not bound yet"; cls = " warn"; btn = "Bind"; }
+  else { text = deviceLabel(w.match, w.nth) + (seen ? "" : ", not connected"); if (!seen) cls = " warn"; }
+  return el("div", { class: "bind-row" }, el("span", { class: "hint small" + cls }, text), el("button", { onclick: () => startRemap(w), title }, btn));
+}
 function renderMultiPanel(p) {
   const ws = selectedWidgets();
   panelHead(p, ws.length + " widgets selected", "Changes apply to all selected widgets. Shift+click a widget to add or remove it.");
@@ -4644,9 +4731,6 @@ function renderSettingsPanel(p) {
   toggleRow(bg, "Solid page background", { get v() { return s.background === "solid"; }, set v(x) { s.background = x ? "solid" : "transparent"; } }, "v", applySettings,
     "Leave it off for OBS. A solid color is only for tools without transparency.");
   bg.append(el("div", { class: "cgrid" }, ccell("Page color", colorIn(s, "bgColor", applySettings, "Page background color"))));
-  const heat = section(p, "Session Heatmap", { key: "s-heat" });
-  heat.append(el("div", { class: "hint small" }, "Shows where each stick, throttle and pedal spent its time this session, for example, which way you strafe most. Toggle with H, reset with R."));
-  heat.append(el("div", { class: "actions" }, el("button", { onclick: toggleHeat }, showHeat ? "Hide Heatmap" : "Show Heatmap"), el("button", { class: "subtle", onclick: resetHeat }, "Reset Heatmap")));
   const about = section(p, "About", { key: "s-about", open: false });
   about.append(el("div", { class: "hint" }, "Joystick Overlay Inputs (JOI) is free, open-source software under the MIT License. It uses no third-party libraries, fonts, trackers or online services: everything runs offline from this one file."));
   about.append(el("div", { class: "hint" }, "This is an unofficial Star Citizen fan project, not affiliated with the Cloud Imperium group of companies. "
@@ -4655,6 +4739,58 @@ function renderSettingsPanel(p) {
   const over = section(p, "Start Over", { key: "s-reset", open: false });
   over.append(el("div", { class: "hint small" }, "Removes every widget and setting on this computer. Download profile.js first to keep a backup."));
   over.append(el("div", { class: "actions" }, el("button", { class: "danger", onclick: resetAll }, "Reset All")));
+}
+
+// Review: the session heatmap, and what it says. For each stick, throttle, pedal and axis, the share of the session
+// spent at full deflection and at rest, from the same cells the heatmap paints. Pinning a stick to its stops is the
+// most common new-pilot habit, and this is where a replay viewer sees it in numbers.
+const FULL_AT = 0.9, REST_AT = 0.12;   // |value| past FULL_AT counts as full deflection; within REST_AT as at rest
+function reviewStats(w) {
+  const rt = runtime[w.id]; if (!rt) return null;
+  let total = 0, full = 0, rest = 0;
+  const bin = (i, n) => (i + 0.5) / n * 2 - 1;   // the value at the middle of cell i of n across -1..1
+  if (w.type === "stick") {
+    for (let j = 0; j < HEAT; j++) for (let i = 0; i < HEAT; i++) {
+      const v = rt.heat2[j * HEAT + i]; if (!v) continue;
+      const x = bin(i, HEAT), y = bin(j, HEAT);
+      total += v; if (Math.abs(x) > FULL_AT || Math.abs(y) > FULL_AT) full += v; else if (Math.abs(x) < REST_AT && Math.abs(y) < REST_AT) rest += v;
+    }
+  } else {
+    const zero = w.type === "throttle";   // a throttle rests at its bottom; a pedal or axis in the middle
+    for (const k in rt.heat1) {
+      const a = rt.heat1[k]; if (!a) continue;
+      const zeroK = zero || k === "bl" || k === "br";
+      for (let i = 0; i < HEAT1; i++) {
+        const v = a[i]; if (!v) continue;
+        const x = bin(i, HEAT1);
+        total += v; if (x > FULL_AT || !zeroK && x < -FULL_AT) full += v; else if (zeroK ? x < REST_AT * 2 - 1 : Math.abs(x) < REST_AT) rest += v;
+      }
+    }
+  }
+  return { total, full: total ? full / total : 0, rest: total ? rest / total : 0 };
+}
+function renderReviewPanel(p) {
+  p.append(el("h3", {}, "Review"));
+  p.append(el("div", { class: "hint" }, "The session heatmap paints where each stick, throttle and pedal has been since the page opened: a bright corner is a stick held at its stops."));
+  p.append(el("div", { class: "actions" }, el("button", { class: "primary", onclick: toggleHeat }, showHeat ? "Hide Heatmap (H)" : "Show Heatmap (H)"), el("button", { class: "subtle", onclick: resetHeat, title: "Start the session's numbers again (R)" }, "Reset")));
+  p.append(el("h4", {}, "This Session"));
+  const list = el("div", { class: "review-list", "aria-live": "off" }); p.append(list);
+  const fill = () => {
+    list.innerHTML = "";
+    const ws = profile.widgets.filter(w => AXIS_TYPES.has(w.type));
+    if (!ws.length) { list.append(el("div", { class: "hint small" }, "Add a stick, throttle, pedals or an axis and its numbers appear here.")); return; }
+    for (const w of ws) {
+      const st = reviewStats(w), pc = v => Math.round(v * 100) + "%";
+      const row = el("div", { class: "row" }, el("b", {}, w.label || w.type));
+      if (!st || st.total < 0.5) row.append(el("small", {}, "No movement yet."));
+      else row.append(el("div", { class: "meter", role: "img", "aria-label": `${pc(st.full)} at full deflection, ${pc(st.rest)} at rest` },
+          el("i", { class: "full", style: `width:${st.full * 100}%` }), el("i", { class: "rest", style: `width:${st.rest * 100}%` })),
+        el("small", {}, `${pc(st.full)} at full deflection · ${pc(st.rest)} at rest`));
+      list.append(row);
+    }
+  };
+  fill(); devTimer = setInterval(fill, 1000);
+  p.append(el("div", { class: "hint small" }, "Orange is time at the stops, grey is time at rest. If an axis lives at full deflection, fly the same fight again with half the input and compare the replays: smaller, earlier corrections are what keep a target centered."));
 }
 
 function renderExportPanel(p) {

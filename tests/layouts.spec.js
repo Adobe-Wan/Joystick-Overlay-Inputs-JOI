@@ -150,7 +150,7 @@ test.describe("presets", () => {
     await app.open({ query: "?edit" });
     await page.evaluate(() => closeWelcome());
     await openProfilesTab(page);
-    await page.click('.presets button:has-text("HOTAS + Pedals")');
+    await page.click('#panel .presets button:has-text("HOTAS + Pedals")');
     await expect(page.locator("#wiz-body .kicker")).toHaveText("Bind Inputs · 1 of 5 · Throttle");
     expect(await page.evaluate(() => [...document.querySelectorAll("#stage .widget.unbound")].length)).toBe(5);
     await page.click('#wiz-body button:has-text("Skip for Now")');

@@ -26,17 +26,17 @@ Download the new zip and replace `JOI.html` in your folder. Keep your `profile.j
 2. In OBS, add a **Browser** source, check **Local file** and pick `JOI.html`.
    - **Width / Height:** use your OBS canvas size (Settings → Video → Base Canvas, usually **1920 × 1080**). The overlay then maps 1:1 to your screen, and you position widgets by dragging them in step 4 rather than by moving the source.
    - **FPS:** check **Use custom frame rate** and set **60**.
-3. Right-click the source and choose **Interact**. The first time, JOI opens in edit mode with a **Getting Started** dialog. Move a stick so the browser sees your controllers. (Later, press **E** or click **Open Editor** to return.)
-4. Click **Get Started**. A dialog in the middle of the screen walks you through it:
-   1. **Choose a Reference Screenshot:** pick the sample screenshot that matches your screen, or **Load My Own Screenshot**. It shows only while editing, so you can place widgets around the in-game HUD instead of on top of it.
-   2. **What Are You Adding?** Stick, Pedals, Button/Key, Throttle, Single Axis or Label.
-   3. **Move it** when asked. It detects the axis and its direction. For a **Button/Key**, press a button on any device or a key on your keyboard.
-   4. **Name It**, then **Add to Overlay**. Press **Add Another Device** for the next one.
+3. Right-click the source and choose **Interact**. The first time, JOI opens in edit mode with a welcome dialog that asks **What do you fly with?** (Later, press **E** or click **Open Editor** to return; **Help** in the top bar brings the dialog back.)
+4. Pick the setup closest to your hardware: **WASD + Mouse**, **HOSAS + Pedals** (two sticks), **HOTAS + Pedals** (stick and throttle), **HOSAM** (stick and mouse) or **Directional Inputs**. Each tile spells out its acronym and lists what it adds. The widgets appear along the bottom middle of the screen, where most streamers keep their inputs, named for what they fly (**Pitch / Yaw**, **Strafe**, **Roll**), and **Bind Inputs** opens:
+   1. **Move it** when asked: push the stick fully right, then fully forward. It detects the axis and its direction. The browser only lists a controller once it has moved, so wiggle it if nothing happens.
+   2. **Skip for Now** leaves a widget for later; **Bind Inputs** on the Setup or Profiles tab finishes the rest.
 
-   New widgets line up along the bottom middle of the screen, where most streamers keep their inputs. The round **+** button (bottom right, or press **A**) adds more at any time.
-5. Drag the widgets where you want them (see *Positioning* below). Click one to change its name, size or colors.
-6. Switch **Edit Mode** off in the top bar (or press **E**). The reference screenshot disappears with the editor.
+   Prefer to build it yourself? **Add Devices One by One** opens the same wizard for a single Stick, Pedals, Button/Key, Throttle, Single Axis or Label, and asks you to **Name It**. The round **+** button (bottom right, or press **A**) and **+ Add** in the top bar add more at any time.
+5. Drag the widgets where you want them (see *Positioning* below). The **Reference Screenshot** on the Setup tab puts a Star Citizen screenshot behind the editor, so you can place them around the HUD instead of on top of it; it never shows on stream. Click a widget to change its name, binding, size or colors.
+6. Switch **Edit Mode** off in the top bar (or press **E**). The reference screenshot disappears with the editor. The first time, a tip reminds you of step 7.
 7. **Save and Share → Download profile.js**, and save it in the same folder as `JOI.html`. This keeps the setup safe if OBS clears its cache.
+
+Opened in a normal browser instead of OBS, the welcome says so and reminds you to add the file to OBS when the layout is ready.
 
 ## Opening it in a normal browser
 Outside OBS the page shows a dark preview background with a note that it's transparent in OBS. In OBS it stays fully transparent. If another streaming app shows the dark background, add `?transparent` to the end of the file URL. Add `?edit` to open straight into the editor.
@@ -52,7 +52,7 @@ Layouts are designed on a 1920×1080 canvas and **fit to the screen size** autom
 - **Select several:** drag a box on empty space, or Shift+click widgets. Ctrl+A selects all. Drag any selected widget to move them together.
 - **Align and place:** with a selection, use the panel's align buttons (left, center, right, top, middle, bottom). *Center on Screen*, *Center Horizontally*, *Center at Bottom* and *Move to Bottom* move the selection as one block.
 - **Spacing:** with 2+ selected, type a **Gap** in px (for example 16) and press **Space Horizontally** or **Space Vertically** to set them that far apart. Leave the gap on *Auto* to spread 3+ widgets evenly across their current width or height.
-- **Nudge** with the arrow keys (Shift = 10px). **P** hides the side panel so you can see the whole screen.
+- **Nudge** with the arrow keys (Shift = 10px). **P** or **Hide Panel** hides the side panel so you can see the whole screen. **?** lists every shortcut.
 - Grid size, safe margin, and turning guides or the grid off are in **Settings**.
 
 ## Sample backgrounds
@@ -67,9 +67,9 @@ Sample screenshots live in the `Background Images for Edit Mode` folder next to 
 Drop a new one into the folder and it appears in the editor on the next load. Keep the folder with the HTML when you share the app.
 
 ## Widget layout
-Select a widget (or several). The side panel runs like Figma's: what you selected and the align icons stay pinned at the top, **Duplicate** and **Remove** stay pinned at the bottom, and the sections in between go from where the widget sits, to its box, to how it looks:
+Select a widget (or several). The side panel runs like Figma's: what you selected, its name, what it listens to (the device, key or mouse it is bound to, with **Bind** or **Rebind** beside it) and the align icons stay pinned at the top, **Duplicate** and **Remove** stay pinned at the bottom, and the sections in between go from where the widget sits, to its box, to how it looks:
 
-**Position and Size**, **Arrange**, **Layout**, **Show**, **Color Theme**, **Colors**, **Cockpit Look**, **Projector**, then **Device** for a single widget.
+**Position and Size**, **Arrange**, **Layout**, **Show**, **Color Theme**, **Colors**, **Cockpit Look**, **Projector**, then **Device** for a single widget. The style sections start folded so the first screen of the panel is position, layout and binding; click a section's title to open it, and it stays open.
 
 With several widgets selected, every change applies to all of them. The first time setup finishes with two or more widgets, a tip points this out (once per browser).
 
@@ -92,7 +92,7 @@ With several widgets selected, every change applies to all of them. The first ti
 - **Inner sizes:** stick area for sticks (always a square 4×4 gate before any perspective), bar thickness and length for throttles and single axes, and rudder and brake bar sizes for pedals. These are in pixels before **Size**, which still scales the whole widget. A bar's or rudder's thickness (the Height of a horizontal bar, the Width of an upright one) goes down to 4 px; lengths go down to 20 px. The brakes beside a thin rudder get thin too, since they follow its thickness.
 - **Reset Layout** puts them back to the defaults.
 
-**Show** switches the **Name**, **Values** (%) and **Axis labels** on or off. On pedals with axis labels off, the rudder value is anchored to the widget's center: 0% sits dead center, right rudder grows the number to the right and left rudder grows it to the left, with the brake values under their bars.
+**Show** switches the **Name**, **Values** (%) and **Axis labels** on or off. Under **Axis labels**, **Call them** picks the words: a stick can say **X and Y**, **Yaw and Pitch** (YAW / PIT) or **Strafe** (L/R with U/D or F/B), pedals **Yaw** (the default, since pedals usually yaw in Star Citizen), **Roll** or **Rudder**. The presets set them, so a widget teaches the same words as the game's keybinding screen. **Text** sets one font and size for everything on the widget; **Set each text separately** gives the name, the values and the axis labels their own. On pedals with axis labels off, the rudder value is anchored to the widget's center: 0% sits dead center, right rudder grows the number to the right and left rudder grows it to the left, with the brake values under their bars.
 
 Every slider's value is clickable: click it, type a number and press Enter (Escape keeps the old one).
 
@@ -117,7 +117,7 @@ Keep a layout for each ship or controller setup and swap between them. With noth
 - **Download .json** saves the profile on screen as a file to share or keep. **Import a Profile** adds a file as a new profile next to yours; it never replaces one (an empty profile makes room for it). `profile.js` (in **Save and Share**) backs up every profile at once.
 - **Undo** (Ctrl+Z) takes back a switch, rename, duplicate, delete, import or preset like any other edit.
 
-**Start From a Preset** adds the widgets for a common setup as a new profile, in your current colors, lined up along the bottom middle:
+**Start From a Preset** (the same tiles as the welcome's **What do you fly with?**) adds the widgets for a common setup as a new profile, in your current colors, lined up along the bottom middle:
 
 | Preset | Widgets |
 |---|---|
@@ -196,10 +196,11 @@ The single-key shortcuts work when no button or field has focus: click an empty 
 | Ctrl+A / Ctrl+D | Select all / duplicate |
 | Ctrl+Z / Ctrl+Y | Undo / redo (also Ctrl+Shift+Z; the small buttons above the + do the same) |
 | P | Hide / show the side panel |
+| ? | The shortcut list |
 | Alt (while dragging) | Turn snapping off |
 
-## Session heatmap
-JOI records where every stick, throttle and pedal spends its time. Press **H** to see it, for example which way you strafe most this session. Press **R** to start fresh.
+## Review: the session heatmap
+JOI records where every stick, throttle and pedal spends its time. **Review** in the top bar shows it (or press **H**), for example which way you strafe most this session, and lists, for each axis widget, how much of the session it spent at full deflection and how much at rest. Pinning a stick to its stops is the most common new-pilot habit; if an axis lives at full deflection, fly the same fight again with half the input and compare the replays. **Reset** (or **R**) starts the numbers fresh.
 
 ## Two identical sticks (for example, 2× VIRPIL Alpha Prime)
 They report the same hardware name, so JOI tells them apart by the controller slot each one was set up in, which Windows normally keeps stable. If left and right ever come up reversed, click either stick widget and press **Swap with Identical Device**.
@@ -210,7 +211,7 @@ For a permanent fix, give one stick a different USB Product ID in VPC Configurat
 
 ## A device isn't showing up
 Open the editor and click **Check Devices** on the home panel. It lists every controller your browser is passing to JOI, live, and which widgets are still waiting for theirs.
-- **Wake it up.** Browsers hide controllers until you use them after the page opens. Pedals have no buttons, so push a pedal or a toe brake all the way once.
+- **Wake it up.** Browsers hide controllers until you use them after the page opens. Pedals have no buttons, so push a pedal or a toe pedal all the way once. The Setup tab lists every device the browser has seen.
 - **Four controllers at most.** Browsers and OBS show no more than 4 game controllers at a time. If all 4 slots are taken, a fifth device (often the pedals) gets left out. Unplug or disable what you don't need on stream: a spare throttle, a wheel, an Xbox pad, or virtual controllers from Steam, vJoy or similar tools. Win+R, `joy.cpl` lists everything Windows sees.
 - **Different browsers.** A layout made in OBS also works in Chrome, Edge or Firefox; devices are matched by their USB ids.
 - **Remap a widget.** Select it and click **Detect Device** under *Device*. You move the stick or pedals (or press the button) again, and the widget switches to whatever you used, keeping its name, place, size and colors.
