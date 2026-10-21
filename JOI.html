@@ -716,7 +716,7 @@ const BASE_FONT_PX = 14;                      // the editor's rem at 100% (html 
 const PLACE_GAP = 16, CASCADE = 24;           // px between placed widgets; offset for a copy or a widget on another's spot
 const DEFAULT_SETTINGS = { scaleMode: "auto", scale: 1, uiScale: "auto", background: "transparent", bgColor: "#00ff00",
   accent: "#ffffff", text: "#ffffff", panel: "#121212", panelAlpha: 100, border: "", theme: "default", spaceGap: "",
-  gridSnap: true, gridSize: 16, smartGuides: true, centerLines: true, margin: 24 };
+  gridSnap: true, gridSize: 16, smartGuides: true, centerLines: true, margin: 24, fps: 60 };
 
 let profile = null;     // { savedAt, settings, widgets: [] }
 let editing = false;
@@ -906,7 +906,7 @@ function newProfile() { return { ver: PROFILE_VER, savedAt: 0, settings: { ...DE
 const LAYOUTS_MAX = 50, LAYOUT_NAME_MAX = 40, FIRST_LAYOUT_NAME = "My Profile";
 function newLibrary(name = FIRST_LAYOUT_NAME) { const id = uid(); return { active: id, list: [{ id, name }] }; }
 // Editor preferences and screen sizing belong to the computer, not to a ship: switching profiles keeps them.
-const SHARED_SETTINGS = ["scaleMode", "scale", "uiScale", "background", "bgColor", "gridSnap", "gridSize", "smartGuides", "centerLines"];
+const SHARED_SETTINGS = ["scaleMode", "scale", "uiScale", "background", "bgColor", "gridSnap", "gridSize", "smartGuides", "centerLines", "fps"];
 // Every profile is untrusted input: an imported file, a profile.js, or local storage (which every file:// page in the
 // browser shares). normalize() rebuilds it from known fields only, each checked and clamped, so nothing else in the
 // app has to defend against a missing object, a NaN, a CSS url() posing as a color or an id like "__proto__".
@@ -1001,7 +1001,7 @@ const SETTINGS_CHECK = {
   accent: hexOr(DEF.accent), text: hexOr(DEF.text), panel: hexOr(DEF.panel), panelAlpha: v => inRange(v, 0, 100) ?? DEF.panelAlpha,
   border: v => normHex(v) || "", theme: v => idText(v) ?? DEF.theme, spaceGap: v => v === "" ? "" : intRange(0, 4000)(v) ?? "",
   gridSnap: v => boolOr(v, DEF.gridSnap), gridSize: v => intRange(4, 128)(v) ?? DEF.gridSize, smartGuides: v => boolOr(v, DEF.smartGuides),
-  centerLines: v => boolOr(v, DEF.centerLines), margin: v => inRange(v, 0, 200) ?? DEF.margin,
+  centerLines: v => boolOr(v, DEF.centerLines), margin: v => inRange(v, 0, 200) ?? DEF.margin, fps: v => oneOf(+v, [30, 60]) ?? DEF.fps,
   gridCols: intRange(0, 6), layoutW: numRange(1, 20000), layoutH: numRange(1, 20000)
 };
 function normalizeWidget(src) {
@@ -1299,21 +1299,24 @@ async function deleteLayout(id) {
 const PRESET_KEY = (code, label, col, row) => ({ w: { type: "button", label, key: code, button: 0, shape: "keycap" }, at: [col, row] });
 const PRESET_HAT = (label, col, row) => ({ w: { type: "button", label, button: 0, shape: "circle" }, at: [col, row] });
 const PRESET_STICK = label => ({ w: { type: "stick", label, axes: {}, inv: {} } });
-const PRESET_MOUSE = { w: { type: "stick", label: "Mouse", mouse: true, axes: { x: 0, y: 1 }, inv: {} } };
+const PRESET_MOUSE = { w: { type: "stick", label: "Pitch / Yaw", mouse: true, axes: { x: 0, y: 1 }, inv: {} } };
+// Every flight setup covers all six ways a ship moves: pitch and yaw, roll, and strafe left / right, up / down and
+// forward / back. Widgets are named for what they fly, so a viewer reads "Strafe" rather than "Left Stick".
+const PRESET_ROLL = [{ w: { type: "axis", label: "Roll", orient: "c", axes: {}, inv: {} } }];
+const PRESET_UPDOWN = [{ w: { type: "axis", label: "Up / Down", axes: {}, inv: {} } }];
+const PRESET_PEDALS = [{ w: { type: "pedals", label: "Pedals", axes: {}, inv: {} } }];
 const PRESET_CLICKS = [PRESET_KEY("MouseLeft", "LMB", 0, 0), PRESET_KEY("MouseRight", "RMB", 1, 0)];
 const PRESETS = [
-  { id: "wasd-mouse", name: "WASD + Mouse", hint: "Q W E / A S D keys, mouse movement and clicks. Ready to go, nothing to bind.",
+  { id: "wasd-mouse", name: "WASD + Mouse", hint: "W A S D strafe, Space and Ctrl go up and down, Q and E roll, the mouse pitches and yaws. Nothing to bind.",
     groups: [[PRESET_KEY("KeyQ", "Q", 0, 0), PRESET_KEY("KeyW", "W", 1, 0), PRESET_KEY("KeyE", "E", 2, 0),
-      PRESET_KEY("KeyA", "A", 0, 1), PRESET_KEY("KeyS", "S", 1, 1), PRESET_KEY("KeyD", "D", 2, 1)], [PRESET_MOUSE], PRESET_CLICKS] },
-  { id: "hosas-pedals", name: "HOSAS + Pedals", hint: "Two sticks with rudder pedals between them.",
-    groups: [[PRESET_STICK("Left Stick")], [{ w: { type: "pedals", label: "Pedals", axes: {}, inv: {} } }], [PRESET_STICK("Right Stick")]] },
-  { id: "hotas-pedals", name: "HOTAS + Pedals", hint: "A throttle, rudder pedals and a stick.",
-    groups: [[{ w: { type: "throttle", label: "Throttle", axes: {}, inv: {} } }], [{ w: { type: "pedals", label: "Pedals", axes: {}, inv: {} } }], [PRESET_STICK("Stick")]] },
-  { id: "hosam", name: "HOSAM", hint: "Hands on Stick and Mouse: a stick in the left hand, the mouse in the right.",
-    groups: [[PRESET_STICK("Stick")], [PRESET_MOUSE], PRESET_CLICKS] },
-  { id: "all-track-roll", name: "All Track Roll", hint: "Both sticks plus each stick's twist as a dial, so roll and yaw show too.",
-    groups: [[PRESET_STICK("Left Stick")], [{ w: { type: "axis", label: "Left Twist", orient: "c", axes: {}, inv: {} } }],
-      [{ w: { type: "axis", label: "Right Twist", orient: "c", axes: {}, inv: {} } }], [PRESET_STICK("Right Stick")]] },
+      PRESET_KEY("KeyA", "A", 0, 1), PRESET_KEY("KeyS", "S", 1, 1), PRESET_KEY("KeyD", "D", 2, 1)],
+      [PRESET_KEY("ControlLeft", "Ctrl", 0, 0)], [PRESET_KEY("Space", "Space", 0, 0)], [PRESET_MOUSE], PRESET_CLICKS] },
+  { id: "hosas-pedals", name: "HOSAS + Pedals", hint: "Left stick strafes, right stick pitches and yaws, with Up / Down, Roll and the pedals.",
+    groups: [[PRESET_STICK("Strafe")], PRESET_UPDOWN, PRESET_PEDALS, [PRESET_STICK("Pitch / Yaw")], PRESET_ROLL] },
+  { id: "hotas-pedals", name: "HOTAS + Pedals", hint: "Throttle for forward and back, its thumbstick strafes, the stick pitches and yaws, plus Roll and the pedals.",
+    groups: [[{ w: { type: "throttle", label: "Throttle", axes: {}, inv: {} } }], [PRESET_STICK("Strafe")], PRESET_PEDALS, [PRESET_STICK("Pitch / Yaw")], PRESET_ROLL] },
+  { id: "hosam", name: "HOSAM", hint: "Hands on Stick and Mouse: the stick strafes, with Up / Down and Roll; the mouse pitches and yaws.",
+    groups: [[PRESET_STICK("Strafe")], PRESET_UPDOWN, PRESET_ROLL, [PRESET_MOUSE], PRESET_CLICKS] },
   { id: "directional", name: "Directional Inputs", hint: "Up, down, left and right, for a hat, D-pad or arrow keys.",
     groups: [[PRESET_HAT("↑", 1, 0), PRESET_HAT("←", 0, 1), PRESET_HAT("→", 2, 1), PRESET_HAT("↓", 1, 2)]] }
 ];
@@ -1356,10 +1359,13 @@ function startBinding() {
   bindQueue = profile.widgets.filter(isUnbound).map(w => w.id); bindTotal = bindQueue.length;
   nextBinding();
 }
-function nextBinding() {
+// rest: where each device's axes rested during the bind before, so a stick still on its way back to center from
+// that one can't bind this one (the same guard as between the steps of one device).
+function nextBinding(rest) {
   const w = profile.widgets.find(o => o.id === bindQueue[0]);
   if (!w) { bindQueue = []; return false; }
   setSelection([w.id]); startRemap(w);
+  if (rest) wiz.rest = rest;
   return true;
 }
 function skipBinding() { bindQueue.shift(); if (!nextBinding()) { closeWizard(); toast("Skipped. Bind Inputs on the Profiles tab finishes the rest."); } }
@@ -1435,9 +1441,9 @@ function finishRemap() {
     for (const k in w) if (w[k] === undefined) delete w[k];
     save(); rebuildAll();
   }
-  const queued = bindQueue[0] === wiz.remap ? bindQueue.slice(1) : null;
+  const queued = bindQueue[0] === wiz.remap ? bindQueue.slice(1) : null, rest = wiz.rest;
   closeWizard();
-  if (queued) { bindQueue = queued; if (nextBinding()) return; if (w) toast("All inputs bound"); return; }
+  if (queued) { bindQueue = queued; if (nextBinding(rest)) return; if (w) toast("All inputs bound"); return; }
   if (w) setSelection([w.id]);
   if (w && (d || key)) toast(`${w.label || "Widget"} now uses ${key ? "the " + keyLabel(key) + " key" : devName(d)}`);
 }
@@ -2276,6 +2282,34 @@ function syncHoloList() {
   for (const rt of holoDrops) { clearTimeout(rt.dropT); if (rt.dropOn) endDrop(rt, false); }
   holoDrops.clear();
   for (const [, rt] of holoAnim) if (rt.holoCfg.flicker) { holoDrops.add(rt); scheduleDrop(rt); }
+  syncMotionRate();
+}
+// Draw rate 30 steps the Projector's motion too. Its CSS animations otherwise run on the compositor at the display's
+// rate, so OBS composites a new frame 60 times a second for as long as a Subtle or Full widget is on screen, hands on
+// the controls or not. Paused and moved along from a 30 Hz timer they look the same and cost half. A pass that draws
+// inputs steps them as well (frame), so both land in the same frame instead of making 30 each.
+const HOLO_KEYFRAMES = new Set(["holo-env", "holo-float", "holo-roll", "holo-breathe", "holo-dust", "holo-photon"]);
+let stepOffset = new WeakMap(), stepT = 0, steppedAt = 0;
+const holoAnimations = () => document.getAnimations().filter(a => HOLO_KEYFRAMES.has(a.animationName));
+// Each animation keeps its own phase (the negative delays in buildWidget): the offset from the timeline is taken when
+// it is first paused. A widget rebuilt or a dropout ending makes new animations, which are picked up on the next step.
+function stepHolo(now) {
+  steppedAt = now;
+  const t = document.timeline.currentTime;
+  for (const a of holoAnimations()) {
+    if (!stepOffset.has(a)) { stepOffset.set(a, a.currentTime - t); a.pause(); }
+    a.currentTime = t + stepOffset.get(a);
+  }
+}
+function syncMotionRate() {
+  const on = profile.settings.fps === 30 && holoAnim.length > 0;
+  if (on && !stepT) stepT = setInterval(() => { const now = performance.now(); if (!loopPaused() && now - steppedAt >= 1000 / 30 - 4) stepHolo(now); }, 1000 / 30);
+  if (!on && stepT) {
+    clearInterval(stepT); stepT = 0;
+    const t = document.timeline.currentTime;
+    for (const a of holoAnimations()) if (stepOffset.has(a)) { a.currentTime = t + stepOffset.get(a); a.play(); }
+    stepOffset = new WeakMap();
+  }
 }
 
 function rebuildAll() {
@@ -2377,6 +2411,7 @@ function applySettings() {
   $("#center-lines .h").style.top = Math.round(C.h / 2) + "px";
   $("#heat-btn").classList.toggle("on", showHeat);
   drawGrid();
+  syncMotionRate();
 }
 // The grid shows only while editing. Outside it the canvas holds no bitmap at all: at 4K a full-window one is 32 MB.
 function drawGrid() {
@@ -2651,8 +2686,12 @@ function drawWidget(w, rt, pad) {
 // ---------- main loop ----------
 let lastFrame = 0;
 let heatTick = 0, heatShown = -1;
-// True when the widget's input differs from the last pass, to the 3 decimals a readout can show. inVals holds
-// [connected, ...axes] (a button's pressed state in place of axes), compared as numbers: nothing is allocated.
+// True when the widget's input has moved enough to show. inVals holds [connected, ...axes] as last drawn (a button's
+// pressed state in place of axes), compared as numbers: nothing is allocated. An axis counts once it is AXIS_NOISE
+// (half a percent) from where it was last drawn, or lands on an end or the center: many sticks, throttles and pedals
+// wobble by a fraction of a percent at rest, and redrawing that at 60 FPS kept OBS compositing every frame with hands
+// off the controls. Slow, steady moves still add up past the threshold and draw.
+const AXIS_NOISE = 0.005;
 function inputChanged(w, rt, pad) {
   const s = rt.inVals; let c = rt.inNew; rt.inNew = false;
   const on = pad || w.key ? 1 : 0;
@@ -2664,7 +2703,10 @@ function inputChanged(w, rt, pad) {
     return c;
   }
   const ax = rt.axIdx;
-  for (let k = 0; k < ax.length; k++) { const v = Math.round((axisValue(pad, ax[k]) ?? 0) * 1000); if (s[k + 1] !== v) { s[k + 1] = v; c = true; } }
+  for (let k = 0; k < ax.length; k++) {
+    const v = clamp(axisValue(pad, ax[k]) ?? 0, -1, 1), last = s[k + 1];
+    if (v !== last && (!(Math.abs(v - last) < AXIS_NOISE) || v === 0 || Math.abs(v) === 1)) { s[k + 1] = v; c = true; }
+  }
   return c;
 }
 // Reports a widget that failed to draw once, so the console isn't flooded at 60 FPS.
@@ -2682,6 +2724,7 @@ function drawFailed(rt, w, err) {
 // work for it and the Projector's CSS animations stay on the compositor. A movement seen by the timer is drawn
 // straight away and switches back.
 const IDLE_MS = 500, POLL_MS = 16;
+let movePending = false, drawnAt = 0;
 let rafId = 0, tickT = 0, passDue = true, redrawAll = true, hasInputs = false, idleT = 0, checkAt = 0, movedAt = 0;
 const obsState = { visible: true, active: true };
 const loopPaused = () => document.hidden || (!editing && (!obsState.visible || !obsState.active));
@@ -2751,7 +2794,12 @@ function frame(now, timed) {
   // Pads report a new timestamp when their data changes; with none, the widgets are skipped. A slow pass a few
   // times a second covers a browser that leaves timestamps alone.
   const check = now - checkAt >= 250;
-  if (moved || passDue || heatDue || check) {
+  // Draw rate 30: input seen between passes waits for the next one, so OBS gets at most 30 new frames a second.
+  movePending = movePending || moved;
+  const gapOk = profile.settings.fps !== 30 || now - drawnAt >= 1000 / 30 - 2;
+  if ((movePending && gapOk) || passDue || heatDue || check) {
+    movePending = false; drawnAt = now;
+    if (stepT) stepHolo(now);
     const all = redrawAll; passDue = redrawAll = false;
     if (check) checkAt = now;
     if (heatDue) heatShown = heatTick;
@@ -4587,6 +4635,9 @@ function renderSettingsPanel(p) {
     "A layout made at 1080p keeps the same proportions at 1440p or 4K.");
   if (s.scaleMode !== "auto") size.append(el("div", { class: "fields" }, fld("Overlay scale", numIn(s, "scale", 0.3, 4, 0.05, rebuildAll), "×", true)));
   choiceRow(size, "Editor text size", s, "uiScale", [["auto", "Auto", "Grows with the screen, so 4K stays readable."], [1, "100%"], [1.25, "125%"], [1.5, "150%"], [2, "200%"], [2.5, "250%"]], applySettings, { wrap: true });
+  const perfSec = section(p, "Performance", { key: "s-perf" });
+  choiceRow(perfSec, "Draw rate", s, "fps", [[60, "60 FPS", "Every frame, the smoothest."], [30, "30 FPS", "Half the drawing work for OBS, Projector motion included. Pick it if the overlay lags behind your game or OBS shows rendering lag."]], applySettings, { aria: "Draw rate" });
+  perfSec.append(el("div", { class: "hint small" }, "Small wobbles a device makes at rest are never drawn. Projector Subtle and Full keep OBS drawing even when nothing moves (30 times a second at 30 FPS); Static or Flat don't."));
   themeSection(p, profile.widgets.filter(w => w.type !== "label"), true);
   const bg = section(p, "Page Background", { key: "s-bg" });
   toggleRow(bg, "Solid page background", { get v() { return s.background === "solid"; }, set v(x) { s.background = x ? "solid" : "transparent"; } }, "v", applySettings,
