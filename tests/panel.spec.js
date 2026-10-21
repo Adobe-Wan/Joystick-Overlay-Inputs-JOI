@@ -102,14 +102,41 @@ test.describe("sizes", () => {
     await app.flushSave();
     expect((await app.storedProfile()).ver).toBe(2);
   });
-  test("the Width and Height sliders run 20 to 240 px, and Percent follows the default", async ({ app, page }) => {
+  test("the Width and Height sliders run 20 to 240 px (thickness from 4), and Percent follows the default", async ({ app, page }) => {
     await open(app, base([bar()]));
     await edit(page, ["t1"]);
     const px = await page.evaluate(() => [...document.querySelectorAll("#panel input[type=range]")].filter(r => /^(Width|Height)$/.test(r.getAttribute("aria-label"))).map(r => [r.getAttribute("aria-label"), +r.min, +r.max, +r.value]));
-    expect(px).toEqual([["Width", 20, 240, 20], ["Height", 20, 240, 104]]);
+    expect(px).toEqual([["Width", 4, 240, 20], ["Height", 20, 240, 104]]);
     await page.evaluate(() => [...document.querySelectorAll("#panel .tiles button")].find(b => b.textContent === "Percent").click());
     const pct = await page.evaluate(() => [...document.querySelectorAll("#panel input[type=range]")].filter(r => /^(Width|Height)$/.test(r.getAttribute("aria-label"))).map(r => [r.getAttribute("aria-label"), +r.value]));
     expect(pct).toEqual([["Width", 100], ["Height", 100]]);
+  });
+  test("a horizontal bar's Height (its thickness) goes down to 4 px and draws that thin", async ({ app, page }) => {
+    await open(app, base([bar({ orient: "h" })]));
+    await edit(page, ["t1"]);
+    expect(await page.evaluate(() => +[...document.querySelectorAll("#panel input[type=range]")].find(x => x.getAttribute("aria-label") === "Height").min)).toBe(4);
+    await page.evaluate(() => { const r = [...document.querySelectorAll("#panel input[type=range]")].find(x => x.getAttribute("aria-label") === "Height"); r.value = 2; r.dispatchEvent(new Event("input", { bubbles: true })); });
+    expect(await page.evaluate(() => profile.widgets[0].dims)).toEqual({ bw: 4 });
+    expect(await page.evaluate(() => [runtime.t1.canvas._w, runtime.t1.canvas._h])).toEqual([152, 4]);
+    expect(await page.evaluate(() => !!runtime.t1.spans.v)).toBe(true);   // the % readout is still there
+  });
+  test("a thin rudder keeps its brakes and readouts, and a saved 4 px thickness loads as is", async ({ app, page }) => {
+    const ped = { id: "p1", type: "pedals", x: 400, y: 400, label: "Pedals", match: VID, nth: 0, axes: { r: 5, bl: 3, br: 4 }, inv: {}, dims: { rh: 4 } };
+    await open(app, base([ped, bar({ dims: { bw: 4 } })]));
+    const r = await page.evaluate(() => ({ dims: profile.widgets.map(w => w.dims), rud: [runtime.p1.canvas._w, runtime.p1.canvas._h], brake: [runtime.p1.brakeL._w, runtime.p1.brakeL._h], bar: runtime.t1.canvas._w, spans: Object.keys(runtime.p1.spans).sort() }));
+    expect(r.dims).toEqual([{ rh: 4 }, { bw: 4 }]);
+    expect(r.rud).toEqual([152, 4]);
+    expect(r.brake).toEqual([4, 8]);   // the brakes follow the rudder's thickness
+    expect(r.bar).toBe(4);
+    expect(r.spans).toEqual(["bl", "br", "r"]);
+    await edit(page, ["p1"]);
+    expect(await page.evaluate(() => [...document.querySelectorAll("#panel input[type=range]")].filter(r => /^(Width|Height)$/.test(r.getAttribute("aria-label"))).map(r => [r.getAttribute("aria-label"), +r.min]))).toEqual([["Width", 20], ["Height", 4]]);
+  });
+  test("in Percent, the thickness slider starts at 20% (4 px of the 20 px default)", async ({ app, page }) => {
+    await open(app, base([bar()]));
+    await edit(page, ["t1"]);
+    await page.evaluate(() => [...document.querySelectorAll("#panel .tiles button")].find(b => b.textContent === "Percent").click());
+    expect(await page.evaluate(() => +[...document.querySelectorAll("#panel input[type=range]")].find(x => x.getAttribute("aria-label") === "Width").min)).toBe(20);
   });
   test("a horizontal bar's Width is its length", async ({ app, page }) => {
     await open(app, base([bar({ orient: "h" })]));
