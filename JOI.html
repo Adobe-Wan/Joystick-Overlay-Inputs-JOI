@@ -1856,6 +1856,7 @@ function positionWidget(w, size) {
 // cd is the diameter of the Circular display (orient "c"), a dial that throttles, axes and the rudder can use instead.
 const DIMS = { stick: { box: 112 }, throttle: { bw: 20, bh: 104, cd: 80 }, axis: { bw: 20, bh: 104, cd: 80 }, pedals: { rw: 152, rh: 20, cd: 80 } };
 const BAR_PX = [20, 240], STICK_PX = [40, 300], DIAL_PX = [40, 240];   // the Width / Height slider ranges
+const THICK_MIN = 4, isThick = k => k === "bw" || k === "rh";   // a bar's or rudder's thickness can go thinner than its length
 const isDial = w => w.orient === "c" && (isBar(w) || w.type === "pedals");
 // A horizontal throttle or axis is drawn like the pedals' rudder bar, so the two come out the same size side by side.
 const DIMS_H = { bw: DIMS.pedals.rh, bh: DIMS.pedals.rw };
@@ -4235,13 +4236,13 @@ const dimKeys = w => w.type === "stick" ? { w: "box", h: "box" } : isDial(w) ? {
 // The key Fill sets, which stays with the stick's one size, a bar's length and a rudder's length.
 const fillKey = w => w.type === "stick" ? "box" : isDial(w) ? "cd" : isBar(w) ? "bh" : "rw";
 function dimRows(p, ws, upd) {
-  const w0 = ws[0], stick = w0.type === "stick", round = ws.every(isDial), [lo, hi] = stick ? STICK_PX : round ? DIAL_PX : BAR_PX;
+  const w0 = ws[0], stick = w0.type === "stick", round = ws.every(isDial), [lo0, hi] = stick ? STICK_PX : round ? DIAL_PX : BAR_PX;
   const mode = unitsIn();
   const units = { get v() { return unitMode; }, set v(x) { unitMode = x; try { localStorage.setItem(UNITS_KEY, x); } catch (e) {} } };
   choiceRow(p, "Size Unit", units, "v", [["px", "Px", "Pixels, as drawn at Size 100%."], ["pct", "Percent", "Percent of this widget's default size."]], () => renderPanel(), { aria: "Size unit" });
   const defOf = (w, k) => dimsOfDefault(w)[k];
   const rowFor = (label, axis) => {
-    const k0 = dimKeys(w0)[axis];
+    const k0 = dimKeys(w0)[axis], lo = isThick(k0) ? THICK_MIN : lo0;
     let overridden = ws.every(w => w.fill && runtime[w.id] && runtime[w.id].grown && dimKeys(w)[axis] === fillKey(w) && fillKey(w) in runtime[w.id].grown);
     const pxOf = () => overridden ? Math.round(runtime[w0.id].grown[k0]) : Math.round(dimsOf(w0)[k0]);
     const obj = {
@@ -4250,7 +4251,7 @@ function dimRows(p, ws, upd) {
         if (overridden) { overridden = false; for (const w of ws) delete w.fill; }   // dragging it takes over from Fill
         for (const w of ws) {
           const k = dimKeys(w)[axis];
-          w.dims = { ...(w.dims || {}), [k]: clamp(mode === "px" ? x : Math.round(x / 100 * defOf(w, k)), lo, hi) };
+          w.dims = { ...(w.dims || {}), [k]: clamp(mode === "px" ? x : Math.round(x / 100 * defOf(w, k)), isThick(k) ? THICK_MIN : lo0, hi) };
         }
       }
     };
