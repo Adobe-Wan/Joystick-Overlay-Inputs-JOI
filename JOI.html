@@ -1300,20 +1300,19 @@ const PRESET_KEY = (code, label, col, row) => ({ w: { type: "button", label, key
 const PRESET_HAT = (label, col, row) => ({ w: { type: "button", label, button: 0, shape: "circle" }, at: [col, row] });
 const PRESET_STICK = label => ({ w: { type: "stick", label, axes: {}, inv: {} } });
 const PRESET_MOUSE = { w: { type: "stick", label: "Mouse", mouse: true, axes: { x: 0, y: 1 }, inv: {} } };
+// Every flight setup but the keyboard shows roll: the stick's twist (or whichever axis the pilot rolls with) as a dial.
+const PRESET_ROLL = [{ w: { type: "axis", label: "Roll", orient: "c", axes: {}, inv: {} } }];
 const PRESET_CLICKS = [PRESET_KEY("MouseLeft", "LMB", 0, 0), PRESET_KEY("MouseRight", "RMB", 1, 0)];
 const PRESETS = [
   { id: "wasd-mouse", name: "WASD + Mouse", hint: "Q W E / A S D keys, mouse movement and clicks. Ready to go, nothing to bind.",
     groups: [[PRESET_KEY("KeyQ", "Q", 0, 0), PRESET_KEY("KeyW", "W", 1, 0), PRESET_KEY("KeyE", "E", 2, 0),
       PRESET_KEY("KeyA", "A", 0, 1), PRESET_KEY("KeyS", "S", 1, 1), PRESET_KEY("KeyD", "D", 2, 1)], [PRESET_MOUSE], PRESET_CLICKS] },
-  { id: "hosas-pedals", name: "HOSAS + Pedals", hint: "Two sticks with rudder pedals between them.",
-    groups: [[PRESET_STICK("Left Stick")], [{ w: { type: "pedals", label: "Pedals", axes: {}, inv: {} } }], [PRESET_STICK("Right Stick")]] },
-  { id: "hotas-pedals", name: "HOTAS + Pedals", hint: "A throttle, rudder pedals and a stick.",
-    groups: [[{ w: { type: "throttle", label: "Throttle", axes: {}, inv: {} } }], [{ w: { type: "pedals", label: "Pedals", axes: {}, inv: {} } }], [PRESET_STICK("Stick")]] },
-  { id: "hosam", name: "HOSAM", hint: "Hands on Stick and Mouse: a stick in the left hand, the mouse in the right.",
-    groups: [[PRESET_STICK("Stick")], [PRESET_MOUSE], PRESET_CLICKS] },
-  { id: "all-track-roll", name: "All Track Roll", hint: "Both sticks plus each stick's twist as a dial, so roll and yaw show too.",
-    groups: [[PRESET_STICK("Left Stick")], [{ w: { type: "axis", label: "Left Twist", orient: "c", axes: {}, inv: {} } }],
-      [{ w: { type: "axis", label: "Right Twist", orient: "c", axes: {}, inv: {} } }], [PRESET_STICK("Right Stick")]] },
+  { id: "hosas-pedals", name: "HOSAS + Pedals", hint: "Two sticks with rudder pedals between them, and a Roll dial.",
+    groups: [[PRESET_STICK("Left Stick")], [{ w: { type: "pedals", label: "Pedals", axes: {}, inv: {} } }], [PRESET_STICK("Right Stick")], PRESET_ROLL] },
+  { id: "hotas-pedals", name: "HOTAS + Pedals", hint: "A throttle, rudder pedals, a stick and a Roll dial.",
+    groups: [[{ w: { type: "throttle", label: "Throttle", axes: {}, inv: {} } }], [{ w: { type: "pedals", label: "Pedals", axes: {}, inv: {} } }], [PRESET_STICK("Stick")], PRESET_ROLL] },
+  { id: "hosam", name: "HOSAM", hint: "Hands on Stick and Mouse: a stick and its Roll dial in the left hand, the mouse in the right.",
+    groups: [[PRESET_STICK("Stick")], PRESET_ROLL, [PRESET_MOUSE], PRESET_CLICKS] },
   { id: "directional", name: "Directional Inputs", hint: "Up, down, left and right, for a hat, D-pad or arrow keys.",
     groups: [[PRESET_HAT("↑", 1, 0), PRESET_HAT("←", 0, 1), PRESET_HAT("→", 2, 1), PRESET_HAT("↓", 1, 2)]] }
 ];
@@ -1356,10 +1355,13 @@ function startBinding() {
   bindQueue = profile.widgets.filter(isUnbound).map(w => w.id); bindTotal = bindQueue.length;
   nextBinding();
 }
-function nextBinding() {
+// rest: where each device's axes rested during the bind before, so a stick still on its way back to center from
+// that one can't bind this one (the same guard as between the steps of one device).
+function nextBinding(rest) {
   const w = profile.widgets.find(o => o.id === bindQueue[0]);
   if (!w) { bindQueue = []; return false; }
   setSelection([w.id]); startRemap(w);
+  if (rest) wiz.rest = rest;
   return true;
 }
 function skipBinding() { bindQueue.shift(); if (!nextBinding()) { closeWizard(); toast("Skipped. Bind Inputs on the Profiles tab finishes the rest."); } }
@@ -1435,9 +1437,9 @@ function finishRemap() {
     for (const k in w) if (w[k] === undefined) delete w[k];
     save(); rebuildAll();
   }
-  const queued = bindQueue[0] === wiz.remap ? bindQueue.slice(1) : null;
+  const queued = bindQueue[0] === wiz.remap ? bindQueue.slice(1) : null, rest = wiz.rest;
   closeWizard();
-  if (queued) { bindQueue = queued; if (nextBinding()) return; if (w) toast("All inputs bound"); return; }
+  if (queued) { bindQueue = queued; if (nextBinding(rest)) return; if (w) toast("All inputs bound"); return; }
   if (w) setSelection([w.id]);
   if (w && (d || key)) toast(`${w.label || "Widget"} now uses ${key ? "the " + keyLabel(key) + " key" : devName(d)}`);
 }
