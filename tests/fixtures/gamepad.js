@@ -67,8 +67,7 @@ async function play(page, timeline, tail = 40) {
 
 // ---- wizard drivers (real UI) ----
 async function firstRunToType(page) {
-  await page.click("#welcome [data-welcome=device]");          // Get Started
-  await page.click("#wiz-body .actions button.primary");       // Next: Add a Device
+  await page.click("#welcome [data-welcome=device]");          // Add Devices One by One: straight to What Are You Adding?
 }
 const chooseType = (page, name) => page.click(`#wiz-body .types button:has-text("${name}")`);
 const clickAction = (page, text) => page.click(`#wiz-body .actions button:has-text("${text}")`);
