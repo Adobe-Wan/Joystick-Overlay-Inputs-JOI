@@ -47,7 +47,11 @@ body.preview:not(.editing).has-widgets #preview-chip { display: flex; }
   margin-bottom: 8px; white-space: nowrap;
 }
 .widget.offline { opacity: 0.45; }
-.widget.offline .title::after { content: " · not connected"; color: var(--hot); letter-spacing: 0.04em; text-transform: none; }
+/* The note sits above the title, outside the layout, so a device coming or going never resizes the widget. */
+.widget.offline .title { position: relative; }
+.widget.offline .title::after { content: "not connected"; position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%); margin-bottom: 2px;
+  color: var(--hot); font-size: 11px; letter-spacing: 0.04em; text-transform: none; white-space: nowrap; }
+.widget.offline.unbound .title::after { content: "not bound yet"; color: #ffb547; }
 .widget canvas { display: block; margin: 0 auto; }
 .readout {
   font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 12px; font-weight: 600;
@@ -371,6 +375,22 @@ input[type=checkbox] { accent-color: var(--ui-accent); width: 1.3rem; height: 1.
 #panel .hint { color: #a9b6c4; line-height: 1.5; margin: 0.6rem 0; }
 #panel .hint.warn { color: #ffb547; }
 #panel .actions { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.9rem; }
+/* Setup and Profiles tabs on the home panel, pinned like a widget panel's head. */
+#panel .p-tabs { position: sticky; top: -1.1rem; z-index: 3; display: flex; gap: 0.25rem; margin: -1.1rem -1.1rem 0.9rem; padding: 0.7rem 1.1rem 0; background: #121a24;
+  border-bottom: 1px solid rgba(255,255,255,0.08); }
+#panel .p-tabs button { flex: 1; margin-bottom: -1px; border: 0; border-bottom: 2px solid transparent; border-radius: 0.3rem 0.3rem 0 0; color: #b6c3d1; font-weight: 600; }
+#panel .p-tabs button[aria-selected=true] { color: var(--ui-accent); border-bottom-color: var(--ui-accent); }
+#panel .p-tabs button .cur { display: block; font-size: 0.75rem; font-weight: 500; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Profiles list: one button per profile, the active one outlined; presets as two-column tiles. */
+.prof-list { display: grid; gap: 0.35rem; margin: 0.4rem 0 0.6rem; }
+.prof-list button { display: flex; align-items: baseline; gap: 0.6rem; text-align: left; padding: 0.55rem 0.7rem; }
+.prof-list button > b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.prof-list button > small { flex: none; color: #a9b6c4; font-size: 0.82rem; }
+.prof-list button[aria-current=true] { border-color: var(--ui-accent); box-shadow: inset 0 0 0 1px var(--ui-accent); }
+.prof-list button[aria-current=true] > b { color: var(--ui-accent); }
+.presets { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; margin: 0.4rem 0 0.6rem; }
+.presets button { display: grid; gap: 0.2rem; align-content: start; text-align: left; padding: 0.55rem 0.6rem; font-weight: 600; }
+.presets button small { color: #a9b6c4; font-size: 0.8rem; font-weight: 500; line-height: 1.35; }
 /* Panel sections: a header you can collapse (remembered per browser), an optional switch or summary beside it.
    Three levels of grouping, each with its own shape: a family label (colored, with a rule), a section card (colored
    edge, icon, bold title) and, inside it, sub-headings (h5) and indented groups (.nest). Open sections sit a step
@@ -701,7 +721,8 @@ const DEFAULT_SETTINGS = { scaleMode: "auto", scale: 1, uiScale: "auto", backgro
 let profile = null;     // { savedAt, settings, widgets: [] }
 let editing = false;
 const selected = new Set();
-let panelMode = "home"; // "home" | "widget" | "multi" | "settings" | "export"
+let panelMode = "home"; // "home" | "profiles" | "widget" | "multi" | "settings" | "export" | "devices"
+let homeTab = "home";   // the tab (Setup or Profiles) shown when nothing is selected
 let showHeat = false;
 const runtime = Object.create(null);   // keyed by widget id: no prototype, so an id like "__proto__" is just a key
 
@@ -856,6 +877,7 @@ function learnSlots() {
   if (changed) persist();
 }
 function padOf(w, rt) {
+  if (w.mouse) return mouse.pad;
   if (rt.padGen !== padsGen) {
     rt.padGen = padsGen;
     rt.padEntry = twinFor(w, padList);
@@ -876,7 +898,15 @@ function swapTwins(match) {
 // ver 2: bar, stick and rudder sizes are drawn pixels (before 2 they were 75% of the stored number), pedals take their
 // size from dims instead of Width / Height scale, and Background fade is folded into Background opacity.
 const PROFILE_VER = 2;
-function newProfile() { return { ver: PROFILE_VER, savedAt: 0, settings: { ...DEFAULT_SETTINGS }, widgets: [] }; }
+function newProfile() { return { ver: PROFILE_VER, savedAt: 0, settings: { ...DEFAULT_SETTINGS }, widgets: [], layouts: newLibrary() }; }
+// Profiles (one layout per ship or controller setup) live in profile.layouts: { active, list: [{ id, name, preset?,
+// settings?, widgets? }] }. The active profile's settings and widgets are profile.settings / profile.widgets, as they
+// always were, so everything else reads one layout; only the others carry their own copy. Older saves and imports
+// have no list and become a single "My Profile".
+const LAYOUTS_MAX = 50, LAYOUT_NAME_MAX = 40, FIRST_LAYOUT_NAME = "My Profile";
+function newLibrary(name = FIRST_LAYOUT_NAME) { const id = uid(); return { active: id, list: [{ id, name }] }; }
+// Editor preferences and screen sizing belong to the computer, not to a ship: switching profiles keeps them.
+const SHARED_SETTINGS = ["scaleMode", "scale", "uiScale", "background", "bgColor", "gridSnap", "gridSize", "smartGuides", "centerLines"];
 // Every profile is untrusted input: an imported file, a profile.js, or local storage (which every file:// page in the
 // browser shares). normalize() rebuilds it from known fields only, each checked and clamped, so nothing else in the
 // app has to defend against a missing object, a NaN, a CSS url() posing as a color or an id like "__proto__".
@@ -925,7 +955,8 @@ const KEY_NAMES = { Space: "Space", ShiftLeft: "Shift", ShiftRight: "Right Shift
   AltLeft: "Alt", AltRight: "Right Alt", MetaLeft: "Win", MetaRight: "Right Win", ArrowUp: "↑", ArrowDown: "↓", ArrowLeft: "←",
   ArrowRight: "→", Enter: "Enter", NumpadEnter: "Num Enter", Backspace: "Backspace", CapsLock: "Caps Lock", Escape: "Esc", Tab: "Tab",
   Backquote: "`", Minus: "-", Equal: "=", BracketLeft: "[", BracketRight: "]", Backslash: "\\", Semicolon: ";", Quote: "'",
-  Comma: ",", Period: ".", Slash: "/", PageUp: "Page Up", PageDown: "Page Down", ContextMenu: "Menu" };
+  Comma: ",", Period: ".", Slash: "/", PageUp: "Page Up", PageDown: "Page Down", ContextMenu: "Menu",
+  MouseLeft: "LMB", MouseRight: "RMB", MouseMiddle: "MMB" };
 function keyLabel(code, key) {
   if (typeof key === "string" && key.length === 1 && key.trim()) return key.toUpperCase();
   if (KEY_NAMES[code]) return KEY_NAMES[code];
@@ -953,7 +984,7 @@ const WIDGET_CHECK = {
   x: numRange(-10000, 10000), y: numRange(-10000, 10000), size: numRange(0.25, 4), scaleW: numRange(0.25, 4), scaleH: numRange(0.25, 4),   // scaleW / scaleH: buttons only; pedals' are read once, to migrate
   boxW: numRange(0, 4000), boxH: numRange(0, 4000), fill: optBool, orient: v => oneOf(v, ["h", "v", "c"]), face: v => oneOf(v, ["square", "radar"]),
   grid: intRange(1, 8), rings: intRange(0, 4), outline: optBool, cross: optBool, areaBg: optHex, areaAlpha: numRange(0, 100),
-  key: v => typeof v === "string" && KEY_CODE_RE.test(v) ? v : undefined, shape: v => oneOf(v, Object.keys(SHAPES)),
+  key: v => typeof v === "string" && KEY_CODE_RE.test(v) ? v : undefined, shape: v => oneOf(v, Object.keys(SHAPES)), mouse: optBool,
   pad: numRange(0, 100), radius: numRange(0, 100), depth: numRange(0, 100),
   dims: v => pickFields(v, { box: numRange(1, 1000), bw: numRange(1, 1000), bh: numRange(1, 1000), rw: numRange(1, 1000), rh: numRange(1, 1000), cd: numRange(1, 1000) }),
   showTitle: optBool, showValues: optBool, showAxisLabels: optBool,
@@ -981,6 +1012,7 @@ function normalizeWidget(src) {
   if (w.type === "button") w.button ??= 0; else { delete w.key; delete w.shape; }
   if (w.type !== "button" || w.hat == null || w.key) { delete w.hat; delete w.hatDir; } else w.hatDir ??= 0;
   if (w.key) { delete w.match; delete w.nth; delete w.slot; }   // a keyboard key, not a device input
+  if (w.mouse && w.type === "stick") { delete w.match; delete w.nth; delete w.slot; w.axes = { x: 0, y: 1 }; } else delete w.mouse;
   if (w.orient === "c" && !(isBar(w) || w.type === "pedals")) delete w.orient;
   return w;
 }
@@ -1004,9 +1036,15 @@ function normalize(p) {
   if (!isObj(p)) return n;
   n.savedAt = inRange(p.savedAt, 0, Number.MAX_SAFE_INTEGER) || 0;
   const before2 = !(p.ver >= 2);
-  n.settings = { ...DEFAULT_SETTINGS, ...pickFields(p.settings, SETTINGS_CHECK) };
+  Object.assign(n, normalizeLayout(p, before2));
+  n.layouts = normalizeLibrary(p.layouts, before2);
+  return n;
+}
+// One layout's settings and widgets, checked and brought up to date.
+function normalizeLayout(p, before2) {
+  const n = { settings: { ...DEFAULT_SETTINGS, ...pickFields(isObj(p) ? p.settings : null, SETTINGS_CHECK) } };
   const ids = new Set();
-  n.widgets = (Array.isArray(p.widgets) ? p.widgets : []).map(normalizeWidget).filter(Boolean);
+  n.widgets = (isObj(p) && Array.isArray(p.widgets) ? p.widgets : []).map(normalizeWidget).filter(Boolean);
   for (const w of n.widgets) { while (ids.has(w.id)) w.id = uid(); ids.add(w.id); }   // two widgets can't share one runtime entry
   // Migrate the former 62% default background, too faint over Star Citizen's HUD, to 88%.
   if (n.settings.panelAlpha === 62) { n.settings.panelAlpha = 88; n.settings.panel = "#05080c"; n.settings.text = "#f2f7fb"; }
@@ -1018,6 +1056,25 @@ function normalize(p) {
     if (w.proj && w.proj.fade != null) { w.bgAlpha = Math.round(w.bgAlpha * (1 - w.proj.fade / 100)); delete w.proj.fade; }
   }
   return n;
+}
+const layoutName = v => typeof v === "string" || typeof v === "number" ? String(v).replace(/\s+/g, " ").trim().slice(0, LAYOUT_NAME_MAX) : "";
+// The profile list from a save or a file. The active entry keeps no copy of its own (that is profile.settings and
+// .widgets); a list that is missing, empty or names no active entry it has becomes a single profile.
+function normalizeLibrary(src, before2) {
+  if (!isObj(src) || !Array.isArray(src.list)) return newLibrary();
+  const ids = new Set(), list = [];
+  for (const e of src.list.slice(0, LAYOUTS_MAX)) {
+    if (!isObj(e) || typeof e.id !== "string" || !ID_RE.test(e.id) || ids.has(e.id)) continue;
+    ids.add(e.id);
+    const o = { id: e.id, name: layoutName(e.name) || "Profile " + (list.length + 1) };
+    const pre = idText(e.preset); if (pre) o.preset = pre;
+    if (e.id !== src.active) Object.assign(o, normalizeLayout(e, before2));
+    list.push(o);
+  }
+  if (!list.length) return newLibrary();
+  const active = list.some(e => e.id === src.active) ? src.active : null;
+  if (!active) { const lib = newLibrary(); lib.list.push(...list); return lib; }   // keep the others; the layout read is a new one
+  return { active, list };
 }
 // Throws on damaged text, so boot can set it aside (setAsideSavedProfile) instead of overwriting it on the next save.
 function loadProfile() {
@@ -1066,10 +1123,11 @@ function writeProfile() {
 }
 // ---------- undo / redo ----------
 // Every save() compares the layout and settings with the last recorded state. Saves that come in a quick burst
-// (a drag, a slider, a held arrow key) collapse into one step, so Undo takes back the whole gesture.
+// (a drag, a slider, a held arrow key) collapse into one step, so Undo takes back the whole gesture. The profile list is
+// part of each step, so switching, renaming or deleting a profile can be undone like any edit.
 const HISTORY_MAX = 100, HISTORY_MERGE_MS = 400;
 const hist = { undo: [], redo: [], last: null, at: 0 };
-const snapOf = () => JSON.stringify({ settings: profile.settings, widgets: profile.widgets });
+const snapOf = () => JSON.stringify({ settings: profile.settings, widgets: profile.widgets, layouts: profile.layouts });
 function resetHistory() { hist.undo.length = hist.redo.length = 0; hist.last = snapOf(); hist.at = 0; syncUndoButtons(); }
 function recordHistory() {
   const cur = snapOf();
@@ -1087,14 +1145,19 @@ function stepHistory(from, to, what) {
   if (!from.length) { toast(`Nothing to ${what}`); return; }
   to.push(hist.last); hist.last = from.pop(); hist.at = 0;
   const s = JSON.parse(hist.last);
-  profile.settings = s.settings; profile.widgets = s.widgets; profile.savedAt = Date.now();
+  const switched = s.layouts.active !== profile.layouts.active;
+  profile.settings = s.settings; profile.widgets = s.widgets; profile.layouts = s.layouts; profile.savedAt = Date.now();
   persist();
+  if (switched) layoutFor = null;   // another profile's positions: adaptLayout reads the screen it was made on
   const ids = [...selected].filter(id => profile.widgets.some(w => w.id === id));
   rebuildAll();
   if (panelMode === "home" || panelMode === "widget" || panelMode === "multi") setSelection(ids);
   else { selected.clear(); ids.forEach(id => selected.add(id)); syncSelectionClasses(); renderPanel(); }
   syncUndoButtons();
 }
+// A save that is always an undo step of its own, never merged with an edit just before or after it: opening,
+// adding or removing a whole profile.
+function saveStep() { hist.at = 0; save(); hist.at = 0; }
 const undo = () => stepHistory(hist.undo, hist.redo, "undo");
 const redo = () => stepHistory(hist.redo, hist.undo, "redo");
 function syncUndoButtons() {
@@ -1107,12 +1170,21 @@ function download(name, text, type) {
   document.body.append(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10000);   // after the download has had time to start
 }
+// profile.js is the backup of everything, every profile included. A .json is one profile, to share: it is a whole
+// profile file in itself (any version of JOI reads it) whose list names just that profile.
 function exportProfile(asScript) {
   profile.savedAt = Date.now(); stampLayout();
+  if (!asScript) return exportLayout(profile.layouts.active);
   const json = JSON.stringify(profile, null, 2);
   const note = "// Joystick Overlay Inputs (JOI) profile: a personal backup. Keep it next to JOI.html. It runs as a script, so don't share it; share the .json instead.";
-  if (asScript) download("profile.js", note + "\nwindow.JOI_PROFILE = " + json + ";\n", "text/javascript");
-  else download("joi-profile.json", json, "application/json");
+  download("profile.js", note + "\nwindow.JOI_PROFILE = " + json + ";\n", "text/javascript");
+}
+function exportLayout(id) {
+  const e = profile.layouts.list.find(o => o.id === id); if (!e) return;
+  const data = id === profile.layouts.active ? { settings: profile.settings, widgets: profile.widgets } : { settings: e.settings, widgets: e.widgets };
+  const out = { ver: PROFILE_VER, savedAt: Date.now(), ...data, layouts: { active: e.id, list: [{ id: e.id, name: e.name, ...(e.preset ? { preset: e.preset } : {}) }] } };
+  const slug = e.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "profile";
+  download(`joi-${slug}.json`, JSON.stringify(out, null, 2), "application/json");
 }
 // A real profile is a few kilobytes; anything near this is not one, and parsing it would only cost memory.
 const IMPORT_MAX = 1024 * 1024;
@@ -1120,14 +1192,177 @@ const IMPORT_FAILED = "Couldn't read that file. Choose a .json or profile.js sav
 // A .js profile is never run: the object is cut out of it and parsed as JSON. Saved only once it has built, so a
 // file that fails leaves the current layout as it was. Building first also lets adaptLayout() read the screen the
 // file was made on before save() stamps the current one.
-function importProfileText(text) {
+// Importing never replaces your profiles: each profile in the file is added (an empty current profile makes room for
+// the first), and the file's active one opens. Undo takes the whole import back.
+function importProfileText(text, fileName) {
   if (text.length > IMPORT_MAX) throw new Error("file too large");
   const m = /window\.(?:JOI|STAYONTARGET|JOYVIZ)_PROFILE\s*=\s*([\s\S]*?);?\s*$/.exec(text);
-  const next = normalize(JSON.parse(m ? m[1] : text)), prev = profile;
-  profile = next;
-  try { rebuildAll(); } catch (err) { profile = prev; rebuildAll(); throw err; }
-  save(); toast("Profile imported");
+  const next = normalize(JSON.parse(m ? m[1] : text)), prev = JSON.parse(snapOf());
+  // A file from before profiles is named after the file: "joi-hornet.json" becomes "Hornet".
+  const one = next.layouts.list.length === 1, fromFile = one && next.layouts.list[0].name === FIRST_LAYOUT_NAME && fileName
+    ? layoutName(String(fileName).replace(/\.(json|js)$/i, "").replace(/^(joi|stayontarget|joyviz)-?(profile)?-?/i, "").replace(/[-_]+/g, " ").replace(/\b\w/g, c => c.toUpperCase())) : "";
+  try {
+    const lib = profile.layouts, cur = lib.list.find(e => e.id === lib.active), empty = !profile.widgets.length;
+    stashActive();
+    if (empty) lib.list.splice(lib.list.indexOf(cur), 1);
+    const taken = new Set(lib.list.map(e => e.id)), add = [];
+    for (const e of next.layouts.list) {
+      const o = { ...e, name: uniqueLayoutName(fromFile || e.name) };
+      if (e.id === next.layouts.active) Object.assign(o, { settings: next.settings, widgets: next.widgets });
+      if (taken.has(o.id)) o.id = uid();
+      taken.add(o.id); add.push(o);
+      if (e.id === next.layouts.active) add.active = o.id;
+    }
+    if (lib.list.length + add.length > LAYOUTS_MAX) throw new Error("too many profiles");
+    lib.list.push(...add);
+    openLayout(add.active);
+  } catch (err) { Object.assign(profile, prev); layoutFor = null; rebuildAll(); throw err; }
+  saveStep(); toast("Profile imported");
 }
+
+// ---------- profiles ----------
+const activeLayout = () => profile.layouts.list.find(e => e.id === profile.layouts.active);
+const layoutWidgets = e => e.id === profile.layouts.active ? profile.widgets : e.widgets || [];
+function uniqueLayoutName(base) {
+  base = layoutName(base) || "Profile";
+  const names = new Set(profile.layouts.list.map(e => e.name.toLowerCase()));
+  if (!names.has(base.toLowerCase())) return base;
+  let n = 2; while (names.has(`${base} ${n}`.toLowerCase())) n++;
+  return layoutName(`${base.slice(0, LAYOUT_NAME_MAX - 4)} ${n}`);
+}
+// The active profile's layout goes back into its entry, so another one can take its place.
+function stashActive() {
+  stampLayout();
+  const e = activeLayout();
+  e.settings = JSON.parse(JSON.stringify(profile.settings)); e.widgets = JSON.parse(JSON.stringify(profile.widgets));
+}
+function openLayout(id) {
+  const lib = profile.layouts, e = lib.list.find(o => o.id === id);
+  const shared = {}; for (const k of SHARED_SETTINGS) shared[k] = profile.settings[k];
+  profile.settings = { ...DEFAULT_SETTINGS, ...(e.settings || {}), ...shared }; profile.widgets = e.widgets || [];
+  delete e.settings; delete e.widgets; lib.active = id;
+  layoutFor = null; selected.clear(); syncSelectionClasses(); placeResize();
+  rebuildAll();
+}
+function switchLayout(id) {
+  if (id === profile.layouts.active || !profile.layouts.list.some(e => e.id === id)) return;
+  closeWizard(); stashActive(); openLayout(id); saveStep();
+  toast(`Switched to ${activeLayout().name}`);
+}
+function roomForLayout() {
+  if (profile.layouts.list.length < LAYOUTS_MAX) return true;
+  toast(`You have ${LAYOUTS_MAX} profiles, the most JOI keeps. Delete one to make room.`, 4000); return false;
+}
+// A new profile starts with the current one's colors and theme but no widgets and no arrangement.
+function newLayout(name, widgets = []) {
+  const settings = { ...profile.settings }; delete settings.layoutW; delete settings.layoutH; settings.spaceGap = ""; delete settings.gridCols;
+  const lib = profile.layouts, e = { id: uid(), name: uniqueLayoutName(name), settings, widgets };
+  stashActive();
+  lib.list.splice(lib.list.indexOf(activeLayout()) + 1, 0, e);
+  openLayout(e.id);
+  return e;
+}
+function addBlankLayout() {
+  if (!roomForLayout()) return;
+  closeWizard(); const e = newLayout("New Profile"); saveStep();
+  toast(`Created ${e.name}`);
+}
+function duplicateLayout(id) {
+  if (!roomForLayout()) return;
+  const src = profile.layouts.list.find(e => e.id === id); if (!src) return;
+  closeWizard(); stashActive();
+  const lib = profile.layouts, copy = JSON.parse(JSON.stringify(src));
+  copy.id = uid(); copy.name = uniqueLayoutName(src.name + " Copy");
+  lib.list.splice(lib.list.indexOf(src) + 1, 0, copy);
+  openLayout(copy.id); saveStep();
+  toast(`Created ${copy.name}`);
+}
+function renameLayout(e, name) { e.name = layoutName(name) || e.name; save(); }
+async function deleteLayout(id) {
+  const lib = profile.layouts, e = lib.list.find(o => o.id === id);
+  if (!e || lib.list.length < 2) return;
+  const n = layoutWidgets(e).length;
+  const ok = await confirmDialog({ title: `Delete ${e.name}?`,
+    body: `This removes the profile and its ${n === 1 ? "widget" : n + " widgets"}. Undo (Ctrl+Z) brings it back until you close the editor or reload.`, ok: "Delete Profile" });
+  if (!ok) return;
+  closeWizard();
+  if (id === lib.active) { const i = lib.list.indexOf(e), next = lib.list[i + 1] || lib.list[i - 1]; stashActive(); openLayout(next.id); }
+  lib.list.splice(lib.list.indexOf(e), 1);
+  saveStep(); renderPanel(); toast(`Deleted ${e.name}`);
+}
+
+// ---------- presets ----------
+// Starter layouts for common controller setups. Keyboard keys and the mouse work straight away; each stick, throttle,
+// pedal set and hat direction is added unbound, and Bind Inputs then walks through them with the usual move-it or
+// press-it steps, since only the pilot's own devices can say which axis is which.
+// A group is one widget, or keys / buttons on a grid of [col, row] cells; groups sit side by side, bottom-aligned.
+const PRESET_KEY = (code, label, col, row) => ({ w: { type: "button", label, key: code, button: 0, shape: "keycap" }, at: [col, row] });
+const PRESET_HAT = (label, col, row) => ({ w: { type: "button", label, button: 0, shape: "circle" }, at: [col, row] });
+const PRESET_STICK = label => ({ w: { type: "stick", label, axes: {}, inv: {} } });
+const PRESET_MOUSE = { w: { type: "stick", label: "Mouse", mouse: true, axes: { x: 0, y: 1 }, inv: {} } };
+const PRESET_CLICKS = [PRESET_KEY("MouseLeft", "LMB", 0, 0), PRESET_KEY("MouseRight", "RMB", 1, 0)];
+const PRESETS = [
+  { id: "wasd-mouse", name: "WASD + Mouse", hint: "Q W E / A S D keys, mouse movement and clicks. Ready to go, nothing to bind.",
+    groups: [[PRESET_KEY("KeyQ", "Q", 0, 0), PRESET_KEY("KeyW", "W", 1, 0), PRESET_KEY("KeyE", "E", 2, 0),
+      PRESET_KEY("KeyA", "A", 0, 1), PRESET_KEY("KeyS", "S", 1, 1), PRESET_KEY("KeyD", "D", 2, 1)], [PRESET_MOUSE], PRESET_CLICKS] },
+  { id: "hosas-pedals", name: "HOSAS + Pedals", hint: "Two sticks with rudder pedals between them.",
+    groups: [[PRESET_STICK("Left Stick")], [{ w: { type: "pedals", label: "Pedals", axes: {}, inv: {} } }], [PRESET_STICK("Right Stick")]] },
+  { id: "hotas-pedals", name: "HOTAS + Pedals", hint: "A throttle, rudder pedals and a stick.",
+    groups: [[{ w: { type: "throttle", label: "Throttle", axes: {}, inv: {} } }], [{ w: { type: "pedals", label: "Pedals", axes: {}, inv: {} } }], [PRESET_STICK("Stick")]] },
+  { id: "hosam", name: "HOSAM", hint: "Hands on Stick and Mouse: a stick in the left hand, the mouse in the right.",
+    groups: [[PRESET_STICK("Stick")], [PRESET_MOUSE], PRESET_CLICKS] },
+  { id: "all-track-roll", name: "All Track Roll", hint: "Both sticks plus each stick's twist as a dial, so roll and yaw show too.",
+    groups: [[PRESET_STICK("Left Stick")], [{ w: { type: "axis", label: "Left Twist", orient: "c", axes: {}, inv: {} } }],
+      [{ w: { type: "axis", label: "Right Twist", orient: "c", axes: {}, inv: {} } }], [PRESET_STICK("Right Stick")]] },
+  { id: "directional", name: "Directional Inputs", hint: "Up, down, left and right, for a hat, D-pad or arrow keys.",
+    groups: [[PRESET_HAT("↑", 1, 0), PRESET_HAT("←", 0, 1), PRESET_HAT("→", 2, 1), PRESET_HAT("↓", 1, 2)]] }
+];
+const isUnbound = w => w.type !== "label" && !w.match && !w.key && !w.mouse;
+function addPreset(id) {
+  const pr = PRESETS.find(o => o.id === id); if (!pr) return;
+  closeWizard();
+  const empty = !profile.widgets.length;
+  if (!empty && !roomForLayout()) return;
+  if (empty) { const e = activeLayout(); if (e.name === FIRST_LAYOUT_NAME || /^New Profile( \d+)?$/.test(e.name)) e.name = uniqueLayoutName(pr.name); e.preset = pr.id; }   // an empty profile takes the preset in place
+  else newLayout(pr.name).preset = pr.id;
+  const groups = pr.groups.map(g => g.map(c => ({ ...c, w: { ...newWidgetBase(), ...JSON.parse(JSON.stringify(c.w)) } })));
+  profile.widgets = groups.flatMap(g => g.map(c => c.w)); rebuildAll();
+  // Lay the groups out in one row along the bottom middle, like new widgets, cells PRESET_GAP apart within a group.
+  const C = canvasSize(), floor = C.h - profile.settings.margin, PRESET_GAP = 4;
+  const sized = groups.map(g => {
+    const b = boxOf(g[0].w), cols = Math.max(...g.map(c => c.at ? c.at[0] : 0)) + 1, rows = Math.max(...g.map(c => c.at ? c.at[1] : 0)) + 1;
+    return { g, b, w: cols * b.w + (cols - 1) * PRESET_GAP, h: rows * b.h + (rows - 1) * PRESET_GAP };
+  });
+  const total = sized.reduce((a, o) => a + o.w, 0) + PLACE_GAP * 2 * (sized.length - 1);
+  let x = Math.round((C.w - total) / 2);
+  for (const o of sized) {
+    const y0 = Math.round(floor - o.h);
+    for (const c of o.g) {
+      const [col, row] = c.at || [0, 0];
+      c.w.x = x + col * (o.b.w + PRESET_GAP); c.w.y = y0 + row * (o.b.h + PRESET_GAP);
+      if (!c.at) { const b = boxOf(c.w); c.w.y = Math.round(floor - b.h); }
+      positionWidget(c.w);
+    }
+    x += o.w + PLACE_GAP * 2;
+  }
+  saveStep(); renderPanel();
+  toast(`Created ${activeLayout().name}`);
+  if (profile.widgets.some(isUnbound)) startBinding();
+}
+// Bind Inputs: Detect Device for each widget still waiting for an input, one after another. Closing the dialog stops;
+// Skip leaves that one for later.
+let bindQueue = [], bindTotal = 0;
+function startBinding() {
+  bindQueue = profile.widgets.filter(isUnbound).map(w => w.id); bindTotal = bindQueue.length;
+  nextBinding();
+}
+function nextBinding() {
+  const w = profile.widgets.find(o => o.id === bindQueue[0]);
+  if (!w) { bindQueue = []; return false; }
+  setSelection([w.id]); startRemap(w);
+  return true;
+}
+function skipBinding() { bindQueue.shift(); if (!nextBinding()) { closeWizard(); toast("Skipped. Bind Inputs on the Profiles tab finishes the rest."); } }
 
 // ---------- device types ----------
 // Each wizard step captures one axis. dir says which way the user moves it, so the binding
@@ -1156,7 +1391,9 @@ function startDeviceWizard() { closeFab(); closeWelcome(); if (!wiz) wizBg = fal
 function startButtonWizard() { closeFab(); closeWelcome(); wiz = { kind: "button", stage: "press" }; renderWiz(); }
 function closeWizard() {
   const finished = wiz && wiz.kind === "done";
-  wiz = null; wizAdded = []; wizBg = false; renderWiz();
+  const stopped = bindQueue.length > 0;
+  wiz = null; wizAdded = []; wizBg = false; bindQueue = []; renderWiz();
+  if (stopped) setSelection([]);   // back to the tab with Bind Inputs on it
   if (finished) maybeTip("groups");
 }
 // ---------- one-time tips ----------
@@ -1185,8 +1422,8 @@ function wizChooseType(t) {
 function startRemap(w) {
   closeFab(); closeWelcome(); wizBg = false; wizAdded = [];
   wiz = w.type === "button"
-    ? { kind: "button", stage: "press", remap: w.id }
-    : { kind: "device", type: w.type, name: w.label, stage: "steps", step: 0, axes: {}, inv: {}, remap: w.id };
+    ? { kind: "button", stage: "press", remap: w.id, label: w.label }
+    : { kind: "device", type: w.type, name: w.label, label: w.label, stage: "steps", step: 0, axes: {}, inv: {}, remap: w.id };
   renderWiz();
 }
 function finishRemap() {
@@ -1194,10 +1431,13 @@ function finishRemap() {
   if (w && (d || key)) {
     if (key) { delete w.match; delete w.nth; delete w.slot; } else Object.assign(w, { match: d.id, nth: d.nth, slot: d.pad.index });
     if (wiz.kind === "button") Object.assign(w, buttonFields()); else { w.axes = wiz.axes; w.inv = wiz.inv; }
+    delete w.mouse;   // a device now, not the mouse
     for (const k in w) if (w[k] === undefined) delete w[k];
     save(); rebuildAll();
   }
+  const queued = bindQueue[0] === wiz.remap ? bindQueue.slice(1) : null;
   closeWizard();
+  if (queued) { bindQueue = queued; if (nextBinding()) return; if (w) toast("All inputs bound"); return; }
   if (w) setSelection([w.id]);
   if (w && (d || key)) toast(`${w.label || "Widget"} now uses ${key ? "the " + keyLabel(key) + " key" : devName(d)}`);
 }
@@ -1652,6 +1892,13 @@ function buildWidget(w, grow) {
   // A new canvas is blank: inNew draws it on the next pass, and the cached input and pad lookup start over.
   rt.axIdx = w.axes ? Object.values(w.axes) : [];
   rt.inVals = new Float64Array(rt.axIdx.length + 2).fill(NaN); rt.inNew = true; rt.padGen = -1;
+  // A rebuilt root starts with the state the old one showed, so its box (measured with any "not connected" note)
+  // doesn't jump until the next frame. A widget with no input yet is marked straight away, so a preset lays out
+  // around its "not bound yet" note.
+  if (isUnbound(w)) rt._off = true;
+  if (rt._off) root.classList.add("offline");
+  if (rt._off && !w.match) root.classList.add("unbound");
+  if (rt._on) root.classList.add("on");
   rt.holo = holo.on; rt.sprite = null;
   if (holo.on) { root.classList.add("holo"); setHoloVars(root, rt.holoColors = holoColorsOf(w), holo); }   // the rig itself comes in attachHolo
   const k = w.size || 1, D = { ...dimsOf(w), ...(grow || {}) };
@@ -2046,6 +2293,7 @@ function rebuildAll() {
   renderPanel();
   updateOffscreenNote();
   hasInputs = profile.widgets.some(w => w.type !== "label");
+  hasMouse = profile.widgets.some(w => w.mouse);
   wake(true);
 }
 // ---------- moving a layout between screen shapes ----------
@@ -2437,7 +2685,7 @@ const IDLE_MS = 500, POLL_MS = 16;
 let rafId = 0, tickT = 0, passDue = true, redrawAll = true, hasInputs = false, idleT = 0, checkAt = 0, movedAt = 0;
 const obsState = { visible: true, active: true };
 const loopPaused = () => document.hidden || (!editing && (!obsState.visible || !obsState.active));
-const loopNeeded = () => passDue || (hasInputs && padList.length > 0) || (editing && !!wiz) || textQueue.length > 0 || perfPending();
+const loopNeeded = () => passDue || (hasInputs && padList.length > 0) || mouseBusy() || (editing && !!wiz) || textQueue.length > 0 || perfPending();
 // all: repaint every widget on the next pass, not only those whose input changed.
 function wake(all) {
   passDue = true; if (all) redrawAll = true;
@@ -2458,6 +2706,34 @@ window.addEventListener("gamepadconnected", () => wake());
 window.addEventListener("keydown", e => { if (!e.repeat && e.code && !keysDown.has(e.code)) { keysDown.add(e.code); wake(); } }, true);
 window.addEventListener("keyup", e => { if (keysDown.delete(e.code)) wake(); }, true);
 window.addEventListener("blur", () => { if (keysDown.size) { keysDown.clear(); wake(); } });
+// The mouse, for WASD + Mouse and HOSAM layouts. Its buttons are keys ("MouseLeft" ...) in keysDown, read from each
+// pointer event's held-buttons mask, so pressing a second button while one is held counts too. A Mouse widget is a
+// stick whose input is how fast the mouse moves: MOUSE_FULL px/s is full travel, eased back to center when it stops.
+// Like keys, a browser source sees the mouse only while it has focus (OBS's Interact window).
+const MOUSE_BTNS = [[1, "MouseLeft"], [2, "MouseRight"], [4, "MouseMiddle"]], MOUSE_FULL = 1500, MOUSE_EASE = 0.35;
+const mouse = { pad: { axes: [0, 0], buttons: [] }, dx: 0, dy: 0 };
+let hasMouse = false;
+function mouseEvent(e) {
+  if (e.pointerType !== "mouse") return;
+  let ch = false;
+  for (const [bit, code] of MOUSE_BTNS) { const on = !!(e.buttons & bit); if (on !== keysDown.has(code)) { if (on) keysDown.add(code); else keysDown.delete(code); ch = true; } }
+  if (e.type === "pointermove" && hasMouse && (e.movementX || e.movementY)) { mouse.dx += e.movementX; mouse.dy += e.movementY; ch = true; }
+  if (ch) wake();
+}
+for (const t of ["pointerdown", "pointerup", "pointermove"]) window.addEventListener(t, mouseEvent, { capture: true, passive: true });
+// Turns the movement since the last frame into the Mouse widgets' X and Y (up is +Y, like pushing a stick forward).
+function mouseTick(dt) {
+  if (!hasMouse) return false;
+  const a = mouse.pad.axes, t = dt > 0 ? dt : 1 / 60, k = 1 - Math.pow(1 - MOUSE_EASE, t * 60);
+  const tx = clamp(mouse.dx / t / MOUSE_FULL, -1, 1), ty = clamp(-mouse.dy / t / MOUSE_FULL, -1, 1);
+  mouse.dx = mouse.dy = 0;
+  let x = a[0] + (tx - a[0]) * k, y = a[1] + (ty - a[1]) * k;
+  if (Math.abs(x) < 0.002) x = 0;
+  if (Math.abs(y) < 0.002) y = 0;
+  const ch = x !== a[0] || y !== a[1]; a[0] = x; a[1] = y;
+  return ch;
+}
+const mouseBusy = () => hasMouse && !!(mouse.dx || mouse.dy || mouse.pad.axes[0] || mouse.pad.axes[1]);
 window.addEventListener("gamepaddisconnected", () => wake());
 document.addEventListener("visibilitychange", () => wake());
 window.addEventListener("obsSourceVisibleChanged", e => { obsState.visible = !(e.detail && e.detail.visible === false); wake(); });
@@ -2468,7 +2744,7 @@ function frame(now, timed) {
   if (loopPaused()) { stopLoop(); return; }
   const dt = lastFrame ? Math.min(0.1, (now - lastFrame) / 1000) : 0; lastFrame = now;
   heatClock += dt;
-  const moved = pollPads();
+  const padMoved = pollPads(), moved = mouseTick(dt) || padMoved;
   if (editing && wiz) wizardTick(connectedPads());
   heatTick = Math.floor(now / 250);   // heatmap repaints at 4 Hz, which is plenty
   const heatDue = showHeat && heatTick !== heatShown;
@@ -2483,7 +2759,7 @@ function frame(now, timed) {
       const rt = runtime[w.id]; if (!rt || !rt.root || w.type === "label") continue;
       try {
         const pad = w.key ? null : padOf(w, rt), off = !pad && !w.key;   // a keyboard key is never "not connected"
-        if (rt._off !== off) { rt._off = off; rt.root.classList.toggle("offline", off); }
+        if (rt._off !== off) { rt._off = off; rt.root.classList.toggle("offline", off); rt.root.classList.toggle("unbound", off && !w.match); }
         // Only repaint a widget's canvases when its input (or the visible heatmap) changed.
         // A still stick costs no drawing at all, which keeps OBS's browser source light.
         const changed = inputChanged(w, rt, pad);
@@ -2568,7 +2844,8 @@ const median = a => { const s = [...a].sort((x, y) => x - y); return s[s.length 
 // ---------- selection ----------
 function setSelection(ids, mode) {
   selected.clear(); for (const id of ids) selected.add(id);
-  panelMode = mode || (selected.size > 1 ? "multi" : selected.size === 1 ? "widget" : "home");
+  if (mode === "home" || mode === "profiles") homeTab = mode;
+  panelMode = mode || (selected.size > 1 ? "multi" : selected.size === 1 ? "widget" : homeTab);
   syncSelectionClasses(); renderPanel();
 }
 function toggleSelected(id) {
@@ -3110,7 +3387,7 @@ $("#file-in").addEventListener("change", async e => {
   const f = e.target.files[0]; if (!f) return;
   try {
     if (f.size > IMPORT_MAX) throw new Error("file too large");
-    importProfileText(await f.text());
+    importProfileText(await f.text(), f.name);
   } catch (err) { toast(IMPORT_FAILED, 6000); }
   e.target.value = "";
 });
@@ -3530,7 +3807,60 @@ function renderPanelView(p) {
   if (panelMode === "settings") return renderSettingsPanel(p);
   if (panelMode === "export") return renderExportPanel(p);
   if (panelMode === "devices") return renderDevicesPanel(p);
+  panelTabs(p);
+  if (panelMode === "profiles") return renderProfilesPanel(p);
   return renderHome(p);
+}
+// Setup and Profiles, the two tabs of the panel when nothing is selected. Arrow keys move between them (ARIA tabs).
+function panelTabs(p) {
+  const tabs = [["home", "Setup"], ["profiles", "Profiles"]], cur = panelMode === "profiles" ? "profiles" : "home";
+  const bar = el("div", { class: "p-tabs", role: "tablist", "aria-label": "Editor panel" });
+  for (const [mode, label] of tabs) {
+    const on = mode === cur;
+    bar.append(el("button", { role: "tab", id: "tab-" + mode, "aria-selected": String(on), tabindex: on ? "0" : "-1", onclick: () => setSelection([], mode) },
+      label, mode === "profiles" ? el("span", { class: "cur" }, activeLayout().name) : null));
+  }
+  bar.addEventListener("keydown", e => {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    e.preventDefault(); e.stopPropagation();
+    const next = cur === "home" ? "profiles" : "home";
+    setSelection([], next); setTimeout(() => { const t = $("#tab-" + next); if (t) t.focus(); }, 0);
+  });
+  p.append(bar);
+}
+function renderProfilesPanel(p) {
+  const lib = profile.layouts, cur = activeLayout();
+  const box = el("div", { role: "tabpanel", "aria-labelledby": "tab-profiles" }); p.append(box);
+  box.append(el("h3", {}, "Profiles"));
+  box.append(el("div", { class: "hint" }, "Keep a layout for each ship or controller setup and switch between them. Every profile saves automatically."));
+  const list = el("div", { class: "prof-list", role: "group", "aria-label": "Your profiles" });
+  for (const e of lib.list) {
+    const n = layoutWidgets(e).length, on = e.id === lib.active;
+    list.append(el("button", { "aria-current": on ? "true" : "false", title: on ? "The profile on screen" : "Switch to " + e.name, onclick: () => switchLayout(e.id) },
+      el("b", {}, e.name), el("small", {}, on ? "On screen" : n === 1 ? "1 widget" : n + " widgets")));
+  }
+  box.append(list);
+  box.append(el("div", { class: "actions" },
+    el("button", { onclick: addBlankLayout }, "+ New Profile"),
+    el("button", { onclick: () => $("#file-in").click() }, "Import a Profile")));
+  box.append(el("h5", {}, "This Profile"));
+  const name = el("input", { type: "text", maxlength: LAYOUT_NAME_MAX, "aria-label": "Profile name" }); name.value = cur.name;
+  name.addEventListener("input", () => { if (layoutName(name.value)) { renameLayout(cur, name.value); const t = $("#tab-profiles .cur"); if (t) t.textContent = cur.name; } });
+  name.addEventListener("change", () => { name.value = cur.name; renderPanel(); });
+  name.addEventListener("keydown", e => { if (e.key === "Enter") name.blur(); });
+  box.append(el("div", { class: "fields" }, fld("Name", name, null, true)));
+  const waiting = profile.widgets.filter(isUnbound).length;
+  if (waiting) box.append(el("div", { class: "hint warn" }, `${widgetsAre(waiting)} not bound to an input yet.`),
+    el("div", { class: "actions" }, el("button", { class: "primary", onclick: startBinding }, "Bind Inputs")));
+  box.append(el("div", { class: "actions" },
+    el("button", { onclick: () => duplicateLayout(cur.id), title: "Copy this profile, for example for a similar ship" }, "Duplicate"),
+    el("button", { onclick: () => exportLayout(cur.id), title: "Download this profile as a .json file to share or keep" }, "Download .json"),
+    Object.assign(el("button", { class: "danger", onclick: () => deleteLayout(cur.id), title: lib.list.length < 2 ? "Your only profile can't be deleted" : "Delete this profile" }, "Delete"), { disabled: lib.list.length < 2 })));
+  box.append(el("h5", {}, "Start From a Preset"));
+  box.append(el("div", { class: "hint small" }, "Adds the widgets for a common setup as a new profile, in your current colors. Keys and the mouse work right away; then move each stick, throttle or pedal once, or press each button, to bind it."));
+  const g = el("div", { class: "presets" });
+  for (const pr of PRESETS) g.append(el("button", { onclick: () => addPreset(pr.id), title: "New profile: " + pr.name }, pr.name, el("small", {}, pr.hint)));
+  box.append(g);
 }
 
 function renderHome(p) {
@@ -3543,6 +3873,9 @@ function renderHome(p) {
   const missing = profile.widgets.filter(w => w.match && !padFor(w, connectedPads()));
   if (!connectedPads().length) p.append(el("div", { class: "hint warn" }, "No devices seen yet. Move a stick or press a button so the browser detects them."));
   else if (missing.length) p.append(el("div", { class: "hint warn" }, `${widgetsAre(missing.length)} waiting for ${missing.length > 1 ? "their devices" : "its device"}. Open Check Devices to see why.`));
+  const unbound = profile.widgets.filter(isUnbound).length;
+  if (unbound) p.append(el("div", { class: "hint warn" }, `${widgetsAre(unbound)} not bound to an input yet.`),
+    el("div", { class: "actions" }, el("button", { class: "primary", onclick: startBinding }, "Bind Inputs")));
   p.append(el("div", { class: "actions" }, el("button", { onclick: () => setSelection([], "devices") }, "Check Devices")));
   p.append(el("div", { class: "actions" },
     el("button", { class: "primary", onclick: startDeviceWizard }, "+ Device"),
@@ -3591,7 +3924,10 @@ function renderWiz() {
   if (!wiz) { if (was && editing) $("#fab").focus(); return; }
   if (wiz.remap && wiz.stage === "name") return finishRemap();   // re-detecting keeps the widget's name
   const off = wizBg ? 1 : 0, total = 3 + off;
-  const st = (k, suffix) => wiz.remap ? [0, "Detect Device" + (suffix ? " · " + suffix : "")] : [k + off, `Step ${k + off} of ${total}` + (suffix ? " · " + suffix : "")];
+  const queued = !!wiz.remap && bindQueue[0] === wiz.remap;
+  const st = (k, suffix) => queued ? [0, `Bind Inputs · ${bindTotal - bindQueue.length + 1} of ${bindTotal} · ${wiz.label || suffix}`]
+    : wiz.remap ? [0, "Detect Device" + (suffix ? " · " + suffix : "")] : [k + off, `Step ${k + off} of ${total}` + (suffix ? " · " + suffix : "")];
+  const skip = () => queued ? el("button", { onclick: skipBinding }, "Skip for Now") : null;
   const head = (step, kicker, title, lead) => {
     const k = el("div", { class: "kicker" });
     k.append(el("span", {}, kicker));
@@ -3639,12 +3975,12 @@ function renderWiz() {
       el("button", { onclick: startButtonWizard }, "Add a Button/Key"),
       el("button", { class: "primary", "data-autofocus": "", onclick: () => { wizBg = false; startDeviceWizard(); } }, "Add Another Device"));
   } else if (wiz.kind === "button" && wiz.stage === "press") {
-    head(...st(2, "Button/Key"), "Press the Button or Key You Want to Show", "Any button on any device (hold it for a moment), or any key on your keyboard.");
+    head(...st(2, "Button/Key"), queued ? `Press the Button or Key for ${wiz.label || "This Widget"}` : "Press the Button or Key You Want to Show", "Any button on any device (hold it for a moment), or any key on your keyboard.");
     Object.assign(b.querySelector("#wiz-title"), { tabIndex: -1 }).dataset.autofocus = "";
     b.append(el("p", { class: "tip", id: "wiz-hint", "aria-live": "polite" }),
       noPad("No game devices seen yet. Keyboard keys work anyway; for a device button, press it once so your browser can see the device."));
     if (!wiz.remap) b.append(el("p", { class: "tip" }, "Showing movement keys? ", el("button", { class: "text", onclick: addWasd, title: "Add W, A, S and D as keycaps, laid out like a keyboard" }, "Add W, A, S and D Keys")));
-    actions(wiz.remap ? null : el("button", { onclick: startDeviceWizard }, "Back"), el("button", { onclick: closeWizard }, "Cancel"));
+    actions(wiz.remap ? null : el("button", { onclick: startDeviceWizard }, "Back"), skip(), el("button", { onclick: closeWizard }, "Cancel"));
   } else if (wiz.stage === "type") {
     head(...(wizAdded.length ? [0, "Add Another"] : st(1)), "What Are You Adding?",
       "Pick one. It appears at the bottom middle of your screen.");
@@ -3661,7 +3997,7 @@ function renderWiz() {
     if (steps.length > 1) steps.forEach((s, i) => b.append(el("div", { class: i < wiz.step ? "step done" : i === wiz.step ? "step active" : "step" }, s.ask.charAt(0) + s.ask.slice(1).toLowerCase())));
     if (wiz.dev) b.append(el("p", { class: "tip" }, "Device: " + devName(wiz.dev)));
     b.append(el("p", { class: "tip", id: "wiz-hint", "aria-live": "polite" }), noPad());
-    actions(wiz.remap ? el("button", { onclick: closeWizard }, "Cancel") : el("button", { onclick: startDeviceWizard }, "Back"),
+    actions(wiz.remap ? el("button", { onclick: closeWizard }, "Cancel") : el("button", { onclick: startDeviceWizard }, "Back"), skip(),
       cur.optional ? el("button", { class: "primary", "data-autofocus": "", onclick: wizSkip }, "Skip, I Don't Have This") : null);
   } else {
     const devText = wiz.key ? `the ${keyLabel(wiz.key)} key on your keyboard`
@@ -4129,7 +4465,7 @@ function renderWidgetPanel(p) {
   const names = { stick: "Stick", throttle: "Throttle", pedals: "Pedals", axis: "Single Axis", button: "Button/Key", label: "Label" };
   const upd = () => { refreshWidget(w); syncSelectionClasses(); };
   const seen = w.match && padFor(w, connectedPads());
-  panelHead(p, names[w.type] || w.type, w.type !== "label" && w.match && !seen ? "Device not connected. See Device below." : "", el("div", { class: "fields" }, fld("Name", textIn(w, "label", upd), null, true)));
+  panelHead(p, w.mouse ? "Mouse" : names[w.type] || w.type, w.type !== "label" && w.match && !seen ? "Device not connected. See Device below." : "", el("div", { class: "fields" }, fld("Name", textIn(w, "label", upd), null, true)));
   positionSection(p, [w]);
   arrangeSection(p);
   layoutSection(p, [w]);
@@ -4142,6 +4478,10 @@ function renderWidgetPanel(p) {
     const d = section(p, "Key", { key: "device", fam: "input", icon: "device", summary: keyLabel(w.key) });
     d.append(el("div", { class: "hint small" }, `Lights while ${keyLabel(w.key)} is held. In OBS, keys reach the overlay only while its Interact window has focus.`));
     d.append(el("div", { class: "actions" }, el("button", { onclick: () => startRemap(w), title: "Press a key or a device button to rebind it" }, "Detect Again")));
+  } else if (w.mouse) {
+    const d = section(p, "Input", { key: "device", fam: "input", icon: "device", summary: "Mouse" });
+    d.append(el("div", { class: "hint small" }, "Shows which way and how fast the mouse moves. In OBS, the mouse reaches the overlay only while its Interact window has focus."));
+    d.append(el("div", { class: "actions" }, el("button", { onclick: () => startRemap(w), title: "Move a stick to show it here instead of the mouse" }, "Use a Device Instead")));
   } else if (w.type !== "label") {
     const name = w.match ? deviceLabel(w.match, w.nth) : "";
     const d = section(p, "Device", { key: "device", fam: "input", icon: "device", summary: name ? name + (seen ? "" : " (not connected)") : "None yet" });
@@ -4268,10 +4608,10 @@ function renderSettingsPanel(p) {
 function renderExportPanel(p) {
   p.append(el("h3", {}, "Save and Share"));
   p.append(el("div", { class: "hint" }, "Your setup saves automatically. For a personal backup that survives OBS clearing its cache, "
-    + "download profile.js and put it in the same folder as JOI.html. It's for your own computer only: don't share it."));
+    + "download profile.js and put it in the same folder as JOI.html. It holds every profile. It's for your own computer only: don't share it."));
   p.append(el("div", { class: "actions" }, el("button", { class: "primary", onclick: () => exportProfile(true) }, "Download profile.js")));
   p.append(el("h4", {}, "Share With Another Pilot"));
-  p.append(el("div", { class: "hint" }, "Download .json and send that file. The other pilot opens the editor and chooses Import a Profile. With the same hardware it works right away; otherwise they remove the widgets and add their own devices."));
+  p.append(el("div", { class: "hint" }, `Download .json saves the profile on screen (${activeLayout().name}); send that file. The other pilot opens the editor and chooses Import a Profile, which adds it next to their own profiles. With the same hardware it works right away; otherwise they press Detect Device on each widget.`));
   p.append(el("div", { class: "actions" }, el("button", { onclick: () => exportProfile(false) }, "Download .json"), el("button", { onclick: () => $("#file-in").click() }, "Import a Profile")));
 }
 
