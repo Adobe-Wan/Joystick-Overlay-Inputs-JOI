@@ -173,7 +173,11 @@ Every color in the effect comes from the widget's theme, so switching the theme 
 **OBS tips.** The page can't add light to the game footage behind it (OBS composites the overlay on top), so the hologram fakes it with low alphas and white-pushed cores. For true additive light, right-click the browser source in OBS and set **Blending Mode** to **Screen** or **Additive**. The Subtle and Full tiers depend on **Enable Browser Source Hardware Acceleration** (see below).
 
 ## Performance in OBS
-- Widgets only redraw when an input actually changes. Hands off the controls means near-zero drawing work.
+If the overlay lags behind your game, or OBS's stats show rendering lag or skipped frames:
+- **Settings → Performance → Draw rate: 30 FPS** halves the frames OBS has to draw for JOI while you fly. Inputs still show within a frame or two. It applies to every profile.
+- **Projector Subtle and Full** animate even when nothing moves, so OBS redraws the source every frame. **Static** or **Flat** costs nothing while your hands are off the controls.
+- Make the Browser source the same size as your OBS canvas (Base Resolution), not larger: a 4K source is four times the work of a 1080p one. JOI scales its layout to the source size.
+- Widgets only redraw when an input actually changes. Small wobbles a stick, throttle or pedal makes at rest (under half a percent) are ignored, so a resting device costs nothing to draw.
 - Keep **Enable Browser Source Hardware Acceleration** on (OBS Settings, Advanced). That's the default. The Projector look's Subtle and Full motion tiers rely on it: without it their float and glow are drawn on the CPU every frame.
 - Set the Browser Source FPS to 60. Going higher only adds load.
 
