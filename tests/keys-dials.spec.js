@@ -104,6 +104,7 @@ test.describe("keyboard keys", () => {
     await page.keyboard.press("Space");
     await expect(page.locator("#wiz-body .name-in")).toHaveValue("Space");
     await page.click('#wiz-body .actions button:has-text("Start Over")');
+    await expect(page.locator("#wiz-title")).toBeFocused();   // the step moves focus to its heading on a timer; wait, or it steals it back
     await page.focus('#wiz-body .actions button:has-text("Cancel")');
     await page.keyboard.press("Enter");
     expect(await page.evaluate(() => wiz)).toBeNull();
