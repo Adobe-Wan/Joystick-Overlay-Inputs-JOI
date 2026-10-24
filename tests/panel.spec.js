@@ -6,7 +6,7 @@ const h = require("./fixtures/gamepad");
 const VID = h.DEV.virpil().id;
 const stick = (o = {}) => ({ id: "s1", type: "stick", x: 400, y: 300, label: "Stick", match: VID, nth: 0, axes: { x: 0, y: 1 }, inv: {}, ...o });
 const bar = (o = {}) => ({ id: "t1", type: "throttle", x: 800, y: 300, label: "Throttle", match: VID, nth: 0, axes: { t: 2 }, inv: {}, ...o });
-const base = (widgets, extra = {}) => ({ ver: 2, savedAt: 1, settings: { background: "solid", bgColor: "#24303c" }, widgets, ...extra });
+const base = (widgets, extra = {}) => ({ ver: 3, savedAt: 1, settings: { background: "solid", bgColor: "#24303c" }, widgets, ...extra });
 const open = (app, profile, devices = [h.DEV.virpil()]) => app.open({ profile, devices, query: "?transparent" });
 const edit = (page, ids) => page.evaluate(ids => { setEditing(true); setSelection(ids); }, ids);
 const labels = page => page.evaluate(() => [...document.querySelectorAll("#panel .sec-t .name")].map(e => e.textContent));
@@ -85,7 +85,7 @@ test.describe("sizes", () => {
   test("defaults are on the 4 px scale", async ({ app, page }) => {
     await open(app, base([stick(), bar()]));
     const d = await page.evaluate(() => [dimsOf(profile.widgets[0]), dimsOf(profile.widgets[1]), PAD, RADIUS]);
-    expect(d).toEqual([{ box: 112 }, { bw: 20, bh: 104, cd: 80 }, 4, 8]);   // cd: the Circular display's diameter
+    expect(d).toEqual([{ box: 96 }, { bw: 12, bh: 96, cd: 48 }, 4, 8]);   // cd: the Circular display's diameter
   });
   test("a layout from before v2 keeps the size it drew", async ({ app, page }) => {
     const old = { savedAt: 1, settings: {}, widgets: [
@@ -93,20 +93,30 @@ test.describe("sizes", () => {
       { id: "p1", type: "pedals", x: 100, y: 100, label: "Pedals", match: VID, nth: 0, axes: { r: 5 }, inv: {}, scaleW: 2, scaleH: 1.5 }] };
     await open(app, old);
     const r = await page.evaluate(() => ({ ver: profile.ver, dims: profile.widgets.map(w => w.dims), ped: [profile.widgets[2].scaleW, profile.widgets[2].scaleH] }));
-    expect(r.ver).toBe(2);
+    expect(r.ver).toBe(3);
     expect(r.dims[0]).toEqual({ box: 150 });
-    expect(r.dims[1]).toEqual({ bw: 30, bh: 225 });
-    expect(r.dims[2]).toEqual({ rw: 240, rh: 25 });   // 200 and 22 at 75%, times the old Width / Height scale (2 and 1.5), clamped to 20-240
+    expect(r.dims[1]).toEqual({ bw: 30, bh: 225, cd: 80 });   // plus the v2 dial size it would have drawn
+    expect(r.dims[2]).toEqual({ rw: 240, rh: 25, cd: 80 });   // 200 and 22 at 75%, times the old Width / Height scale (2 and 1.5), clamped to 20-240
     expect(r.ped).toEqual([undefined, undefined]);
     await page.evaluate(() => { profile.widgets[0].x += 1; save(); });
     await app.flushSave();
-    expect((await app.storedProfile()).ver).toBe(2);
+    expect((await app.storedProfile()).ver).toBe(3);
+  });
+  test("a v2 layout keeps the sizes it drew; only new widgets use the smaller v3 defaults", async ({ app, page }) => {
+    const ped = { id: "p1", type: "pedals", x: 100, y: 100, label: "Pedals", match: VID, nth: 0, axes: { r: 5 }, inv: {} };
+    await open(app, { ...base([stick(), bar({ dims: { bw: 8 } }), bar({ id: "t2", orient: "h" }), ped]), ver: 2 });
+    const r = await page.evaluate(() => ({ ver: profile.ver, dims: profile.widgets.map(w => w.dims), stick: runtime.s1.canvas._w, rud: runtime.p1.canvas._w }));
+    expect(r.ver).toBe(3);
+    expect(r.dims).toEqual([{ box: 112 }, { bw: 8, bh: 104, cd: 80 }, { bw: 20, bh: 152, cd: 80 }, { rw: 152, rh: 20, cd: 80 }]);
+    expect([r.stick, r.rud]).toEqual([112, 152]);   // drawn exactly as before
+    await page.evaluate(() => { addAndPlace({ ...newWidgetBase(), type: "stick", label: "New", axes: { x: 0, y: 1 }, inv: {}, match: profile.widgets[0].match, nth: 0 }); });
+    expect(await page.evaluate(() => { const w = profile.widgets.at(-1); return [w.dims, runtime[w.id].canvas._w]; })).toEqual([undefined, 96]);
   });
   test("the Width and Height sliders run 20 to 240 px (thickness from 4), and Percent follows the default", async ({ app, page }) => {
     await open(app, base([bar()]));
     await edit(page, ["t1"]);
     const px = await page.evaluate(() => [...document.querySelectorAll("#panel input[type=range]")].filter(r => /^(Width|Height)$/.test(r.getAttribute("aria-label"))).map(r => [r.getAttribute("aria-label"), +r.min, +r.max, +r.value]));
-    expect(px).toEqual([["Width", 4, 240, 20], ["Height", 20, 240, 104]]);
+    expect(px).toEqual([["Width", 4, 240, 12], ["Height", 20, 240, 96]]);
     await page.evaluate(() => [...document.querySelectorAll("#panel .tiles button")].find(b => b.textContent === "Percent").click());
     const pct = await page.evaluate(() => [...document.querySelectorAll("#panel input[type=range]")].filter(r => /^(Width|Height)$/.test(r.getAttribute("aria-label"))).map(r => [r.getAttribute("aria-label"), +r.value]));
     expect(pct).toEqual([["Width", 100], ["Height", 100]]);
@@ -117,7 +127,7 @@ test.describe("sizes", () => {
     expect(await page.evaluate(() => +[...document.querySelectorAll("#panel input[type=range]")].find(x => x.getAttribute("aria-label") === "Height").min)).toBe(4);
     await page.evaluate(() => { const r = [...document.querySelectorAll("#panel input[type=range]")].find(x => x.getAttribute("aria-label") === "Height"); r.value = 2; r.dispatchEvent(new Event("input", { bubbles: true })); });
     expect(await page.evaluate(() => profile.widgets[0].dims)).toEqual({ bw: 4 });
-    expect(await page.evaluate(() => [runtime.t1.canvas._w, runtime.t1.canvas._h])).toEqual([152, 4]);
+    expect(await page.evaluate(() => [runtime.t1.canvas._w, runtime.t1.canvas._h])).toEqual([96, 4]);
     expect(await page.evaluate(() => !!runtime.t1.spans.v)).toBe(true);   // the % readout is still there
   });
   test("a thin rudder keeps its brakes and readouts, and a saved 4 px thickness loads as is", async ({ app, page }) => {
@@ -125,18 +135,18 @@ test.describe("sizes", () => {
     await open(app, base([ped, bar({ dims: { bw: 4 } })]));
     const r = await page.evaluate(() => ({ dims: profile.widgets.map(w => w.dims), rud: [runtime.p1.canvas._w, runtime.p1.canvas._h], brake: [runtime.p1.brakeL._w, runtime.p1.brakeL._h], bar: runtime.t1.canvas._w, spans: Object.keys(runtime.p1.spans).sort() }));
     expect(r.dims).toEqual([{ rh: 4 }, { bw: 4 }]);
-    expect(r.rud).toEqual([152, 4]);
+    expect(r.rud).toEqual([96, 4]);
     expect(r.brake).toEqual([4, 8]);   // the brakes follow the rudder's thickness
     expect(r.bar).toBe(4);
     expect(r.spans).toEqual(["bl", "br", "r"]);
     await edit(page, ["p1"]);
     expect(await page.evaluate(() => [...document.querySelectorAll("#panel input[type=range]")].filter(r => /^(Width|Height)$/.test(r.getAttribute("aria-label"))).map(r => [r.getAttribute("aria-label"), +r.min]))).toEqual([["Width", 20], ["Height", 4]]);
   });
-  test("in Percent, the thickness slider starts at 20% (4 px of the 20 px default)", async ({ app, page }) => {
+  test("in Percent, the thickness slider starts at 33% (4 px of the 12 px default)", async ({ app, page }) => {
     await open(app, base([bar()]));
     await edit(page, ["t1"]);
     await page.evaluate(() => [...document.querySelectorAll("#panel .tiles button")].find(b => b.textContent === "Percent").click());
-    expect(await page.evaluate(() => +[...document.querySelectorAll("#panel input[type=range]")].find(x => x.getAttribute("aria-label") === "Width").min)).toBe(20);
+    expect(await page.evaluate(() => +[...document.querySelectorAll("#panel input[type=range]")].find(x => x.getAttribute("aria-label") === "Width").min)).toBe(33);
   });
   test("a horizontal bar's Width is its length", async ({ app, page }) => {
     await open(app, base([bar({ orient: "h" })]));
@@ -151,7 +161,7 @@ test.describe("sizes", () => {
     const shown = await page.evaluate(() => { const row = [...document.querySelectorAll("#panel .srow")].find(r => r.classList.contains("overridden")); return row && { label: row.querySelector(".top span").textContent, note: row.querySelector(".fill-note").textContent, value: row.querySelector(".val").textContent }; });
     expect(shown.label).toBe("Height");
     expect(shown.note).toMatch(/override Fill/);
-    expect(parseInt(shown.value)).toBeGreaterThan(300);   // the size Fill worked out, not the 104 stored
+    expect(parseInt(shown.value)).toBeGreaterThan(300);   // the size Fill worked out, not the 96 default
     await page.evaluate(() => { const r = [...document.querySelectorAll("#panel .srow.overridden input[type=range]")][0]; r.value = 150; r.dispatchEvent(new Event("input", { bubbles: true })); r.dispatchEvent(new Event("change", { bubbles: true })); });
     const w = await page.evaluate(() => profile.widgets[0]);
     expect(w.fill).toBeUndefined();
