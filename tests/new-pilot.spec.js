@@ -22,7 +22,16 @@ test.describe("welcome", () => {
     expect(await page.evaluate(() => document.activeElement === document.querySelector("#welcome-presets button"))).toBe(true);
     await page.click('#welcome-presets button[data-welcome-preset="hosas-pedals"]');
     await expect(page.locator("#welcome")).not.toHaveClass(/open/);
-    expect(await page.evaluate(() => profile.widgets.map(w => w.label))).toEqual(["Strafe", "Up / Down", "Pedals", "Pitch / Yaw", "Roll"]);
+    expect(await page.evaluate(() => profile.widgets.map(w => w.label))).toEqual(["Strafe", "Up / Down", "Roll", "Pedals", "Pitch / Yaw"]);
+    // Like a cockpit layout: the sticks flank Roll stacked over the pedals, groups PLACE_GAP apart, all centered.
+    const b = await page.evaluate(() => Object.fromEntries(profile.widgets.map(w => { const r = boxOf(w); return [w.label, [r.x, r.y, r.w, r.h].map(Math.round)]; })));
+    const [roll, ped, strafe, ud, py] = [b["Roll"], b["Pedals"], b["Strafe"], b["Up / Down"], b["Pitch / Yaw"]];
+    expect(roll[1] + roll[3] + 8).toBe(ped[1]);
+    expect(Math.abs((roll[0] + roll[2] / 2) - (ped[0] + ped[2] / 2))).toBeLessThanOrEqual(1);
+    expect(ud[0] - (strafe[0] + strafe[2])).toBe(16);
+    expect(py[0] - (Math.max(roll[0] + roll[2], ped[0] + ped[2]))).toBe(16);
+    const mid = await page.evaluate(() => canvasSize().w / 2);
+    expect(Math.abs((strafe[0] + py[0] + py[2]) / 2 - mid)).toBeLessThanOrEqual(1);
     await expect(page.locator("#wiz-body .kicker")).toHaveText("Bind Inputs · 1 of 5 · Strafe");   // straight into binding, no screenshot step first
   });
   test("Add Devices One by One opens the device wizard on its first step, with no screenshot step", async ({ app, page }) => {

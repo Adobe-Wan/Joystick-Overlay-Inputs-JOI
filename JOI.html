@@ -924,7 +924,9 @@ function swapTwins(match) {
 // ---------- profile ----------
 // ver 2: bar, stick and rudder sizes are drawn pixels (before 2 they were 75% of the stored number), pedals take their
 // size from dims instead of Width / Height scale, and Background fade is folded into Background opacity.
-const PROFILE_VER = 2;
+// ver 3: Size 100% got smaller, measured from AdobeWan's cockpit layout (see DIMS). Older widgets keep the size
+// they were drawn at: each one gets the old defaults written into its own dims.
+const PROFILE_VER = 3;
 function newProfile() { return { ver: PROFILE_VER, savedAt: 0, settings: { ...DEFAULT_SETTINGS }, widgets: [], layouts: newLibrary() }; }
 // Profiles (one layout per ship or controller setup) live in profile.layouts: { active, list: [{ id, name, preset?,
 // settings?, widgets? }] }. The active profile's settings and widgets are profile.settings / profile.widgets, as they
@@ -1058,17 +1060,24 @@ function migrateSizes(w) {
   for (const k in old) dims[k] = clamp(Math.round(old[k] * 0.75 * (f[k] || 1)), ...lim);
   if (w.dims || w.type === "pedals" && (sx !== 1 || sy !== 1)) w.dims = dims;
 }
+// Size 100% before ver 3. A widget saved then keeps drawing at these sizes; only new widgets use the smaller DIMS.
+const V2_DIMS = { stick: { box: 112 }, throttle: { bw: 20, bh: 104, cd: 80 }, axis: { bw: 20, bh: 104, cd: 80 }, pedals: { rw: 152, rh: 20, cd: 80 } };
+function keepV2Sizes(w) {
+  const base = V2_DIMS[w.type]; if (!base) return;
+  const old = { ...base, ...((w.type === "throttle" || w.type === "axis") && w.orient === "h" ? { bw: 20, bh: 152 } : {}) };
+  w.dims = { ...old, ...(w.dims || {}) };
+}
 function normalize(p) {
   const n = newProfile();
   if (!isObj(p)) return n;
   n.savedAt = inRange(p.savedAt, 0, Number.MAX_SAFE_INTEGER) || 0;
-  const before2 = !(p.ver >= 2);
-  Object.assign(n, normalizeLayout(p, before2));
-  n.layouts = normalizeLibrary(p.layouts, before2);
+  const ver = inRange(p.ver, 0, PROFILE_VER) || 0;
+  Object.assign(n, normalizeLayout(p, ver));
+  n.layouts = normalizeLibrary(p.layouts, ver);
   return n;
 }
 // One layout's settings and widgets, checked and brought up to date.
-function normalizeLayout(p, before2) {
+function normalizeLayout(p, ver) {
   const n = { settings: { ...DEFAULT_SETTINGS, ...pickFields(isObj(p) ? p.settings : null, SETTINGS_CHECK) } };
   const ids = new Set();
   n.widgets = (isObj(p) && Array.isArray(p.widgets) ? p.widgets : []).map(normalizeWidget).filter(Boolean);
@@ -1078,7 +1087,8 @@ function normalizeLayout(p, before2) {
   for (const w of n.widgets) {
     if (w.bgAlpha === 62) { w.bgAlpha = 88; if (w.bg === "#080c12") w.bg = "#05080c"; }
     w.bgAlpha ??= n.settings.panelAlpha;   // the opacity slider shows the value it will render with
-    if (before2) migrateSizes(w);
+    if (ver < 2) migrateSizes(w);
+    if (ver < 3) keepV2Sizes(w);
     // Background fade used to multiply the opacity; now there is one value, so a saved fade folds into it.
     if (w.proj && w.proj.fade != null) { w.bgAlpha = Math.round(w.bgAlpha * (1 - w.proj.fade / 100)); delete w.proj.fade; }
   }
@@ -1087,7 +1097,7 @@ function normalizeLayout(p, before2) {
 const layoutName = v => typeof v === "string" || typeof v === "number" ? String(v).replace(/\s+/g, " ").trim().slice(0, LAYOUT_NAME_MAX) : "";
 // The profile list from a save or a file. The active entry keeps no copy of its own (that is profile.settings and
 // .widgets); a list that is missing, empty or names no active entry it has becomes a single profile.
-function normalizeLibrary(src, before2) {
+function normalizeLibrary(src, ver) {
   if (!isObj(src) || !Array.isArray(src.list)) return newLibrary();
   const ids = new Set(), list = [];
   for (const e of src.list.slice(0, LAYOUTS_MAX)) {
@@ -1095,7 +1105,7 @@ function normalizeLibrary(src, before2) {
     ids.add(e.id);
     const o = { id: e.id, name: layoutName(e.name) || "Profile " + (list.length + 1) };
     const pre = idText(e.preset); if (pre) o.preset = pre;
-    if (e.id !== src.active) Object.assign(o, normalizeLayout(e, before2));
+    if (e.id !== src.active) Object.assign(o, normalizeLayout(e, ver));
     list.push(o);
   }
   if (!list.length) return newLibrary();
@@ -1322,7 +1332,8 @@ async function deleteLayout(id) {
 // Starter layouts for common controller setups. Keyboard keys and the mouse work straight away; each stick, throttle,
 // pedal set and hat direction is added unbound, and Bind Inputs then walks through them with the usual move-it or
 // press-it steps, since only the pilot's own devices can say which axis is which.
-// A group is one widget, or keys / buttons on a grid of [col, row] cells; groups sit side by side, bottom-aligned.
+// A group is one widget, keys / buttons on a grid of [col, row] cells, or a few widgets stacked and centered (no
+// cells, like Roll over the rudder between two sticks); groups sit side by side, bottom-aligned, PLACE_GAP apart.
 const PRESET_KEY = (code, label, col, row) => ({ w: { type: "button", label, key: code, button: 0, shape: "keycap" }, at: [col, row] });
 const PRESET_HAT = (label, col, row) => ({ w: { type: "button", label, button: 0, shape: "circle" }, at: [col, row] });
 const PRESET_STICK = (label, axisNames) => ({ w: { type: "stick", label, axisNames, axes: {}, inv: {} } });
@@ -1339,9 +1350,9 @@ const PRESETS = [
       PRESET_KEY("KeyA", "A", 0, 1), PRESET_KEY("KeyS", "S", 1, 1), PRESET_KEY("KeyD", "D", 2, 1)],
       [PRESET_KEY("ControlLeft", "Ctrl", 0, 0)], [PRESET_KEY("Space", "Space", 0, 0)], [PRESET_MOUSE], PRESET_CLICKS] },
   { id: "hosas-pedals", name: "HOSAS + Pedals", full: "Hands On Stick And Stick", hint: "Left stick strafes, right stick pitches and yaws, with Up / Down, Roll and the pedals.",
-    groups: [[PRESET_STICK("Strafe", "strafe")], PRESET_UPDOWN, PRESET_PEDALS, [PRESET_STICK("Pitch / Yaw", "flight")], PRESET_ROLL] },
+    groups: [[PRESET_STICK("Strafe", "strafe")], PRESET_UPDOWN, [...PRESET_ROLL, ...PRESET_PEDALS], [PRESET_STICK("Pitch / Yaw", "flight")]] },
   { id: "hotas-pedals", name: "HOTAS + Pedals", full: "Hands On Throttle And Stick", hint: "Throttle for forward and back, its thumbstick strafes, the stick pitches and yaws, plus Roll and the pedals.",
-    groups: [[{ w: { type: "throttle", label: "Throttle", axes: {}, inv: {} } }], [PRESET_STICK("Strafe", "strafe")], PRESET_PEDALS, [PRESET_STICK("Pitch / Yaw", "flight")], PRESET_ROLL] },
+    groups: [[{ w: { type: "throttle", label: "Throttle", axes: {}, inv: {} } }], [PRESET_STICK("Strafe", "strafe")], [...PRESET_ROLL, ...PRESET_PEDALS], [PRESET_STICK("Pitch / Yaw", "flight")]] },
   { id: "hosam", name: "HOSAM", full: "Hands On Stick And Mouse", hint: "The stick strafes, with Up / Down and Roll; the mouse pitches and yaws.",
     groups: [[PRESET_STICK("Strafe", "strafe")], PRESET_UPDOWN, PRESET_ROLL, [PRESET_MOUSE], PRESET_CLICKS] },
   { id: "directional", name: "Directional Inputs", hint: "Up, down, left and right, for a hat, D-pad or arrow keys.",
@@ -1369,22 +1380,26 @@ function addPreset(id) {
   const groups = pr.groups.map(g => g.map(c => ({ ...c, w: { ...newWidgetBase(), ...JSON.parse(JSON.stringify(c.w)) } })));
   profile.widgets = groups.flatMap(g => g.map(c => c.w)); rebuildAll();
   // Lay the groups out in one row along the bottom middle, like new widgets, cells PRESET_GAP apart within a group.
-  const C = canvasSize(), floor = C.h - profile.settings.margin, PRESET_GAP = 4;
+  const C = canvasSize(), floor = C.h - profile.settings.margin, PRESET_GAP = 4, STACK_GAP = 8;
   const sized = groups.map(g => {
+    if (g.length > 1 && !g[0].at) {   // a stack
+      const bs = g.map(c => boxOf(c.w));
+      return { g, bs, w: Math.max(...bs.map(b => b.w)), h: bs.reduce((a, b) => a + b.h, 0) + (bs.length - 1) * STACK_GAP };
+    }
     const b = boxOf(g[0].w), cols = Math.max(...g.map(c => c.at ? c.at[0] : 0)) + 1, rows = Math.max(...g.map(c => c.at ? c.at[1] : 0)) + 1;
     return { g, b, w: cols * b.w + (cols - 1) * PRESET_GAP, h: rows * b.h + (rows - 1) * PRESET_GAP };
   });
-  const total = sized.reduce((a, o) => a + o.w, 0) + PLACE_GAP * 2 * (sized.length - 1);
+  const total = sized.reduce((a, o) => a + o.w, 0) + PLACE_GAP * (sized.length - 1);
   let x = Math.round((C.w - total) / 2);
   for (const o of sized) {
-    const y0 = Math.round(floor - o.h);
-    for (const c of o.g) {
-      const [col, row] = c.at || [0, 0];
-      c.w.x = x + col * (o.b.w + PRESET_GAP); c.w.y = y0 + row * (o.b.h + PRESET_GAP);
-      if (!c.at) { const b = boxOf(c.w); c.w.y = Math.round(floor - b.h); }
+    let y = Math.round(floor - o.h);
+    o.g.forEach((c, i) => {
+      if (o.bs) { const b = o.bs[i]; c.w.x = x + Math.round((o.w - b.w) / 2); c.w.y = y; y += Math.round(b.h) + STACK_GAP; }
+      else if (c.at) { const [col, row] = c.at; c.w.x = x + col * (o.b.w + PRESET_GAP); c.w.y = y + row * (o.b.h + PRESET_GAP); }
+      else { c.w.x = x; c.w.y = Math.round(floor - boxOf(c.w).h); }
       positionWidget(c.w);
-    }
-    x += o.w + PLACE_GAP * 2;
+    });
+    x += o.w + PLACE_GAP;
   }
   saveStep(); renderPanel();
   toast(`Created ${activeLayout().name}`);
@@ -1888,9 +1903,11 @@ function positionWidget(w, size) {
 }
 
 // Inner container sizes per widget type, before the Size multiplier. Users can override each.
-// Drawn pixels at Size 100%, all on the 4 px scale. The brakes beside the rudder follow its thickness (rh).
+// Drawn pixels at Size 100%, all on the 4 px scale, measured from AdobeWan's own layout over the Star Citizen cockpit
+// at 1080p (the scale "auto" treats as 1): two stick gates flanking a 48 px Roll dial over a 12 px thick bar, rounded
+// to 96 px (4 x 24) for the gate and a bar's or rudder's length. The brakes beside the rudder follow its thickness (rh).
 // cd is the diameter of the Circular display (orient "c"), a dial that throttles, axes and the rudder can use instead.
-const DIMS = { stick: { box: 112 }, throttle: { bw: 20, bh: 104, cd: 80 }, axis: { bw: 20, bh: 104, cd: 80 }, pedals: { rw: 152, rh: 20, cd: 80 } };
+const DIMS = { stick: { box: 96 }, throttle: { bw: 12, bh: 96, cd: 48 }, axis: { bw: 12, bh: 96, cd: 48 }, pedals: { rw: 96, rh: 12, cd: 48 } };
 const BAR_PX = [20, 240], STICK_PX = [40, 300], DIAL_PX = [40, 240];   // the Width / Height slider ranges
 const THICK_MIN = 4, isThick = k => k === "bw" || k === "rh";   // a bar's or rudder's thickness can go thinner than its length
 const isDial = w => w.orient === "c" && (isBar(w) || w.type === "pedals");
