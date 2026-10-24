@@ -932,7 +932,7 @@ const BASE_FONT_PX = 16;                      // the editor's rem at 100% (html 
 const PLACE_GAP = 16, CASCADE = 24;           // px between placed widgets; offset for a copy or a widget on another's spot
 const DEFAULT_SETTINGS = { scaleMode: "auto", scale: 1, uiScale: "auto", background: "transparent", bgColor: "#00ff00",
   accent: "#4fd1ff", text: "#ffffff", panel: "#121212", panelAlpha: 100, border: "", theme: "default", spaceGap: "",
-  gridSnap: true, gridSize: 16, smartGuides: true, centerLines: true, margin: 24, fps: 60 };
+  gridSnap: true, gridSize: 16, smartGuides: true, centerLines: true, margin: 24, fps: 60, reduceTransparency: false };
 
 let profile = null;     // { savedAt, settings, widgets: [] }
 let editing = false;
@@ -1123,7 +1123,7 @@ function newProfile() { return { ver: PROFILE_VER, savedAt: 0, settings: { ...DE
 const LAYOUTS_MAX = 50, LAYOUT_NAME_MAX = 40, FIRST_LAYOUT_NAME = "My Profile";
 function newLibrary(name = FIRST_LAYOUT_NAME) { const id = uid(); return { active: id, list: [{ id, name }] }; }
 // Editor preferences and screen sizing belong to the computer, not to a ship: switching profiles keeps them.
-const SHARED_SETTINGS = ["scaleMode", "scale", "uiScale", "background", "bgColor", "gridSnap", "gridSize", "smartGuides", "centerLines", "fps"];
+const SHARED_SETTINGS = ["scaleMode", "scale", "uiScale", "background", "bgColor", "gridSnap", "gridSize", "smartGuides", "centerLines", "fps", "reduceTransparency"];
 // Every profile is untrusted input: an imported file, a profile.js, or local storage (which every file:// page in the
 // browser shares). normalize() rebuilds it from known fields only, each checked and clamped, so nothing else in the
 // app has to defend against a missing object, a NaN, a CSS url() posing as a color or an id like "__proto__".
@@ -1228,6 +1228,7 @@ const SETTINGS_CHECK = {
   border: v => normHex(v) || "", theme: v => idText(v) ?? DEF.theme, spaceGap: v => v === "" ? "" : intRange(0, 4000)(v) ?? "",
   gridSnap: v => boolOr(v, DEF.gridSnap), gridSize: v => intRange(4, 128)(v) ?? DEF.gridSize, smartGuides: v => boolOr(v, DEF.smartGuides),
   centerLines: v => boolOr(v, DEF.centerLines), margin: v => inRange(v, 0, 200) ?? DEF.margin, fps: v => oneOf(+v, [30, 60]) ?? DEF.fps,
+  reduceTransparency: v => boolOr(v, DEF.reduceTransparency),
   gridCols: intRange(0, 6), layoutW: numRange(1, 20000), layoutH: numRange(1, 20000)
 };
 function normalizeWidget(src) {
@@ -2770,6 +2771,13 @@ function applySettings() {
   document.body.classList.toggle("bg-solid", s.background === "solid");
   document.body.classList.toggle("has-widgets", profile.widgets.length > 0);
   document.body.classList.toggle("show-center", !!s.centerLines);
+  // Verseglass: Reduce Transparency turns the editor's glass opaque (the OS setting does the same through CSS), and the
+  // editor's accent follows the ship maker when every widget wears the same manufacturer Color Theme.
+  const root = document.documentElement;
+  if (s.reduceTransparency) root.dataset.vgTransparency = "reduced"; else delete root.dataset.vgTransparency;
+  const themes = profile.widgets.filter(w => w.type !== "label").map(w => w.theme);
+  const maker = themes.length && themes.every(t => t === themes[0]) && MFG_THEMES.some(t => t.id === themes[0]) ? themes[0] : "";
+  if (maker) root.dataset.vgTheme = maker; else delete root.dataset.vgTheme;
   const stage = $("#stage");
   document.documentElement.style.fontSize = (BASE_FONT_PX * uiScale()).toFixed(2) + "px";
   stage.style.transform = `scale(${overlayScale()})`; stage.style.width = C.w + "px"; stage.style.height = C.h + "px";
@@ -5527,6 +5535,7 @@ function renderSettingsPanel(p) {
     "A layout made at 1080p keeps the same proportions at 1440p or 4K.");
   if (s.scaleMode !== "auto") size.append(el("div", { class: "fields" }, fld("Overlay scale", numIn(s, "scale", 0.3, 4, 0.05, rebuildAll), "×", true)));
   choiceRow(size, "Editor text size", s, "uiScale", [["auto", "Auto", "Grows with the screen, so 4K stays readable."], [1, "100%"], [1.25, "125%"], [1.5, "150%"], [2, "200%"], [2.5, "250%"]], applySettings, { wrap: true });
+  toggleRow(size, "Reduce transparency", s, "reduceTransparency", applySettings, "Solid panels instead of frosted glass: easier to read over a busy game view, and less work for OBS.");
   const perfSec = section(p, "Performance", { key: "s-perf" });
   choiceRow(perfSec, "Draw rate", s, "fps", [[60, "60 FPS", "The smoothest motion. Best for most setups."], [30, "30 FPS", "Half the work for OBS. Motion looks a little less smooth, but a press still shows right away. Pick it if the overlay stutters, lags or falls out of sync with your game."]], applySettings, { aria: "Draw rate" });
   perfSec.append(el("div", { class: "hint small" }, "How many times a second the overlay redraws while you move your controls. When you let go it stops redrawing, unless the Projector look is set to Subtle or Full."));
