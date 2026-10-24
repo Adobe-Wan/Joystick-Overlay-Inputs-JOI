@@ -32,7 +32,7 @@ Download the new zip and replace `JOI.html` in your folder. Keep your `profile.j
    2. **Skip for Now** leaves a widget for later; **Bind Inputs** on the Setup panel (or in **Profiles & Share**) finishes the rest.
 
    Prefer to build it yourself? **Add Devices One by One** opens the same wizard for a single Stick, Pedals, Button/Key, Throttle, Single Axis or Label, and asks you to **Name It**. The round **+** button (bottom right, or press **A**) and **+ Add** in the top bar add more at any time.
-5. Drag the widgets where you want them (see *Positioning* below). The **Reference Screenshot** on the Setup panel puts a Star Citizen screenshot behind the editor, so you can place them around the HUD instead of on top of it; it never shows on stream. Click a widget to change its name, binding, size or colors.
+5. Drag the widgets where you want them (see *Positioning* below). The **Reference Screenshot** on the Setup panel puts a Star Citizen screenshot behind the editor, so you can place them around the HUD instead of on top of it; it never shows on stream. **Capture Game View** takes that screenshot straight from OBS (see *Capture the game view from OBS* below). Click a widget to change its name, binding, size or colors.
 6. Switch **Edit Mode** off in the top bar (or press **E**). The reference screenshot disappears with the editor. The first time, a tip reminds you of step 7.
 7. **Profiles & Share → Download profile.js**, and save it in the same folder as `JOI.html`. This keeps the setup safe if OBS clears its cache. OBS's own browser can't download files, so when you edit inside OBS (**Interact**) the Download buttons show the file's text instead: select **Copy**, paste it into Notepad, and save it with **Save as type** set to **All files** under the name the dialog gives.
 
@@ -47,13 +47,37 @@ Layouts are designed on a 1920×1080 canvas and **fit to the screen size** autom
 **Moving a layout between screens.** Each profile remembers the screen shape it was arranged on. Open it on a different shape (a 4K browser tab with toolbars, a 1080p OBS source, an ultrawide) and each group of widgets keeps its place: things along the bottom middle stay at the bottom middle, and a widget near an edge or corner keeps its distance from it. Nothing is overwritten until you edit, so going back to the original screen puts everything back where it was. Profiles from v1.1 and earlier record their screen the next time you change something or download profile.js.
 
 ## Positioning
-- **Reference screenshot.** The editor shows a Star Citizen screenshot behind your widgets so you can place them around the HUD. It only shows in the editor, never on stream. It's step 1 of setup, and you can change it any time on the editor home panel (**Load My Own Screenshot**, **No Screenshot**).
+- **Reference screenshot.** The editor shows a Star Citizen screenshot behind your widgets so you can place them around the HUD. It only shows in the editor, never on stream. Change it any time on the editor's Setup tab: **Capture Game View** (from OBS, below), a sample, **Load My Own Screenshot** or **No Screenshot**.
 - **Center lines** (blue) mark the middle of the screen. While dragging, **smart guides** (pink) snap a widget's edges or center to the screen center, edges, safe margin and other widgets. When nothing is close, it snaps to the **grid**. Hold **Alt** to drag freely.
 - **Select several:** drag a box on empty space, or Shift+click widgets. Ctrl+A selects all. Drag any selected widget to move them together.
 - **Align and place:** with a selection, use the panel's align buttons (left, center, right, top, middle, bottom). *Center on Screen*, *Center Horizontally*, *Center at Bottom* and *Move to Bottom* move the selection as one block.
 - **Spacing:** with 2+ selected, type a **Gap** in px (for example 16) and press **Space Horizontally** or **Space Vertically** to set them that far apart. Leave the gap on *Auto* to spread 3+ widgets evenly across their current width or height.
 - **Nudge** with the arrow keys (Shift = 10px). **P** or **Hide Panel** hides the side panel so you can see the whole screen. **?** lists every shortcut.
 - Grid size, safe margin, and turning guides or the grid off are in **Settings**.
+
+## Capture the game view from OBS
+**Capture Game View** on the Setup tab (or **C** in the editor) asks OBS for a screenshot of the source that shows your game and puts it behind the editor, so you line widgets up against exactly what you see. It captures that source, not the scene, so JOI's own widgets are never in the picture. It works in OBS Interact and in a normal browser, as long as OBS is running on the same PC.
+
+The game has to be on screen for OBS to have a picture of it, and the editor is in front while you click. So the capture **counts down 5 seconds**: click it, switch to the game, and JOI (still running in OBS behind the game) takes the screenshot. When you come back, it's behind the editor. Press **C** again during the countdown, or **Capture Now** in the dialog, to capture right away, for example when the game is on another monitor.
+
+First time:
+1. In OBS, open **Tools → WebSocket Server Settings** and turn on **Enable WebSocket server** (built into OBS 28 and later).
+2. Click **Show Connect Info** there to see the port (usually 4455) and the password.
+3. In JOI, press **Capture Game View**, enter the port and password, and press **Connect**.
+4. Pick the source that shows your game. The list has every source that could (Game, Window and Display Capture, capture cards and so on), grouped by scene in the order of OBS's Scenes dock, with the scene on air first and already chosen. Use a separate scene for VR or 2D? Pick the capture under that scene.
+5. Press **Capture in 5 s** and switch to the game.
+
+After that it's one click (or **C**).
+
+**It matches the stream.** The screenshot is taken at OBS's output resolution (**Settings → Video → Output**) and drawn where the game sits in the scene on air, with its position, scale, crop, bounds and rotation. If your scene shrinks or crops the game, the editor shows it the same way, with black where the game isn't.
+
+**Live.** Once you've connected, **Live** next to Capture Game View (or **L**) shows the game behind the editor, refreshed about twice a second, so you can line widgets up with a HUD that moves. Window Capture keeps updating with the game behind OBS, as long as it isn't minimized. To keep OBS smooth, Live frames are smaller (1280 px wide; the background stretches, so they line up the same), Live pauses while OBS is recording or streaming, and it stops when you leave the editor. Turning Live off takes one last full-resolution capture to keep. To check Live costs your PC nothing noticeable, open OBS **View → Stats** while it's on and watch *Frames missed due to rendering lag*.
+
+If the chosen source has no picture (a Game Capture that hasn't hooked the game, or one in a scene you aren't using), JOI tries your other Game, Window and Display Captures, on-air ones first, and keeps the first one that works.
+
+JOI keeps the password only until it reloads unless you tick **Remember Password on This PC**. The password lets anything that has it control OBS, and other local pages on this PC can read what JOI remembers, so leave it off on a shared PC. It's never in Profiles & Share files.
+
+**Without the WebSocket server:** in OBS, right-click the source that shows your game and choose **Screenshot (Source)**. OBS saves it in your recording folder; load it with **Load My Own Screenshot**.
 
 ## Sample backgrounds
 Sample screenshots live in the `Background Images for Edit Mode` folder next to `JOI.html`. The download includes 16:9 and 21:9 ultrawide samples. The editor uses whichever sample best matches your screen shape, as long as the files keep these exact names:
@@ -196,6 +220,8 @@ The single-key shortcuts work when no button or field has focus: click an empty 
 | Ctrl+A / Ctrl+D | Select all / duplicate |
 | Ctrl+Z / Ctrl+Y | Undo / redo (also Ctrl+Shift+Z; the small buttons above the + do the same) |
 | P | Hide / show the side panel |
+| C | Capture the game view from OBS after a 5 s countdown; press again to capture now (see *Capture the game view from OBS*) |
+| L | Live: show the game behind the editor, refreshed about twice a second |
 | ? | The shortcut list |
 | Alt (while dragging) | Turn snapping off |
 
@@ -207,7 +233,7 @@ They report the same hardware name, so JOI tells them apart by the controller sl
 For a permanent fix, give one stick a different USB Product ID in VPC Configurator, then re-add that stick.
 
 ## Starting over
-**Reset All** (on the editor's home panel, and in **Settings → Start Over**) asks for confirmation, then removes every widget and returns all settings, colors and the reference screenshot to their defaults. It can't be undone, so use **Profiles & Share** first if you might want the layout back.
+**Reset All** (on the editor's home panel, and in **Settings → Start Over**) asks for confirmation, then removes every widget and returns all settings, colors, the reference screenshot and the OBS connection to their defaults. It can't be undone, so use **Profiles & Share** first if you might want the layout back.
 
 ## A device isn't showing up
 Open the editor and click **Check Devices** on the home panel. It lists every controller your browser is passing to JOI, live, and which widgets are still waiting for theirs.
