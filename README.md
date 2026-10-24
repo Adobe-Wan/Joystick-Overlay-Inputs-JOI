@@ -34,7 +34,7 @@ Download the new zip and replace `JOI.html` in your folder. Keep your `profile.j
    Prefer to build it yourself? **Add Devices One by One** opens the same wizard for a single Stick, Pedals, Button/Key, Throttle, Single Axis or Label, and asks you to **Name It**. The round **+** button (bottom right, or press **A**) and **+ Add** in the top bar add more at any time.
 5. Drag the widgets where you want them (see *Positioning* below). The **Reference Screenshot** on the Setup panel puts a Star Citizen screenshot behind the editor, so you can place them around the HUD instead of on top of it; it never shows on stream. Click a widget to change its name, binding, size or colors.
 6. Switch **Edit Mode** off in the top bar (or press **E**). The reference screenshot disappears with the editor. The first time, a tip reminds you of step 7.
-7. **Profiles & Share → Download profile.js**, and save it in the same folder as `JOI.html`. This keeps the setup safe if OBS clears its cache.
+7. **Profiles & Share → Download profile.js**, and save it in the same folder as `JOI.html`. This keeps the setup safe if OBS clears its cache. OBS's own browser can't download files, so when you edit inside OBS (**Interact**) the Download buttons show the file's text instead: select **Copy**, paste it into Notepad, and save it with **Save as type** set to **All files** under the name the dialog gives.
 
 Opened in a normal browser instead of OBS, the welcome says so and reminds you to add the file to OBS when the layout is ready.
 

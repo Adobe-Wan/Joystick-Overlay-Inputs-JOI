@@ -258,7 +258,7 @@ body.editing .widget.selected { outline: 2px solid var(--ui-accent); outline-off
 
 /* ---------- editor UI (MUI dark-theme conventions, rem-based so it scales for 4K) ---------- */
 html { font-size: 14px; }   /* set from JS: grows with the viewport so 4K stays readable */
-#ui, #welcome, #wizard, #confirm, #enter-edit, #toast { font-family: var(--font); }
+#ui, #welcome, #wizard, #confirm, #save-copy, #enter-edit, #toast { font-family: var(--font); }
 #ui { display: none; }
 body.editing #ui { display: block; }
 body.panel-hidden #panel { display: none; }
@@ -521,6 +521,15 @@ body.panel-hidden #coach::after { display: none; }
 #confirm .foot { display: flex; justify-content: flex-end; gap: 0.5rem; flex-wrap: wrap; }
 #confirm button.danger.solid { background: var(--hot); border-color: var(--hot); color: #1a0508; font-weight: 600; }
 #confirm button.danger.solid:hover { filter: brightness(1.1); color: #1a0508; }
+#save-copy { position: fixed; inset: 0; z-index: 60; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); color-scheme: dark; }
+#save-copy.open { display: flex; }
+#save-copy .dialog { width: min(36rem, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); overflow: auto; padding: 1.6rem 1.8rem; font-size: 1.07rem; line-height: 1.55; }
+#save-copy h2 { margin: 0 0 0.5rem; font-size: 1.4rem; font-weight: 600; }
+#save-copy ol { color: #b6c3d1; margin: 0 0 0.9rem; padding-left: 1.4rem; }
+#save-copy textarea { width: 100%; height: 9rem; box-sizing: border-box; resize: vertical; font: 0.85rem/1.4 ui-monospace, Consolas, monospace;
+  color: #d7e1ea; background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.16); border-radius: 0.4rem; padding: 0.6rem; }
+#save-copy p { min-height: 1.5em; margin: 0.5rem 0 0.8rem; color: var(--ui-accent); }
+#save-copy .foot { display: flex; justify-content: flex-end; gap: 0.5rem; flex-wrap: wrap; }
 #welcome .dialog { width: min(40rem, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); overflow: auto; padding: 1.8rem 2rem; font-size: 1.07rem; line-height: 1.55; }
 #welcome h2 { margin: 0 0 0.4rem; font-size: 1.8rem; font-weight: 600; }
 #welcome .lead { color: #b6c3d1; margin: 0 0 1rem; }
@@ -672,6 +681,15 @@ body:not(.editing):not(.has-widgets) #enter-edit { display: flex; }
     <h2 id="confirm-title"></h2>
     <p id="confirm-body"></p>
     <div class="foot"><button data-confirm="no">Cancel</button><button class="danger solid" data-confirm="yes"></button></div>
+  </div>
+</div>
+<div id="save-copy" role="dialog" aria-modal="true" aria-labelledby="save-copy-title" aria-describedby="save-copy-steps">
+  <div class="dialog paper">
+    <h2 id="save-copy-title"></h2>
+    <ol id="save-copy-steps"></ol>
+    <textarea id="save-copy-text" readonly spellcheck="false" aria-label="File contents"></textarea>
+    <p id="save-copy-status" role="status"></p>
+    <div class="foot"><button data-copy="close">Close</button><button class="primary" data-copy="copy">Copy</button></div>
   </div>
 </div>
 <div id="wizard" role="dialog" aria-modal="true" aria-labelledby="wiz-title"><div class="dialog paper" id="wiz-body"></div></div>
@@ -1195,10 +1213,44 @@ function syncUndoButtons() {
   if (u) u.disabled = !hist.undo.length;
   if (r) r.disabled = !hist.redo.length;
 }
+// OBS's browser has no downloads: a download link does nothing there, with no error. Inside OBS (a browser source's
+// Interact window or a dock) every download shows the file in a dialog instead, to copy into Notepad and save by hand.
+const CAN_DOWNLOAD = !window.obsstudio;
 function download(name, text, type) {
+  if (!CAN_DOWNLOAD) return copyDialog(name, text);
   const url = URL.createObjectURL(new Blob([text], { type })), a = el("a", { href: url, download: name });
   document.body.append(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10000);   // after the download has had time to start
+}
+function copyDialog(name, text) {
+  const d = $("#save-copy"), area = $("#save-copy-text"), status = $("#save-copy-status"), back = document.activeElement;
+  $("#save-copy-title").textContent = "Save " + name;
+  $("#save-copy-steps").replaceChildren(
+    el("li", {}, "OBS can't download files. Select Copy to copy the file's text."),
+    el("li", {}, "Open Notepad and paste it."),
+    el("li", {}, "Choose File > Save As, set Save as type to All files, and name it " + name + "."),
+    el("li", {}, name === "profile.js" ? "Save it in the same folder as JOI.html." : "Send that file to the other pilot, or keep it to import later."));
+  area.value = text; status.textContent = "";
+  d.classList.add("open");
+  setTimeout(() => d.querySelector("[data-copy=copy]").focus(), 0);
+  const copied = () => { status.textContent = "Copied. Paste it into Notepad."; };
+  const manual = () => { area.focus(); area.select(); status.textContent = "Couldn't copy automatically. The text is selected: press Ctrl+C."; };
+  const copy = () => {
+    area.select();
+    let ok = false;
+    try { ok = document.execCommand("copy"); } catch (e) { /* not allowed here */ }
+    if (ok) return copied();
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(copied, manual);
+    else manual();
+  };
+  const done = () => { d.classList.remove("open"); d.removeEventListener("click", onClick); d.removeEventListener("keydown", onKey); area.value = ""; if (back && back.focus) back.focus(); };
+  const onClick = e => { if (e.target === d) return done(); const a = e.target.closest("[data-copy]"); if (a) (a.dataset.copy === "copy" ? copy : done)(); };
+  const onKey = e => {
+    if (e.key === "Escape") { e.preventDefault(); done(); }
+    else trapTab(e, d, "button, textarea");
+    e.stopPropagation();
+  };
+  d.addEventListener("click", onClick); d.addEventListener("keydown", onKey);
 }
 // profile.js is the backup of everything, every profile included. A .json is one profile, to share: it is a whole
 // profile file in itself (any version of JOI reads it) whose list names just that profile.
@@ -3124,7 +3176,7 @@ function placeOnScreen(where) {
 let drag = null, marquee = null, sizing = null, baseDrag = null;
 document.addEventListener("pointerdown", e => {
   if (!editing || e.button !== 0) return;
-  if (e.target.closest("#ui, #welcome, #wizard, #enter-edit, #empty-edit, #coach")) return;
+  if (e.target.closest("#ui, #welcome, #wizard, #confirm, #save-copy, #enter-edit, #empty-edit, #coach")) return;
   // A projector base: drag it where you like. It moves with its widget's offset (holo.base.dx / dy), so presets,
   // undo and Project from One Base keep working. With several projector widgets selected, they all follow.
   // A base sitting under one of the selected widget's edge handles still wins the click (the strips are invisible).
@@ -3291,7 +3343,7 @@ document.addEventListener("keydown", e => {
     moveWidgets(selectedWidgets(), dx, dy); save(); renderPanel();
   }
 });
-document.addEventListener("dblclick", e => { if (!editing && !e.target.closest("#ui, #welcome, #wizard, #enter-edit, #empty-edit, #coach")) setEditing(true); });
+document.addEventListener("dblclick", e => { if (!editing && !e.target.closest("#ui, #welcome, #wizard, #save-copy, #enter-edit, #empty-edit, #coach")) setEditing(true); });
 
 // ---------- edit mode ----------
 function setEditing(on) {
@@ -3984,6 +4036,7 @@ function renderProfilesPanel(p) {
   p.append(el("div", { class: "hint small" }, "For a personal backup that survives OBS clearing its cache, download profile.js and put it in the same folder as JOI.html. "
     + "It holds every profile. It's for your own computer only: don't share it."));
   p.append(el("div", { class: "actions" }, el("button", { onclick: () => exportProfile(true) }, "Download profile.js")));
+  if (!CAN_DOWNLOAD) p.append(el("div", { class: "hint small" }, "OBS can't download files, so the Download buttons show the file's text for you to copy into Notepad and save."));
   p.append(el("h5", {}, "Start From a Preset"));
   p.append(el("div", { class: "hint small" }, "Adds a common setup as a new profile. Keys and the mouse work right away; move each stick, throttle or pedal once to bind it."));
   const g = el("div", { class: "presets" }); presetTiles(g, "data-preset");
