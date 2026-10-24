@@ -17,9 +17,9 @@ const SCENES = { "2D": ["SC Window", "JOI", "Mic"], VR: ["VR View", "Webcam", "J
 // render it). `scenes: null` acts like an OBS that refuses the scene requests. Set it up before the page loads
 // (Playwright hooks WebSocket at load); change the options later through obs.set().
 async function fakeObs(page, opts = {}) {
-  const log = [], o = { password: "", inputs: INPUTS, scenes: SCENES, program: "2D", image: () => null, ...opts };
+  const log = [], o = { password: "", inputs: INPUTS, scenes: SCENES, program: "2D", image: () => null, video: null, transforms: {}, recording: false, ...opts };
   await page.routeWebSocket(/^ws:\/\/localhost:4455\/?$/, ws => {
-    const { password, inputs, image, scenes, program } = o;
+    const { password, inputs, scenes, program } = o;
     if (o.down) return ws.close({ code: 1006 });
     const salt = "c2FsdA==", challenge = "Y2hhbGxlbmdl";
     ws.send(JSON.stringify({ op: 0, d: { obsWebSocketVersion: "5.5.0", rpcVersion: 1, ...(password ? { authentication: { salt, challenge } } : {}) } }));
@@ -36,12 +36,17 @@ async function fakeObs(page, opts = {}) {
       const t = m.d.requestType, rd = m.d.requestData || {};
       if (t === "GetInputList") reply({ inputs });
       else if (t === "GetSceneList" && scenes) reply({ currentProgramSceneName: program, scenes: Object.keys(scenes).reverse().map((sceneName, i) => ({ sceneName, sceneIndex: i })) });
-      else if (t === "GetSceneItemList" && scenes && scenes[rd.sceneName]) reply({ sceneItems: scenes[rd.sceneName].map(sourceName => ({ sourceName, sourceType: "OBS_SOURCE_TYPE_INPUT", isGroup: false, sceneItemEnabled: true })) });
-      else if (t === "GetSourceScreenshot") { const data = image(rd.sourceName); reply(data ? { imageData: data } : undefined, data ? null : "Failed to render screenshot."); }
+      else if (t === "GetSceneItemList" && scenes && scenes[rd.sceneName]) reply({ sceneItems: scenes[rd.sceneName].map((sourceName, i) => ({ sourceName, sceneItemId: i + 1, sourceType: "OBS_SOURCE_TYPE_INPUT", isGroup: false, sceneItemEnabled: true })) });
+      else if (t === "GetVideoSettings" && o.video) reply(o.video);
+      else if (t === "GetSceneItemTransform" && scenes && o.transforms[scenes[rd.sceneName][rd.sceneItemId - 1]]) reply({ sceneItemTransform: o.transforms[scenes[rd.sceneName][rd.sceneItemId - 1]] });
+      else if (t === "GetRecordStatus") reply({ outputActive: o.recording });
+      else if (t === "GetStreamStatus") reply({ outputActive: false });
+      else if (t === "GetSourceScreenshot") { const data = o.image(rd.sourceName); reply(data ? { imageData: data } : undefined, data ? null : "Failed to render screenshot."); }
       else reply(undefined, "Unsupported");
     });
   });
-  return { log, set: v => Object.assign(o, v), shots: () => log.filter(m => m.op === 6 && m.d.requestType === "GetSourceScreenshot").map(m => m.d.requestData.sourceName) };
+  const shotReqs = () => log.filter(m => m.op === 6 && m.d.requestType === "GetSourceScreenshot").map(m => m.d.requestData);
+  return { log, set: v => Object.assign(o, v), shots: () => shotReqs().map(r => r.sourceName), widths: () => shotReqs().map(r => r.imageWidth) };
 }
 // A 64x36 JPEG of one color, made by the page itself.
 const jpeg = (page, color) => page.evaluate(c => { const cv = document.createElement("canvas"); cv.width = 64; cv.height = 36; const g = cv.getContext("2d"); g.fillStyle = c; g.fillRect(0, 0, 64, 36); return cv.toDataURL("image/jpeg"); }, color);
@@ -264,4 +269,122 @@ test("Reset All forgets the OBS connection", async ({ app, page }) => {
   await page.click('#confirm [data-confirm="yes"]');
   await expect.poll(() => stored(page)).toBeNull();
   expect(await page.evaluate(() => obsCfg)).toEqual({ port: 4455, source: "", password: "" });
+});
+
+// ---------- matching the stream: output size and where the game sits in the scene ----------
+const VIDEO = { baseWidth: 1920, baseHeight: 1080, outputWidth: 1280, outputHeight: 720, fpsNumerator: 60, fpsDenominator: 1 };
+const tf = o => ({ positionX: 0, positionY: 0, rotation: 0, scaleX: 1, scaleY: 1, sourceWidth: 1920, sourceHeight: 1080, alignment: 5,
+  boundsType: "OBS_BOUNDS_NONE", boundsWidth: 0, boundsHeight: 0, boundsAlignment: 0, cropLeft: 0, cropRight: 0, cropTop: 0, cropBottom: 0, cropToBounds: false, ...o });
+// The stored background's size and the color at a few points (fractions of its width and height).
+const sample = (page, pts) => page.evaluate(pts => new Promise(res => {
+  const img = new Image();
+  img.onload = () => {
+    const c = document.createElement("canvas"); c.width = img.width; c.height = img.height;
+    const g = c.getContext("2d"); g.drawImage(img, 0, 0);
+    res({ w: img.width, h: img.height, px: pts.map(([x, y]) => { const d = g.getImageData(Math.floor(x * img.width), Math.floor(y * img.height), 1, 1).data; return d[0] > 120 && d[1] < 90 ? "red" : d[0] + d[1] + d[2] < 40 ? "black" : "other"; }) });
+  };
+  img.src = localStorage.getItem("joi.reference");
+}), pts);
+
+test("captures at OBS's output size, with the game where the scene puts it", async ({ app, page }) => {
+  // The window is scaled to half size and centered: the stream shows it in the middle with black around it.
+  const obs = await setup(app, { video: VIDEO, transforms: { "SC Window": tf({ positionX: 960, positionY: 540, alignment: 0, scaleX: 0.5, scaleY: 0.5 }) } },
+    { storage: { "joi.obs": remembered("SC Window") } });
+  const red = await jpeg(page, "#c03030");
+  obs.set({ image: () => red });
+  await pressC(page); await pressC(page);
+  await expect(page.locator("#toast")).toHaveText("Captured SC Window.");
+  expect(obs.widths()).toEqual([640]);   // only the pixels it covers: half of the 1280 px output
+  expect(await sample(page, [[0.5, 0.5], [0.3, 0.3], [0.05, 0.05], [0.9, 0.5]])).toEqual({ w: 1280, h: 720, px: ["red", "red", "black", "black"] });
+});
+
+test("crop is honored: a window cropped to its left half shows on the left", async ({ app, page }) => {
+  const obs = await setup(app, { video: { ...VIDEO, outputWidth: 1920, outputHeight: 1080 }, transforms: { "SC Window": tf({ cropRight: 960 }) } },
+    { storage: { "joi.obs": remembered("SC Window") } });
+  const red = await jpeg(page, "#c03030");
+  obs.set({ image: () => red });
+  await pressC(page); await pressC(page);
+  await expect(page.locator("#toast")).toHaveText("Captured SC Window.");
+  expect(obs.widths()).toEqual([1920]);   // the full source, so its cropped half fills its 960 px
+  expect(await sample(page, [[0.25, 0.5], [0.75, 0.5]])).toEqual({ w: 1920, h: 1080, px: ["red", "black"] });
+});
+
+test("without a scene position it still captures at the output width", async ({ app, page }) => {
+  const obs = await setup(app, { video: { ...VIDEO, outputWidth: 2560, outputHeight: 1440 } }, { storage: { "joi.obs": remembered("SC Window") } });
+  const red = await jpeg(page, "#c03030");
+  obs.set({ image: () => red });
+  await pressC(page); await pressC(page);
+  await expect(page.locator("#toast")).toHaveText("Captured SC Window.");
+  expect(obs.widths()).toEqual([2560]);
+});
+
+test("bounds, alignment and flips land where OBS draws them", async ({ app, page }) => {
+  await app.open();
+  const r = await page.evaluate(() => [
+    placeRect({ sourceWidth: 1920, sourceHeight: 1080, cropLeft: 0, cropRight: 0, cropTop: 0, cropBottom: 0, scaleX: -1, scaleY: 1, alignment: 0, boundsType: "OBS_BOUNDS_NONE" }),
+    placeRect({ sourceWidth: 1000, sourceHeight: 1000, cropLeft: 0, cropRight: 0, cropTop: 0, cropBottom: 0, scaleX: 1, scaleY: 1, alignment: 5, boundsType: "OBS_BOUNDS_SCALE_INNER", boundsWidth: 1920, boundsHeight: 1080, boundsAlignment: 0 }),
+    placeRect({ sourceWidth: 1000, sourceHeight: 1000, cropLeft: 0, cropRight: 0, cropTop: 0, cropBottom: 0, scaleX: 1, scaleY: 1, alignment: 10, boundsType: "OBS_BOUNDS_STRETCH", boundsWidth: 400, boundsHeight: 200, boundsAlignment: 0 }),
+    placeRect({ sourceWidth: 1000, sourceHeight: 500, cropLeft: 0, cropRight: 0, cropTop: 0, cropBottom: 0, scaleX: 1, scaleY: 1, alignment: 5, boundsType: "OBS_BOUNDS_SCALE_OUTER", boundsWidth: 500, boundsHeight: 500, boundsAlignment: 1 })
+  ]);
+  expect(r[0]).toEqual({ x: -960, y: -540, w: 1920, h: 1080 });
+  expect(r[1]).toEqual({ x: 420, y: 0, w: 1080, h: 1080, clip: null });              // fit, centered in the bounds
+  expect(r[2]).toEqual({ x: -400, y: -200, w: 400, h: 200, clip: null });            // bottom-right anchored stretch
+  expect(r[3]).toEqual({ x: 0, y: 0, w: 1000, h: 500, clip: { x: 0, y: 0, w: 500, h: 500 } });   // cover, left-aligned, clipped
+});
+
+// ---------- Live ----------
+test("Live follows the game with small frames, and turning it off keeps one sharp frame", async ({ app, page }) => {
+  const obs = await setup(app, { video: { ...VIDEO, outputWidth: 2560, outputHeight: 1440 } }, { storage: { "joi.obs": remembered("SC Window") } });
+  const red = await jpeg(page, "#c03030"), blue = await jpeg(page, "#3050c0");
+  let n = 0;
+  obs.set({ image: () => (n++ % 2 ? blue : red) });
+  await page.getByRole("button", { name: "Live" }).click();
+  await expect(page.getByRole("button", { name: "Live" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("#panel")).toContainText("Live from OBS: SC Window");
+  await expect.poll(() => obs.widths().length, { timeout: 5000 }).toBeGreaterThanOrEqual(4);
+  expect(Math.max(...obs.widths())).toBeLessThanOrEqual(1280);
+  // About twice a second, not flat out.
+  const a = obs.widths().length; await page.waitForTimeout(2000); const b = obs.widths().length;
+  expect(b - a).toBeGreaterThanOrEqual(2); expect(b - a).toBeLessThanOrEqual(6);
+  // Live frames aren't written to storage.
+  expect(await page.evaluate(() => localStorage.getItem("joi.reference"))).toBeNull();
+  await page.getByRole("button", { name: "Live" }).click();
+  await expect(page.locator("#toast")).toHaveText("Captured SC Window.");
+  expect(obs.widths().at(-1)).toBe(2560);
+  const c = obs.widths().length; await page.waitForTimeout(1200);
+  expect(obs.widths().length).toBe(c);   // stopped
+  expect(await page.evaluate(() => localStorage.getItem("joi.reference"))).toMatch(/^data:image\/jpeg/);
+});
+
+test("Live pauses while OBS records and stops when the editor closes", async ({ app, page }) => {
+  const obs = await setup(app, {}, { storage: { "joi.obs": remembered("SC Window") } });
+  const red = await jpeg(page, "#c03030");
+  obs.set({ image: () => red, recording: true });
+  await page.evaluate(() => document.activeElement.blur());
+  await page.keyboard.press("l");
+  await expect(page.locator("#panel")).toContainText("Live is paused while OBS records or streams.");
+  await page.waitForTimeout(1000);
+  expect(obs.shots()).toEqual([]);
+  obs.set({ recording: false });
+  await expect.poll(() => obs.shots().length, { timeout: 6000 }).toBeGreaterThan(0);
+  await expect(page.locator("#panel")).not.toContainText("paused");
+  await page.evaluate(() => setEditing(false));
+  const n = obs.shots().length; await page.waitForTimeout(1200);
+  expect(obs.shots().length).toBeLessThanOrEqual(n + 1);   // at most the frame already in flight
+  expect(await page.evaluate(() => localStorage.getItem("joi.reference"))).toMatch(/^data:image\/jpeg/);   // the last frame is kept
+  await page.evaluate(() => setEditing(true));
+  await expect(page.getByRole("button", { name: "Live" })).toHaveAttribute("aria-pressed", "false");
+});
+
+test("Live keeps trying while the game has no picture, and never swaps the source", async ({ app, page }) => {
+  const obs = await setup(app, {}, { storage: { "joi.obs": remembered("SC Window") } });
+  const red = await jpeg(page, "#c03030");
+  obs.set({ image: n => n === "Desktop" ? red : null });
+  await page.getByRole("button", { name: "Live" }).click();
+  await expect(page.locator("#panel")).toContainText("Live is waiting for a picture from OBS");
+  await expect.poll(() => obs.shots().length, { timeout: 5000 }).toBeGreaterThanOrEqual(2);
+  expect(new Set(obs.shots())).toEqual(new Set(["SC Window"]));
+  obs.set({ image: () => red });
+  await expect(page.locator("#panel")).not.toContainText("waiting", { timeout: 6000 });
+  expect((await stored(page)).source).toBe("SC Window");
 });

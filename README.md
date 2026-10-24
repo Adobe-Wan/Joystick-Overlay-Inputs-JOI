@@ -67,9 +67,15 @@ First time:
 4. Pick the source that shows your game. The list has every source that could (Game, Window and Display Capture, capture cards and so on), grouped by scene in the order of OBS's Scenes dock, with the scene on air first and already chosen. Use a separate scene for VR or 2D? Pick the capture under that scene.
 5. Press **Capture in 5 s** and switch to the game.
 
-After that it's one click (or **C**). If the chosen source has no picture (a Game Capture that hasn't hooked the game, or one in a scene you aren't using), JOI tries your other Game, Window and Display Captures, on-air ones first, and keeps the first one that works.
+After that it's one click (or **C**).
 
-JOI keeps the password only until it reloads unless you tick **Remember Password on This PC**. The password lets anything that has it control OBS, and other local pages on this PC can read what JOI remembers, so leave it off on a shared PC. It's never in Save and Share files.
+**It matches the stream.** The screenshot is taken at OBS's output resolution (**Settings → Video → Output**) and drawn where the game sits in the scene on air, with its position, scale, crop, bounds and rotation. If your scene shrinks or crops the game, the editor shows it the same way, with black where the game isn't.
+
+**Live.** Once you've connected, **Live** next to Capture Game View (or **L**) shows the game behind the editor, refreshed about twice a second, so you can line widgets up with a HUD that moves. Window Capture keeps updating with the game behind OBS, as long as it isn't minimized. To keep OBS smooth, Live frames are smaller (1280 px wide; the background stretches, so they line up the same), Live pauses while OBS is recording or streaming, and it stops when you leave the editor. Turning Live off takes one last full-resolution capture to keep. To check Live costs your PC nothing noticeable, open OBS **View → Stats** while it's on and watch *Frames missed due to rendering lag*.
+
+If the chosen source has no picture (a Game Capture that hasn't hooked the game, or one in a scene you aren't using), JOI tries your other Game, Window and Display Captures, on-air ones first, and keeps the first one that works.
+
+JOI keeps the password only until it reloads unless you tick **Remember Password on This PC**. The password lets anything that has it control OBS, and other local pages on this PC can read what JOI remembers, so leave it off on a shared PC. It's never in Profiles & Share files.
 
 **Without the WebSocket server:** in OBS, right-click the source that shows your game and choose **Screenshot (Source)**. OBS saves it in your recording folder; load it with **Load My Own Screenshot**.
 
@@ -215,6 +221,7 @@ The single-key shortcuts work when no button or field has focus: click an empty 
 | Ctrl+Z / Ctrl+Y | Undo / redo (also Ctrl+Shift+Z; the small buttons above the + do the same) |
 | P | Hide / show the side panel |
 | C | Capture the game view from OBS after a 5 s countdown; press again to capture now (see *Capture the game view from OBS*) |
+| L | Live: show the game behind the editor, refreshed about twice a second |
 | ? | The shortcut list |
 | Alt (while dragging) | Turn snapping off |
 

@@ -673,7 +673,7 @@ body:not(.editing):not(.has-widgets) #enter-edit { display: flex; }
         <tr><td>Arrows</td><td>Nudge 1 px (Shift: 10 px)</td><td><kbd>Delete</kbd></td><td>Remove the selection</td></tr>
         <tr><td><kbd>Shift</kbd> / <kbd>Ctrl</kbd> while resizing</td><td>Keep proportions / from the center</td><td><kbd>Alt</kbd> while dragging</td><td>No snapping</td></tr>
         <tr><td><kbd>Esc</kbd></td><td>Clear the selection, then leave the editor</td><td><kbd>?</kbd></td><td>This list</td></tr>
-        <tr><td><kbd>C</kbd></td><td>Capture the game view from OBS</td><td></td><td></td></tr>
+        <tr><td><kbd>C</kbd></td><td>Capture the game view from OBS</td><td><kbd>L</kbd></td><td>Show the game live behind the editor</td></tr>
       </table>
     </details>
   </div>
@@ -3352,6 +3352,7 @@ document.addEventListener("keydown", e => {
   else if (onCanvas && !mod && !e.altKey && k === "a") openFab();
   else if (onCanvas && !mod && !e.altKey && k === "p") togglePanel();
   else if (onCanvas && !mod && !e.altKey && k === "c") captureGameView();
+  else if (onCanvas && !mod && !e.altKey && k === "l") toggleLive();
   else if (onCanvas && !mod && e.key === "?") { e.preventDefault(); openWelcome(true); }
   else if ((e.key === "Delete" || e.key === "Backspace") && selected.size) deleteSelected();
   else if (e.key === "Escape") { if (selected.size) setSelection([]); else if (onCanvas) setEditing(false); }
@@ -3375,7 +3376,7 @@ function setEditing(on) {
   editing = on;
   document.body.classList.toggle("editing", on);
   $("#edit-switch").checked = on;
-  if (!on) { closeWelcome(); closeFab(); if (wiz) closeWizard(); }
+  if (!on) { closeWelcome(); closeFab(); if (wiz) closeWizard(); if (live) stopLive(false); }
   // First time out of the editor with a layout and no profile.js next to the page: say once how to keep it.
   if (leaving && profile.widgets.length && !tipsSeen.backup && !window.JOI_PROFILE && !window.STAYONTARGET_PROFILE && !window.JOYVIZ_PROFILE) {
     tipsSeen.backup = true; try { localStorage.setItem(TIPS_KEY, JSON.stringify(tipsSeen)); } catch (e) {}
@@ -3592,30 +3593,94 @@ async function obsSources(request) {
         if (!it || typeof it.sourceName !== "string") continue;
         if (it.isGroup && depth < 4) await items(it.sourceName, true, depth + 1, out);
         else if (it.sourceType === "OBS_SOURCE_TYPE_SCENE") out.nested.push(it.sourceName);
-        else out.names.push(it.sourceName);
+        else out.names.push(it.sourceName), out.items.push({ name: it.sourceName, id: it.sceneItemId, scene, group });
       }
       return out;
     };
     const inScene = new Map();
-    for (const sc of scenes) inScene.set(sc, await items(sc, false, 0, { names: [], nested: [] }));
+    for (const sc of scenes) inScene.set(sc, await items(sc, false, 0, { names: [], nested: [], items: [] }));
     for (const [sc, { names }] of inScene) for (const n of names) { const s = byName.get(n); if (s && !s.scenes.includes(sc)) s.scenes.push(sc); }
     // On air: the program scene and the scenes nested in it.
     const onAir = new Set(), visit = sc => { if (onAir.has(sc) || !inScene.has(sc)) return; onAir.add(sc); inScene.get(sc).nested.forEach(visit); };
     visit(program);
     for (const s of list) s.live = s.scenes.some(sc => onAir.has(sc));
+    // Where each source sits, for placing its screenshot like the stream shows it: on-air scenes first, items
+    // straight in a scene (not in a group, whose own transform would also apply) before grouped ones.
+    for (const [sc, { items: its }] of inScene) for (const it of its) {
+      const s = byName.get(it.name); if (!s || !Number.isInteger(it.id)) continue;
+      (s.items = s.items || []).push({ ...it, onAir: onAir.has(sc), outer: sc });
+    }
+    for (const s of list) if (s.items) s.items.sort((a, b) => (b.onAir - a.onAir) || (!!a.group - !!b.group));
     // Program scene first in the scene order.
     list.sceneOrder = [program, ...scenes.filter(sc => sc !== program)].filter(sc => inScene.has(sc));
   } catch (e) { /* older OBS or a refused request: one plain list */ }
   list.program = program;
   return list.sort((a, b) => (b.live - a.live) || (captureRank(a.kind) - captureRank(b.kind)));
 }
-async function obsShot(request, source) {
-  // As wide as this page draws (in OBS that's the browser source's width), within reason, so storage isn't swamped.
-  const width = clamp(Math.round(window.innerWidth * (window.devicePixelRatio || 1)), 640, 2560);
-  const r = await request("GetSourceScreenshot", { sourceName: source, imageFormat: "jpeg", imageWidth: width, imageCompressionQuality: 82 });
-  const data = String(r.imageData || "").replace(/^data:image\/jpg;/, "data:image/jpeg;");
-  if (!okReference(data)) throw Object.assign(new Error("bad image"), { code: "failed" });
-  return data;
+// The screenshot, drawn where the source sits in its scene (position, scale, crop, bounds, rotation) on a canvas of
+// OBS's output size, so the editor background lines up with what viewers see. `maxWidth` caps it (Live frames). If
+// OBS can't say where the source sits, the source fills the frame, as a plain screenshot would.
+async function obsShot(request, source, place, maxWidth = 4096) {
+  const v = place && place.video, t = place && place.transform;
+  const outW = v ? Math.min(v.outputWidth, maxWidth) : clamp(Math.round(window.innerWidth * (window.devicePixelRatio || 1)), 640, maxWidth);
+  const outH = v ? Math.round(outW * v.outputHeight / v.outputWidth) : 0;
+  // Ask for as many source pixels as it covers in the output, no more: OBS does the scaling on the GPU.
+  let want = outW;
+  if (v && t && t.sourceWidth > 0) {
+    const r = placeRect(t), cropW = t.sourceWidth - t.cropLeft - t.cropRight;
+    if (cropW > 0) want = Math.round(r.w * (outW / v.baseWidth) * t.sourceWidth / cropW);
+  }
+  const res = await request("GetSourceScreenshot", { sourceName: source, imageFormat: "jpeg", imageWidth: clamp(want, 8, 4096), imageCompressionQuality: 82 });
+  const raw = String(res.imageData || "").replace(/^data:image\/jpg;/, "data:image/jpeg;");
+  if (!okReference(raw)) throw Object.assign(new Error("bad image"), { code: "failed" });
+  if (await isBlack(raw)) throw Object.assign(new Error(""), { code: "black" });
+  if (!v || !t || !(t.sourceWidth > 0) || !(v.baseWidth > 0)) return raw;
+  const img = await loadImage(raw);
+  const c = document.createElement("canvas"); c.width = outW; c.height = outH;
+  const g = c.getContext("2d"); g.fillStyle = "#000"; g.fillRect(0, 0, outW, outH);
+  const k = outW / v.baseWidth, px = img.width / t.sourceWidth, r = placeRect(t);
+  g.scale(k, k); g.translate(t.positionX, t.positionY); g.rotate((t.rotation || 0) * Math.PI / 180);
+  if (r.clip) { g.beginPath(); g.rect(r.clip.x, r.clip.y, r.clip.w, r.clip.h); g.clip(); }
+  g.drawImage(img, t.cropLeft * px, t.cropTop * px, (t.sourceWidth - t.cropLeft - t.cropRight) * px, (t.sourceHeight - t.cropTop - t.cropBottom) * px, r.x, r.y, r.w, r.h);
+  const out = c.toDataURL("image/jpeg", 0.85);
+  return okReference(out) ? out : raw;
+}
+const loadImage = src => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
+// OBS's scene item geometry, relative to the item's position point: the cropped source's box, and the bounds box it's
+// clipped to when "crop to bounds" is on. Alignment bits: 1 left, 2 right, 4 top, 8 bottom, none for center.
+function placeRect(t) {
+  const off = (al, w, h) => ({ x: al & 1 ? 0 : al & 2 ? -w : -w / 2, y: al & 4 ? 0 : al & 8 ? -h : -h / 2 });
+  const cw = Math.max(0, t.sourceWidth - t.cropLeft - t.cropRight), ch = Math.max(0, t.sourceHeight - t.cropTop - t.cropBottom);
+  if (!t.boundsType || t.boundsType === "OBS_BOUNDS_NONE" || !(t.boundsWidth > 0) || !(t.boundsHeight > 0)) {
+    const w = cw * Math.abs(t.scaleX), hh = ch * Math.abs(t.scaleY), o = off(t.alignment, w, hh);
+    return { x: o.x, y: o.y, w, h: hh };
+  }
+  const bw = t.boundsWidth, bh = t.boundsHeight, fit = Math.min(bw / cw, bh / ch), cover = Math.max(bw / cw, bh / ch);
+  const s = { OBS_BOUNDS_STRETCH: null, OBS_BOUNDS_SCALE_INNER: fit, OBS_BOUNDS_SCALE_OUTER: cover,
+    OBS_BOUNDS_SCALE_TO_WIDTH: bw / cw, OBS_BOUNDS_SCALE_TO_HEIGHT: bh / ch, OBS_BOUNDS_MAX_ONLY: Math.min(1, fit) }[t.boundsType];
+  const w = s === null ? bw : cw * (s === undefined ? fit : s), hh = s === null ? bh : ch * (s === undefined ? fit : s);
+  const box = off(t.alignment, bw, bh), a = t.boundsAlignment || 0;
+  const x = box.x + (a & 1 ? 0 : a & 2 ? bw - w : (bw - w) / 2), y = box.y + (a & 4 ? 0 : a & 8 ? bh - hh : (bh - hh) / 2);
+  return { x, y, w, h: hh, clip: t.cropToBounds || t.boundsType === "OBS_BOUNDS_SCALE_OUTER" ? { x: box.x, y: box.y, w: bw, h: bh } : null };
+}
+// Video settings and where `source` sits, from its first on-air scene item. Null pieces fall back to filling the frame.
+async function placement(request, src) {
+  let video = null, transform = null;
+  try {
+    const vs = await request("GetVideoSettings");
+    if (vs.baseWidth > 0 && vs.baseHeight > 0 && vs.outputWidth > 0 && vs.outputHeight > 0) video = vs;
+  } catch (e) { /* keep the plain frame */ }
+  const it = src && src.items && src.items[0];
+  if (video && it && !it.group) {
+    try {
+      const r = await request("GetSceneItemTransform", { sceneName: it.scene, sceneItemId: it.id });
+      const n = k => Number.isFinite(+r.sceneItemTransform[k]) ? +r.sceneItemTransform[k] : 0;
+      if (r.sceneItemTransform) transform = { ...r.sceneItemTransform,
+        ...Object.fromEntries(["positionX", "positionY", "rotation", "scaleX", "scaleY", "sourceWidth", "sourceHeight", "alignment",
+          "boundsWidth", "boundsHeight", "boundsAlignment", "cropLeft", "cropRight", "cropTop", "cropBottom"].map(k => [k, n(k)])) };
+    } catch (e) { /* keep the plain frame */ }
+  }
+  return { video, transform };
 }
 // A game that isn't hooked or is minimized captures as black. Sampled small, so this is quick.
 function isBlack(src) {
@@ -3635,20 +3700,19 @@ function isBlack(src) {
 }
 // Tries the chosen source, then the others, and keeps the first real picture. Game Capture has no picture (OBS can't
 // render it) until it has hooked a running game, so a second Game Capture or one in another scene often fails.
-async function shootBest(request, preferred) {
+async function shootBest(request, preferred, maxWidth, onlyPreferred = false) {
   const srcs = await obsSources(request);
   if (!srcs.length) throw Object.assign(new Error(""), { code: "no-source" });
   // Stand-ins are only game, window and display captures (never a webcam), on-air ones first: srcs is sorted that way.
-  const order = [...srcs.filter(s => s.name === preferred), ...srcs.filter(s => s.name !== preferred && captureRank(s.kind) <= 2)];
+  const order = [...srcs.filter(s => s.name === preferred), ...(onlyPreferred ? [] : srcs.filter(s => s.name !== preferred && captureRank(s.kind) <= 2))];
   let why = "", black = false;
   for (const s of order) {
     try {
-      const data = await obsShot(request, s.name);
-      if (await isBlack(data)) { black = true; continue; }
-      return { data, source: s.name };
-    } catch (e) { if (!why) why = e.message; }
+      const place = await placement(request, s);
+      return { data: await obsShot(request, s.name, place, maxWidth), source: s.name, src: s, place };
+    } catch (e) { if (e.code === "black") black = true; else if (!why) why = e.message; }
   }
-  throw Object.assign(new Error(why), { code: black ? "black" : "failed" });
+  throw Object.assign(new Error(why), { code: black && !why ? "black" : "failed" });
 }
 function useCapture(data, source, wanted) {
   refImage = data; autoPicked = false; applyReference(); renderPanel();
@@ -3666,18 +3730,20 @@ const OBS_ERRORS = {
 const obsError = e => (OBS_ERRORS[e.code] || OBS_ERRORS.failed) + (e.code === "failed" && e.message && e.message !== "bad image" ? ` (OBS said: ${e.message})` : "");
 
 // One capture with what worked last time. Errors open the dialog, which is also where a first capture starts.
-async function captureNow() {
+// `quiet` (the sharp frame after Live): on failure keep the last Live frame instead of opening the dialog.
+async function captureNow({ quiet = false } = {}) {
   if (capturing) return;
-  if (!obsCfg.source) return openObsDialog();
+  if (!obsCfg.source) return quiet ? storeReference() : openObsDialog();
   capturing = true;
   const wanted = obsCfg.source;
   try {
     const shot = await obsSession(obsCfg.port, obsCfg.password || obsSessionPw, request => shootBest(request, wanted));
     if (shot.source !== wanted) { obsCfg.source = shot.source; saveObsCfg(); }
     useCapture(shot.data, shot.source, wanted);
-  } catch (e) { openObsDialog(obsError(e)); }
+  } catch (e) { if (quiet) storeReference(); else openObsDialog(obsError(e)); }
   finally { capturing = false; }
 }
+function storeReference() { try { if (okReference(refImage)) localStorage.setItem(REF_KEY, refImage); } catch (e) {} }
 // The editor is in front while you press Capture, so by default JOI waits: switch to the game during the countdown and
 // the overlay (which keeps running in OBS behind the game) captures it. Pressing again during the countdown captures now.
 const CAPTURE_DELAY = 5;
@@ -3694,6 +3760,57 @@ function captureGameView() {
   countdown = setInterval(tick, 1000); tick();
 }
 function captureNowFromCountdown() { clearInterval(countdown); countdown = null; captureNow(); }
+
+// Live: while the editor is open, the background follows the game about twice a second, over one open connection.
+// Frames are small (1280 px wide; the background stretches, so they line up the same) and one request is in flight at
+// a time, so OBS never queues work. It pauses while OBS records or streams, stops when the editor closes, and turning
+// it off takes one last frame at full output size to keep.
+const LIVE_MS = 500, LIVE_WIDTH = 1280;
+let live = null;   // the running session: { stop, paused, waiting, done }
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+function toggleLive() { if (live) stopLive(true); else startLive(); }
+function startLive() {
+  if (live) return;
+  if (!obsCfg.source) return openObsDialog();
+  if (countdown) { clearInterval(countdown); countdown = null; }
+  const run = live = { stop: false, paused: false, waiting: false };
+  const flag = (k, v) => { if (run[k] !== v) { run[k] = v; if (live === run) renderPanel(); } };
+  renderPanel();
+  run.done = obsSession(obsCfg.port, obsCfg.password || obsSessionPw, async request => {
+    let shot = null, checked = -1e9;
+    while (!run.stop) {
+      const t0 = performance.now();
+      // Every 3 s: is OBS recording or streaming, and look up the source and its place again (scenes change).
+      if (t0 - checked > 3000) {
+        checked = t0; shot = null;
+        const [rec, str] = await Promise.all(["GetRecordStatus", "GetStreamStatus"].map(q => request(q).catch(() => ({}))));
+        flag("paused", !!(rec.outputActive || str.outputActive));
+      }
+      if (!run.paused && !run.stop) {
+        try {
+          if (!shot) {
+            shot = await shootBest(request, obsCfg.source, LIVE_WIDTH, true);   // only the chosen source: a game minimized for a moment mustn't swap it
+          } else shot.data = await obsShot(request, shot.source, shot.place, LIVE_WIDTH);
+          if (!run.stop) { refImage = shot.data; autoPicked = false; applyReference(); }
+          flag("waiting", false);
+        } catch (e) {
+          if (e.code === "no-source") throw e;
+          shot = null; flag("waiting", true);   // minimized or not hooked yet: keep trying
+        }
+      }
+      await sleep(Math.max(50, LIVE_MS - (performance.now() - t0)));
+    }
+  }).catch(e => {
+    if (run.stop) return;
+    run.stop = true; if (live === run) { live = null; renderPanel(); }
+    openObsDialog(obsError(e));
+  });
+}
+function stopLive(sharp) {
+  const run = live; if (!run) return;
+  run.stop = true; live = null; renderPanel();
+  run.done.then(() => sharp && editing ? captureNow({ quiet: true }) : storeReference());
+}
 
 function openObsDialog(error = "") {
   const d = $("#obs-dlg"), back = document.activeElement;
@@ -3832,6 +3949,7 @@ async function resetAll() {
   if (!ok) return;
   closeWizard();
   try { localStorage.removeItem(STORE_KEY); localStorage.removeItem(OLD_STORE_KEY); localStorage.removeItem(REF_KEY); localStorage.removeItem(OBS_KEY); } catch (e) {}
+  if (live) stopLive(false);
   obsCfg = { port: 4455, source: "", password: "" }; obsSessionPw = "";
   profile = newProfile(); save();   // fresh savedAt, so an older profile.js next to the HTML doesn't bring the old layout back
   refImage = null; autoSample = true; pickSampleForScreen();
@@ -4386,8 +4504,11 @@ function renderHome(p) {
   p.append(el("div", { class: "hint" }, "Place widgets around your HUD with a Star Citizen screenshot behind them. It shows only while you edit. Capture Game View counts down 5 s: switch to the game and JOI takes the screenshot from OBS. Press C to capture right away."));
   p.append(el("div", { class: "actions" },
     el("button", { onclick: captureGameView, title: "Counts down 5 s, then takes a screenshot of your game capture in OBS (C)", "aria-keyshortcuts": "C" }, "Capture Game View"),
+    obsCfg.source ? el("button", { class: live ? "on" : "", "aria-pressed": live ? "true" : "false", onclick: toggleLive, title: "Show the game live behind the editor, about twice a second (L)", "aria-keyshortcuts": "L" }, "Live") : null,
     obsCfg.source ? el("button", { class: "text", onclick: () => openObsDialog(), title: "Port, password and which OBS source to capture" }, "OBS Connection") : null));
-  if (obsCfg.source) p.append(el("div", { class: "hint small" }, "From OBS: " + obsCfg.source));
+  if (live && live.paused) p.append(el("div", { class: "hint warn" }, "Live is paused while OBS records or streams."));
+  else if (live && live.waiting) p.append(el("div", { class: "hint warn" }, "Live is waiting for a picture from OBS. Is the game minimized?"));
+  if (obsCfg.source) p.append(el("div", { class: "hint small" }, (live ? "Live from OBS: " : "From OBS: ") + obsCfg.source));
   if (availableSamples.length) {
     const sr = el("div", { class: "actions" });
     for (const sm of availableSamples) {
