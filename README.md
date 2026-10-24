@@ -29,12 +29,12 @@ Download the new zip and replace `JOI.html` in your folder. Keep your `profile.j
 3. Right-click the source and choose **Interact**. The first time, JOI opens in edit mode with a welcome dialog that asks **What do you fly with?** (Later, press **E** or click **Open Editor** to return; **Help** in the top bar brings the dialog back.)
 4. Pick the setup closest to your hardware: **WASD + Mouse**, **HOSAS + Pedals** (two sticks), **HOTAS + Pedals** (stick and throttle), **HOSAM** (stick and mouse) or **Directional Inputs**. Each tile spells out its acronym and lists what it adds. The widgets appear along the bottom middle of the screen, where most streamers keep their inputs, named for what they fly (**Pitch / Yaw**, **Strafe**, **Roll**), and **Bind Inputs** opens:
    1. **Move it** when asked: push the stick fully right, then fully forward. It detects the axis and its direction. The browser only lists a controller once it has moved, so wiggle it if nothing happens.
-   2. **Skip for Now** leaves a widget for later; **Bind Inputs** on the Setup or Profiles tab finishes the rest.
+   2. **Skip for Now** leaves a widget for later; **Bind Inputs** on the Setup panel (or in **Profiles & Share**) finishes the rest.
 
    Prefer to build it yourself? **Add Devices One by One** opens the same wizard for a single Stick, Pedals, Button/Key, Throttle, Single Axis or Label, and asks you to **Name It**. The round **+** button (bottom right, or press **A**) and **+ Add** in the top bar add more at any time.
-5. Drag the widgets where you want them (see *Positioning* below). The **Reference Screenshot** on the Setup tab puts a Star Citizen screenshot behind the editor, so you can place them around the HUD instead of on top of it; it never shows on stream. Click a widget to change its name, binding, size or colors.
+5. Drag the widgets where you want them (see *Positioning* below). The **Reference Screenshot** on the Setup panel puts a Star Citizen screenshot behind the editor, so you can place them around the HUD instead of on top of it; it never shows on stream. Click a widget to change its name, binding, size or colors.
 6. Switch **Edit Mode** off in the top bar (or press **E**). The reference screenshot disappears with the editor. The first time, a tip reminds you of step 7.
-7. **Save and Share → Download profile.js**, and save it in the same folder as `JOI.html`. This keeps the setup safe if OBS clears its cache.
+7. **Profiles & Share → Download profile.js**, and save it in the same folder as `JOI.html`. This keeps the setup safe if OBS clears its cache.
 
 Opened in a normal browser instead of OBS, the welcome says so and reminds you to add the file to OBS when the layout is ready.
 
@@ -110,11 +110,11 @@ For movement keys, press **Add W, A, S and D Keys** in the same step. It adds th
 **The catch in OBS:** a Browser source only receives key presses while it has keyboard focus, which in OBS means while its **Interact** window is open and focused. With the game in front, Windows sends the keys to the game, not to OBS, so the keycaps won't light during play from the browser source alone. Showing keys while you play needs a helper that listens to the keyboard system-wide; the planned in-game companion app is where that fits. Device buttons and axes are not affected: the browser reads controllers whether or not it has focus.
 
 ## Profiles and presets
-Keep a layout for each ship or controller setup and swap between them. With nothing selected, the side panel has two tabs: **Setup** and **Profiles** (the Profiles tab shows which profile is on screen).
+Keep a layout for each ship or controller setup and swap between them. Click **Profiles & Share** in the top bar: one panel holds your profiles, sharing and the `profile.js` backup. With nothing selected, the side panel shows **Setup**.
 
 - **Switch** by clicking a profile in the list. Each profile has its own widgets, positions, colors and theme. Editor preferences (grid, snapping, guides, overlay scale, editor text size) belong to your computer and stay the same whichever profile is on screen.
 - **+ New Profile** starts an empty one in your current colors. **Duplicate** copies the profile on screen, for a ship that's almost the same. Type in **Name** to rename it. **Delete** asks first; your only profile can't be deleted.
-- **Download .json** saves the profile on screen as a file to share or keep. **Import a Profile** adds a file as a new profile next to yours; it never replaces one (an empty profile makes room for it). `profile.js` (in **Save and Share**) backs up every profile at once.
+- **Download .json** saves the profile on screen as a file to share or keep. **Import a Profile** adds a file as a new profile next to yours; it never replaces one (an empty profile makes room for it). **Download profile.js** (under **Back Up Every Profile**) backs up every profile at once.
 - **Undo** (Ctrl+Z) takes back a switch, rename, duplicate, delete, import or preset like any other edit.
 
 **Start From a Preset** (the same tiles as the welcome's **What do you fly with?**) adds the widgets for a common setup as a new profile, in your current colors, lined up along the bottom middle:
@@ -207,18 +207,18 @@ They report the same hardware name, so JOI tells them apart by the controller sl
 For a permanent fix, give one stick a different USB Product ID in VPC Configurator, then re-add that stick.
 
 ## Starting over
-**Reset All** (on the editor's home panel, and in **Settings → Start Over**) asks for confirmation, then removes every widget and returns all settings, colors and the reference screenshot to their defaults. It can't be undone, so use **Save and Share** first if you might want the layout back.
+**Reset All** (on the editor's home panel, and in **Settings → Start Over**) asks for confirmation, then removes every widget and returns all settings, colors and the reference screenshot to their defaults. It can't be undone, so use **Profiles & Share** first if you might want the layout back.
 
 ## A device isn't showing up
 Open the editor and click **Check Devices** on the home panel. It lists every controller your browser is passing to JOI, live, and which widgets are still waiting for theirs.
-- **Wake it up.** Browsers hide controllers until you use them after the page opens. Pedals have no buttons, so push a pedal or a toe pedal all the way once. The Setup tab lists every device the browser has seen.
+- **Wake it up.** Browsers hide controllers until you use them after the page opens. Pedals have no buttons, so push a pedal or a toe pedal all the way once. The Setup panel lists every device the browser has seen.
 - **Four controllers at most.** Browsers and OBS show no more than 4 game controllers at a time. If all 4 slots are taken, a fifth device (often the pedals) gets left out. Unplug or disable what you don't need on stream: a spare throttle, a wheel, an Xbox pad, or virtual controllers from Steam, vJoy or similar tools. Win+R, `joy.cpl` lists everything Windows sees.
 - **Different browsers.** A layout made in OBS also works in Chrome, Edge or Firefox; devices are matched by their USB ids.
 - **Remap a widget.** Select it and click **Detect Device** under *Device*. You move the stick or pedals (or press the button) again, and the widget switches to whatever you used, keeping its name, place, size and colors.
 - Still missing? Close other apps that read controllers, unplug the device and plug it back in, then refresh.
 
 ## Sharing a layout
-In **Save and Share** (or on the **Profiles** tab), click **Download .json** and send that file (plus `JOI.html` if they don't have it yet). It holds the profile on screen. They open the editor and choose **Import a Profile**, which adds it as a new profile next to theirs. With the same hardware it works right away. With different hardware they select each widget and press **Detect Device** to use their own.
+In **Profiles & Share**, click **Download .json** under **This Profile** and send that file (plus `JOI.html` if they don't have it yet). It holds the profile on screen. They open the editor and choose **Import a Profile**, which adds it as a new profile next to theirs. With the same hardware it works right away. With different hardware they select each widget and press **Detect Device** to use their own.
 
 Don't send your `profile.js`, and never use one someone else sent you. It's a personal backup that sits next to your own `JOI.html`, and it runs as a script when the overlay loads (see `SECURITY.md`). A `.json` is only data.
 

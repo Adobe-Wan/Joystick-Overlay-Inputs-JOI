@@ -388,12 +388,6 @@ input[type=checkbox] { accent-color: var(--ui-accent); width: 1.3rem; height: 1.
 #panel .review-list .meter .rest { background: rgba(255,255,255,0.28); }
 #panel .review-list small { color: #a9b6c4; font-size: 0.86rem; }
 #panel .actions { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.9rem; }
-/* Setup and Profiles tabs on the home panel, pinned like a widget panel's head. */
-#panel .p-tabs { position: sticky; top: -1.1rem; z-index: 3; display: flex; gap: 0.25rem; margin: -1.1rem -1.1rem 0.9rem; padding: 0.7rem 1.1rem 0; background: #121a24;
-  border-bottom: 1px solid rgba(255,255,255,0.08); }
-#panel .p-tabs button { flex: 1; margin-bottom: -1px; border: 0; border-bottom: 2px solid transparent; border-radius: 0.3rem 0.3rem 0 0; color: #b6c3d1; font-weight: 600; }
-#panel .p-tabs button[aria-selected=true] { color: var(--ui-accent); border-bottom-color: var(--ui-accent); }
-#panel .p-tabs button .cur { display: block; font-size: 0.75rem; font-weight: 500; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Profiles list: one button per profile, the active one outlined; presets as two-column tiles. */
 .prof-list { display: grid; gap: 0.35rem; margin: 0.4rem 0 0.6rem; }
 .prof-list button { display: flex; align-items: baseline; gap: 0.6rem; text-align: left; padding: 0.55rem 0.7rem; }
@@ -689,7 +683,7 @@ body:not(.editing):not(.has-widgets) #enter-edit { display: flex; }
     <button class="primary" data-act="add-device" title="Add a stick, pedals, button, throttle, axis or label">+ Add</button>
     <button data-act="review" id="heat-btn" title="Session heatmap and what it says about your flying">Review</button>
     <button data-act="settings">Settings</button>
-    <button data-act="export">Save and Share</button>
+    <button data-act="profiles" title="Switch, add and back up profiles, and share one with another pilot">Profiles &amp; Share</button>
     <button data-act="help" title="Starter setups and keyboard shortcuts (?)">Help</button>
     <button data-act="panel" id="panel-btn" title="Show / hide the side panel (P)" aria-keyshortcuts="P">Hide Panel</button>
   </div>
@@ -748,8 +742,7 @@ const DEFAULT_SETTINGS = { scaleMode: "auto", scale: 1, uiScale: "auto", backgro
 let profile = null;     // { savedAt, settings, widgets: [] }
 let editing = false;
 const selected = new Set();
-let panelMode = "home"; // "home" | "profiles" | "widget" | "multi" | "settings" | "export" | "devices"
-let homeTab = "home";   // the tab (Setup or Profiles) shown when nothing is selected
+let panelMode = "home"; // "home" | "profiles" | "widget" | "multi" | "settings" | "review" | "devices"
 let showHeat = false;
 const runtime = Object.create(null);   // keyed by widget id: no prototype, so an id like "__proto__" is just a key
 
@@ -1154,8 +1147,8 @@ function writeProfile() {
   // A remembered screenshot is the only big thing in storage and it is optional: give its room to the layout.
   if (isQuotaError(err) && dropStoredReference()) err = write();
   if (!err) { saveFailed = false; return; }
-  if (!saveFailed) toast(isQuotaError(err) ? "Couldn't save your layout: browser storage is full. Use Save and Share to download a backup."
-    : "Couldn't save your layout in this browser. Use Save and Share to download a backup.", 6000);
+  if (!saveFailed) toast(isQuotaError(err) ? "Couldn't save your layout: browser storage is full. Use Profiles & Share to download a backup."
+    : "Couldn't save your layout in this browser. Use Profiles & Share to download a backup.", 6000);
   saveFailed = true;
 }
 // ---------- undo / redo ----------
@@ -1421,7 +1414,7 @@ function nextBinding(rest) {
   if (rest) wiz.rest = rest;
   return true;
 }
-function skipBinding() { bindQueue.shift(); if (!nextBinding()) { closeWizard(); toast("Skipped. Bind Inputs on the Profiles tab finishes the rest."); } }
+function skipBinding() { bindQueue.shift(); if (!nextBinding()) { closeWizard(); toast("Skipped. Bind Inputs on the Setup panel finishes the rest."); } }
 
 // ---------- device types ----------
 // Each wizard step captures one axis. dir says which way the user moves it, so the binding
@@ -1450,7 +1443,7 @@ function closeWizard() {
   const finished = wiz && wiz.kind === "done";
   const stopped = bindQueue.length > 0;
   wiz = null; wizAdded = []; bindQueue = []; renderWiz();
-  if (stopped) setSelection([]);   // back to the tab with Bind Inputs on it
+  if (stopped) setSelection([]);   // back to Setup, which has Bind Inputs on it
   if (finished) maybeTip("groups");
 }
 // ---------- one-time tips ----------
@@ -2948,8 +2941,7 @@ const median = a => { const s = [...a].sort((x, y) => x - y); return s[s.length 
 // ---------- selection ----------
 function setSelection(ids, mode) {
   selected.clear(); for (const id of ids) selected.add(id);
-  if (mode === "home" || mode === "profiles") homeTab = mode;
-  panelMode = mode || (selected.size > 1 ? "multi" : selected.size === 1 ? "widget" : homeTab);
+  panelMode = mode || (selected.size > 1 ? "multi" : selected.size === 1 ? "widget" : "home");
   syncSelectionClasses(); renderPanel();
 }
 function toggleSelected(id) {
@@ -3311,7 +3303,7 @@ function setEditing(on) {
   // First time out of the editor with a layout and no profile.js next to the page: say once how to keep it.
   if (leaving && profile.widgets.length && !tipsSeen.backup && !window.JOI_PROFILE && !window.STAYONTARGET_PROFILE && !window.JOYVIZ_PROFILE) {
     tipsSeen.backup = true; try { localStorage.setItem(TIPS_KEY, JSON.stringify(tipsSeen)); } catch (e) {}
-    toast("Keep this layout safe: Save and Share → Download profile.js, saved next to JOI.html.", 7000);
+    toast("Keep this layout safe: Profiles & Share → Download profile.js, saved next to JOI.html.", 7000);
   }
   applyReference(); drawGrid();
   setSelection([]); placeResize();
@@ -3425,7 +3417,7 @@ function openWelcome(keys) {
   $("#welcome").classList.add("open");
   setTimeout(() => (keys ? $("#welcome-keys summary") : $("#welcome-presets button")).focus(), 0);
 }
-// Preset tiles, on the welcome and the Profiles tab: the hardware as icons, the acronym spelled out, what it adds.
+// Preset tiles, on the welcome and in Profiles & Share: the hardware as icons, the acronym spelled out, what it adds.
 function presetTiles(box, attr) {
   for (const pr of PRESETS) {
     const kinds = [...new Set(pr.groups.map(g => g[0].w.type))];
@@ -3470,7 +3462,7 @@ function confirmDialog({ title, body, ok }) {
 }
 async function resetAll() {
   const ok = await confirmDialog({ title: "Reset Everything?",
-    body: "This removes every widget and puts all settings, colors and the reference screenshot back to their defaults. This can't be undone. To keep a copy, cancel and use Save and Share first.",
+    body: "This removes every widget and puts all settings, colors and the reference screenshot back to their defaults. This can't be undone. To keep a copy, cancel and use Profiles & Share first.",
     ok: "Reset All" });
   if (!ok) return;
   closeWizard();
@@ -3507,7 +3499,7 @@ $("#toolbar").addEventListener("click", e => {
   if (act === "add-device") startDeviceWizard();
   else if (act === "review") setSelection([], "review");
   else if (act === "settings") setSelection([], "settings");
-  else if (act === "export") setSelection([], "export");
+  else if (act === "profiles") setSelection([], "profiles");
   else if (act === "panel") togglePanel();
   else if (act === "help") openWelcome();
 });
@@ -3954,63 +3946,49 @@ function renderPanelView(p) {
   if (panelMode === "widget" && selected.size === 1) return renderWidgetPanel(p);
   if (panelMode === "multi" && selected.size > 1) return renderMultiPanel(p);
   if (panelMode === "settings") return renderSettingsPanel(p);
-  if (panelMode === "export") return renderExportPanel(p);
+  if (panelMode === "profiles") return renderProfilesPanel(p);
   if (panelMode === "review") return renderReviewPanel(p);
   if (panelMode === "devices") return renderDevicesPanel(p);
-  panelTabs(p);
-  if (panelMode === "profiles") return renderProfilesPanel(p);
   return renderHome(p);
-}
-// Setup and Profiles, the two tabs of the panel when nothing is selected. Arrow keys move between them (ARIA tabs).
-function panelTabs(p) {
-  const tabs = [["home", "Setup"], ["profiles", "Profiles"]], cur = panelMode === "profiles" ? "profiles" : "home";
-  const bar = el("div", { class: "p-tabs", role: "tablist", "aria-label": "Editor panel" });
-  for (const [mode, label] of tabs) {
-    const on = mode === cur;
-    bar.append(el("button", { role: "tab", id: "tab-" + mode, "aria-selected": String(on), tabindex: on ? "0" : "-1", onclick: () => setSelection([], mode) },
-      label, mode === "profiles" ? el("span", { class: "cur" }, activeLayout().name) : null));
-  }
-  bar.addEventListener("keydown", e => {
-    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
-    e.preventDefault(); e.stopPropagation();
-    const next = cur === "home" ? "profiles" : "home";
-    setSelection([], next); setTimeout(() => { const t = $("#tab-" + next); if (t) t.focus(); }, 0);
-  });
-  p.append(bar);
 }
 function renderProfilesPanel(p) {
   const lib = profile.layouts, cur = activeLayout();
-  const box = el("div", { role: "tabpanel", "aria-labelledby": "tab-profiles" }); p.append(box);
-  box.append(el("h3", {}, "Profiles"));
-  box.append(el("div", { class: "hint" }, "Keep a layout for each ship or controller setup and switch between them. Every profile saves automatically."));
+  p.append(el("h3", {}, "Profiles & Share"));
+  p.append(el("div", { class: "hint" }, "Keep a layout for each ship or controller setup and switch between them. Every profile saves automatically."));
   const list = el("div", { class: "prof-list", role: "group", "aria-label": "Your profiles" });
   for (const e of lib.list) {
     const n = layoutWidgets(e).length, on = e.id === lib.active;
     list.append(el("button", { "aria-current": on ? "true" : "false", title: on ? "The profile on screen" : "Switch to " + e.name, onclick: () => switchLayout(e.id) },
       el("b", {}, e.name), el("small", {}, on ? "On screen" : n === 1 ? "1 widget" : n + " widgets")));
   }
-  box.append(list);
-  box.append(el("div", { class: "actions" },
+  p.append(list);
+  p.append(el("div", { class: "actions" },
     el("button", { onclick: addBlankLayout }, "+ New Profile"),
     el("button", { onclick: () => $("#file-in").click() }, "Import a Profile")));
-  box.append(el("h5", {}, "This Profile"));
+  p.append(el("h5", {}, "This Profile"));
   const name = el("input", { type: "text", maxlength: LAYOUT_NAME_MAX, "aria-label": "Profile name" }); name.value = cur.name;
-  name.addEventListener("input", () => { if (layoutName(name.value)) { renameLayout(cur, name.value); const t = $("#tab-profiles .cur"); if (t) t.textContent = cur.name; } });
+  name.addEventListener("input", () => { if (layoutName(name.value)) { renameLayout(cur, name.value); } });
   name.addEventListener("change", () => { name.value = cur.name; renderPanel(); });
   name.addEventListener("keydown", e => { if (e.key === "Enter") name.blur(); });
-  box.append(el("div", { class: "fields" }, fld("Name", name, null, true)));
+  p.append(el("div", { class: "fields" }, fld("Name", name, null, true)));
   const waiting = profile.widgets.filter(isUnbound).length;
-  if (waiting) box.append(el("div", { class: "hint warn" }, `${widgetsAre(waiting)} not bound to an input yet.`),
+  if (waiting) p.append(el("div", { class: "hint warn" }, `${widgetsAre(waiting)} not bound to an input yet.`),
     el("div", { class: "actions" }, el("button", { class: "primary", onclick: startBinding }, "Bind Inputs")));
-  box.append(el("div", { class: "actions" },
+  p.append(el("div", { class: "actions" },
     el("button", { onclick: () => duplicateLayout(cur.id), title: "Copy this profile, for example for a similar ship" }, "Duplicate"),
     el("button", { onclick: () => exportLayout(cur.id), title: "Download this profile as a .json file to share or keep" }, "Download .json"),
     Object.assign(el("button", { class: "danger", onclick: () => deleteLayout(cur.id), title: lib.list.length < 2 ? "Your only profile can't be deleted" : "Delete this profile" }, "Delete"), { disabled: lib.list.length < 2 })));
-  box.append(el("h5", {}, "Start From a Preset"));
-  box.append(el("div", { class: "hint small" }, "Adds a common setup as a new profile. Keys and the mouse work right away; move each stick, throttle or pedal once to bind it."));
+  p.append(el("div", { class: "hint small" }, "To share it, send the .json to another pilot. They open the editor and choose Import a Profile, which adds it next to their own profiles. "
+    + "With the same hardware it works right away; otherwise they press Detect Device on each widget."));
+  p.append(el("h5", {}, "Back Up Every Profile"));
+  p.append(el("div", { class: "hint small" }, "For a personal backup that survives OBS clearing its cache, download profile.js and put it in the same folder as JOI.html. "
+    + "It holds every profile. It's for your own computer only: don't share it."));
+  p.append(el("div", { class: "actions" }, el("button", { onclick: () => exportProfile(true) }, "Download profile.js")));
+  p.append(el("h5", {}, "Start From a Preset"));
+  p.append(el("div", { class: "hint small" }, "Adds a common setup as a new profile. Keys and the mouse work right away; move each stick, throttle or pedal once to bind it."));
   const g = el("div", { class: "presets" }); presetTiles(g, "data-preset");
   g.addEventListener("click", e => { const b = e.target.closest("[data-preset]"); if (b) addPreset(b.dataset.preset); });
-  box.append(g);
+  p.append(g);
 }
 
 function renderHome(p) {
@@ -4111,7 +4089,7 @@ function renderWiz() {
 
   if (wiz.kind === "done") {
     head(0, "Added", `${wiz.last.label || "Your widget"} is on your overlay`,
-      "It's at the bottom middle of the screen. Drag it anywhere later; a reference screenshot (Setup tab) shows the in-game HUD to place it around.");
+      "It's at the bottom middle of the screen. Drag it anywhere later; a reference screenshot (on the Setup panel) shows the in-game HUD to place it around.");
     if (wizAdded.length > 1) { const ul = el("ul", { class: "added", "aria-label": "Added so far" }); for (const n of wizAdded) ul.append(el("li", {}, n)); b.append(ul); }
     actions(el("button", { onclick: closeWizard }, "Done"),
       el("button", { onclick: startButtonWizard }, "Add a Button/Key"),
@@ -4808,16 +4786,6 @@ function renderReviewPanel(p) {
   };
   fill(); devTimer = setInterval(fill, 1000);
   p.append(el("div", { class: "hint small" }, "Orange is time at the stops, grey is time at rest. If an axis lives at full deflection, fly the same fight again with half the input and compare the replays: smaller, earlier corrections are what keep a target centered."));
-}
-
-function renderExportPanel(p) {
-  p.append(el("h3", {}, "Save and Share"));
-  p.append(el("div", { class: "hint" }, "Your setup saves automatically. For a personal backup that survives OBS clearing its cache, "
-    + "download profile.js and put it in the same folder as JOI.html. It holds every profile. It's for your own computer only: don't share it."));
-  p.append(el("div", { class: "actions" }, el("button", { class: "primary", onclick: () => exportProfile(true) }, "Download profile.js")));
-  p.append(el("h4", {}, "Share With Another Pilot"));
-  p.append(el("div", { class: "hint" }, `Download .json saves the profile on screen (${activeLayout().name}); send that file. The other pilot opens the editor and chooses Import a Profile, which adds it next to their own profiles. With the same hardware it works right away; otherwise they press Detect Device on each widget.`));
-  p.append(el("div", { class: "actions" }, el("button", { onclick: () => exportProfile(false) }, "Download .json"), el("button", { onclick: () => $("#file-in").click() }, "Import a Profile")));
 }
 
 // ---------- boot ----------
