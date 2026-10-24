@@ -703,7 +703,7 @@ body:not(.editing):not(.has-widgets) #enter-edit { display: flex; }
 <div id="obs-dlg" role="dialog" aria-modal="true" aria-labelledby="obs-title" aria-describedby="obs-body">
   <div class="dialog paper">
     <h2 id="obs-title">Capture From OBS</h2>
-    <p id="obs-body">JOI asks OBS for a screenshot of your game capture and puts it behind the editor. In OBS, open <b>Tools, WebSocket Server Settings</b>, turn on <b>Enable WebSocket server</b>, then use <b>Show Connect Info</b> to copy the port and password here.</p>
+    <p id="obs-body">JOI asks OBS for a screenshot of your game capture and puts it behind the editor. The game has to be on screen, so JOI counts down while you switch to it. In OBS, open <b>Tools, WebSocket Server Settings</b>, turn on <b>Enable WebSocket server</b>, then use <b>Show Connect Info</b> to copy the port and password here.</p>
     <p class="err" id="obs-err" role="alert" hidden></p>
     <div class="fields">
       <label for="obs-port">Port</label><input type="number" id="obs-port" min="1" max="65535" value="4455">
@@ -712,7 +712,7 @@ body:not(.editing):not(.has-widgets) #enter-edit { display: flex; }
     </div>
     <label class="check"><input type="checkbox" id="obs-remember"> Remember Password on This PC</label>
     <p class="small">Off: you type it once each time JOI loads. The password lets anything that has it control OBS, and other local pages on this PC can read what JOI remembers. It is never in Profiles & Share files.</p>
-    <div class="foot"><button data-obs="cancel">Cancel</button><button class="primary" id="obs-go">Connect</button></div>
+    <div class="foot"><button data-obs="cancel">Cancel</button><button id="obs-now" hidden>Capture Now</button><button class="primary" id="obs-go">Connect</button></div>
   </div>
 </div>
 <div id="wizard" role="dialog" aria-modal="true" aria-labelledby="wiz-title"><div class="dialog paper" id="wiz-body"></div></div>
@@ -3484,7 +3484,7 @@ function clearReference() { refImage = null; autoSample = false; autoPicked = fa
 // widgets aren't in the picture. Only ever localhost, only when the pilot asks, and the connection closes right after.
 const OBS_KEY = "joi.obs";
 const CAPTURE_KINDS = /^(game_capture|window_capture|monitor_capture|display_capture|screen_capture|xcomposite_input|xshm_input|pipewire-.*-capture-source|dshow_input|av_capture_input|v4l2_input)$/;
-const captureRank = k => k === "game_capture" ? 0 : /window|xcomposite|pipewire-window/.test(k) ? 1 : /monitor|display|screen|xshm|pipewire/.test(k) ? 2 : 3;
+const captureRank = k => k === "game_capture" ? 0 : /window|xcomposite/.test(k) ? 1 : /monitor|display|screen|xshm|pipewire/.test(k) ? 2 : CAPTURE_KINDS.test(k) ? 3 : 4;
 let obsCfg = { port: 4455, source: "", password: "" }, obsSessionPw = "", capturing = false;
 try {
   const v = JSON.parse(localStorage.getItem(OBS_KEY) || "null");
@@ -3569,13 +3569,45 @@ function obsSession(port, password, work) {
     };
   });
 }
-// The capture sources, game capture first.
+// The sources that can show the game, best first: those in the scene OBS is showing, then game capture before window
+// and display capture before anything else with a picture. Each knows the scenes it's in, so the dialog can group them
+// for pilots with a scene per setup (2D, VR and so on). Audio, text, color and browser sources (JOI itself) are left out.
+const NOT_GAME = /audio|wasapi|coreaudio|pulse|alsa|jack|sndio|browser_source|^text_|color_source|image_source|slideshow|ffmpeg_source|vlc_source/;
 async function obsSources(request) {
   const r = await request("GetInputList");
   const list = (Array.isArray(r.inputs) ? r.inputs : [])
-    .filter(i => i && typeof i.inputName === "string" && CAPTURE_KINDS.test(String(i.unversionedInputKind || i.inputKind || "")))
-    .map(i => ({ name: i.inputName, kind: String(i.unversionedInputKind || i.inputKind) }));
-  return list.sort((a, b) => captureRank(a.kind) - captureRank(b.kind));
+    .filter(i => i && typeof i.inputName === "string" && !NOT_GAME.test(String(i.unversionedInputKind || i.inputKind || "")))
+    .map(i => ({ name: i.inputName, kind: String(i.unversionedInputKind || i.inputKind || ""), scenes: [], live: false }));
+  const byName = new Map(list.map(s => [s.name, s]));
+  let program = "";
+  try {
+    const sl = await request("GetSceneList");
+    program = typeof sl.currentProgramSceneName === "string" ? sl.currentProgramSceneName : "";
+    // OBS lists scenes bottom-up (index 0 is the last one in its Scenes dock): reverse it to read like the dock.
+    const scenes = (Array.isArray(sl.scenes) ? sl.scenes : []).map(s => s && s.sceneName).filter(n => typeof n === "string").reverse();
+    // Items of one scene, through its groups. A nested scene is listed as its own scene, so it isn't walked here.
+    const items = async (scene, group, depth, out) => {
+      const s = await request(group ? "GetGroupSceneItemList" : "GetSceneItemList", { sceneName: scene });
+      for (const it of Array.isArray(s.sceneItems) ? s.sceneItems : []) {
+        if (!it || typeof it.sourceName !== "string") continue;
+        if (it.isGroup && depth < 4) await items(it.sourceName, true, depth + 1, out);
+        else if (it.sourceType === "OBS_SOURCE_TYPE_SCENE") out.nested.push(it.sourceName);
+        else out.names.push(it.sourceName);
+      }
+      return out;
+    };
+    const inScene = new Map();
+    for (const sc of scenes) inScene.set(sc, await items(sc, false, 0, { names: [], nested: [] }));
+    for (const [sc, { names }] of inScene) for (const n of names) { const s = byName.get(n); if (s && !s.scenes.includes(sc)) s.scenes.push(sc); }
+    // On air: the program scene and the scenes nested in it.
+    const onAir = new Set(), visit = sc => { if (onAir.has(sc) || !inScene.has(sc)) return; onAir.add(sc); inScene.get(sc).nested.forEach(visit); };
+    visit(program);
+    for (const s of list) s.live = s.scenes.some(sc => onAir.has(sc));
+    // Program scene first in the scene order.
+    list.sceneOrder = [program, ...scenes.filter(sc => sc !== program)].filter(sc => inScene.has(sc));
+  } catch (e) { /* older OBS or a refused request: one plain list */ }
+  list.program = program;
+  return list.sort((a, b) => (b.live - a.live) || (captureRank(a.kind) - captureRank(b.kind)));
 }
 async function obsShot(request, source) {
   // As wide as this page draws (in OBS that's the browser source's width), within reason, so storage isn't swamped.
@@ -3601,42 +3633,73 @@ function isBlack(src) {
     img.onerror = () => res(false); img.src = src;
   });
 }
-function useCapture(data, source) {
+// Tries the chosen source, then the others, and keeps the first real picture. Game Capture has no picture (OBS can't
+// render it) until it has hooked a running game, so a second Game Capture or one in another scene often fails.
+async function shootBest(request, preferred) {
+  const srcs = await obsSources(request);
+  if (!srcs.length) throw Object.assign(new Error(""), { code: "no-source" });
+  // Stand-ins are only game, window and display captures (never a webcam), on-air ones first: srcs is sorted that way.
+  const order = [...srcs.filter(s => s.name === preferred), ...srcs.filter(s => s.name !== preferred && captureRank(s.kind) <= 2)];
+  let why = "", black = false;
+  for (const s of order) {
+    try {
+      const data = await obsShot(request, s.name);
+      if (await isBlack(data)) { black = true; continue; }
+      return { data, source: s.name };
+    } catch (e) { if (!why) why = e.message; }
+  }
+  throw Object.assign(new Error(why), { code: black ? "black" : "failed" });
+}
+function useCapture(data, source, wanted) {
   refImage = data; autoPicked = false; applyReference(); renderPanel();
   try { localStorage.setItem(REF_KEY, refImage); } catch (err) { toast("Captured, but too large to save. It shows now but is gone after a reload."); return; }
-  toast(`Captured ${source}.`);
+  toast(wanted && wanted !== source ? `Captured ${source}. ${wanted} had no picture, so JOI uses ${source} from now on.` : `Captured ${source}.`, wanted && wanted !== source ? 6000 : 3000);
 }
 const OBS_ERRORS = {
   unreachable: "Can't reach OBS. Check that OBS is open, the WebSocket server is on (Tools, WebSocket Server Settings) and the port matches.",
   password: "OBS needs the WebSocket server password.",
   auth: "OBS said the password is wrong. Copy it again from Show Connect Info in OBS.",
-  "no-source": "No Game, Window or Display Capture in OBS. Add one that shows your game, then try again.",
-  failed: "OBS couldn't take the screenshot. Make sure the game is on screen and try again."
+  "no-source": "No source in OBS shows a game. Add a Game, Window or Display Capture of your game, then try again.",
+  black: "Every capture source came back black. Is the game minimized? Use Capture in 5 s and switch to the game while it counts down.",
+  failed: "None of your capture sources had a picture. Game Capture only has one while the game is running and not minimized. Use Capture in 5 s and switch to the game while it counts down."
 };
-// The one-click path (button or C): uses what worked last time, and opens the dialog only when something is missing.
-async function captureGameView() {
+const obsError = e => (OBS_ERRORS[e.code] || OBS_ERRORS.failed) + (e.code === "failed" && e.message && e.message !== "bad image" ? ` (OBS said: ${e.message})` : "");
+
+// One capture with what worked last time. Errors open the dialog, which is also where a first capture starts.
+async function captureNow() {
   if (capturing) return;
-  const pw = obsCfg.password || obsSessionPw;
   if (!obsCfg.source) return openObsDialog();
   capturing = true;
+  const wanted = obsCfg.source;
   try {
-    const data = await obsSession(obsCfg.port, pw, async request => {
-      const srcs = await obsSources(request);
-      if (!srcs.length) throw Object.assign(new Error(""), { code: "no-source" });
-      if (!srcs.some(s => s.name === obsCfg.source)) { obsCfg.source = srcs[0].name; saveObsCfg(); }
-      return obsShot(request, obsCfg.source);
-    });
-    if (await isBlack(data)) toast("That capture came back black. Make sure the game is on screen and try again.", 5000);
-    else useCapture(data, obsCfg.source);
-  } catch (e) { openObsDialog(OBS_ERRORS[e.code] || OBS_ERRORS.failed); }
+    const shot = await obsSession(obsCfg.port, obsCfg.password || obsSessionPw, request => shootBest(request, wanted));
+    if (shot.source !== wanted) { obsCfg.source = shot.source; saveObsCfg(); }
+    useCapture(shot.data, shot.source, wanted);
+  } catch (e) { openObsDialog(obsError(e)); }
   finally { capturing = false; }
 }
+// The editor is in front while you press Capture, so by default JOI waits: switch to the game during the countdown and
+// the overlay (which keeps running in OBS behind the game) captures it. Pressing again during the countdown captures now.
+const CAPTURE_DELAY = 5;
+let countdown = null;
+function captureGameView() {
+  if (!obsCfg.source) return openObsDialog();
+  if (countdown) return captureNowFromCountdown();
+  let left = CAPTURE_DELAY;
+  const tick = () => {
+    if (left <= 0) return captureNowFromCountdown();
+    toast(`Switch to your game. Capturing in ${left} s (press C to capture now).`, 1500);
+    left--;
+  };
+  countdown = setInterval(tick, 1000); tick();
+}
+function captureNowFromCountdown() { clearInterval(countdown); countdown = null; captureNow(); }
 
 function openObsDialog(error = "") {
   const d = $("#obs-dlg"), back = document.activeElement;
-  const port = $("#obs-port"), pw = $("#obs-pw"), rem = $("#obs-remember"), sel = $("#obs-source"), go = $("#obs-go"), err = $("#obs-err");
+  const port = $("#obs-port"), pw = $("#obs-pw"), rem = $("#obs-remember"), sel = $("#obs-source"), go = $("#obs-go"), now = $("#obs-now"), err = $("#obs-err");
   port.value = obsCfg.port; pw.value = obsCfg.password || obsSessionPw; rem.checked = !!obsCfg.password;
-  sel.replaceChildren(); $("#obs-source-row").hidden = true; go.textContent = "Connect";
+  sel.replaceChildren(); $("#obs-source-row").hidden = true; go.textContent = "Connect"; now.hidden = true;
   const say = msg => { err.textContent = msg; err.hidden = !msg; };
   say(error);
   d.classList.add("open");
@@ -3655,33 +3718,36 @@ function openObsDialog(error = "") {
     obsCfg.password = rem.checked ? s.password : "";
     saveObsCfg();
   };
-  const capture = async (s, source) => {
-    go.disabled = true; say("");
-    try {
-      const data = await obsSession(s.port, s.password, request => obsShot(request, source));
-      obsCfg.source = source; remember(s);
-      if (await isBlack(data)) { say("That capture came back black. Make sure the game is on screen, or pick another source."); return; }
-      close(); useCapture(data, source);
-    } catch (e) { say(OBS_ERRORS[e.code] || OBS_ERRORS.failed); }
-    finally { go.disabled = false; }
-  };
+  // Connecting checks the port and password and lists the sources; the capture itself runs from the editor.
   const connect = async s => {
     go.disabled = true; say("");
     let srcs;
     try { srcs = await obsSession(s.port, s.password, obsSources); }
-    catch (e) { go.disabled = false; say(OBS_ERRORS[e.code] || OBS_ERRORS.failed); if (e.code === "password" || e.code === "auth") pw.focus(); return; }
+    catch (e) { go.disabled = false; say(obsError(e)); if (e.code === "password" || e.code === "auth") pw.focus(); return; }
     go.disabled = false; remember(s);
     if (!srcs.length) { say(OBS_ERRORS["no-source"]); return; }
     const pick = srcs.find(x => x.name === obsCfg.source) || srcs[0];
-    if (srcs.length === 1) return capture(s, pick.name);
-    for (const x of srcs) sel.append(el("option", { value: x.name }, x.name));
-    sel.value = pick.name; $("#obs-source-row").hidden = false; go.textContent = "Capture"; sel.focus();
+    // Grouped by scene, the one on air first, so a pilot with a 2D and a VR scene can find the right capture.
+    const opt = x => el("option", { value: x.name }, x.name);
+    if (srcs.sceneOrder && srcs.sceneOrder.length) {
+      for (const sc of srcs.sceneOrder) {
+        const here = srcs.filter(x => x.scenes.includes(sc)); if (!here.length) continue;
+        const g = el("optgroup", { label: sc === srcs.program ? `${sc} (on air)` : sc });
+        here.sort((a, b) => captureRank(a.kind) - captureRank(b.kind)).forEach(x => g.append(opt(x))); sel.append(g);
+      }
+      const loose = srcs.filter(x => !x.scenes.length);
+      if (loose.length) { const g = el("optgroup", { label: "Not in any scene" }); loose.forEach(x => g.append(opt(x))); sel.append(g); }
+    } else srcs.forEach(x => sel.append(opt(x)));
+    sel.value = pick.name; $("#obs-source-row").hidden = false;
+    go.textContent = `Capture in ${CAPTURE_DELAY} s`; now.hidden = false; go.focus();
   };
+  const start = later => { obsCfg.source = sel.value; saveObsCfg(); close(); if (later) captureGameView(); else captureNow(); };
   const onClick = e => {
     if (e.target === d || e.target.closest("[data-obs=cancel]")) return close();
+    if (e.target.closest("#obs-now")) return start(false);
     if (e.target.closest("#obs-go")) {
-      const s = settings(); if (!s) return;
-      if ($("#obs-source-row").hidden) connect(s); else capture(s, sel.value);
+      if (!$("#obs-source-row").hidden) return start(true);
+      const s = settings(); if (s) connect(s);
     }
   };
   const onKey = e => {
@@ -3696,6 +3762,9 @@ function openObsDialog(error = "") {
   };
   // On the document, so Escape still works while focus sits on a button that was disabled mid-connect.
   d.addEventListener("click", onClick); document.addEventListener("keydown", onKey, true);
+  // Changing the port or password means connecting again before capturing.
+  const reset = () => { if (!$("#obs-source-row").hidden) { $("#obs-source-row").hidden = true; sel.replaceChildren(); go.textContent = "Connect"; now.hidden = true; } };
+  port.oninput = reset; pw.oninput = reset;
 }
 
 $("#edit-switch").addEventListener("change", e => setEditing(e.target.checked));
@@ -4314,9 +4383,9 @@ function renderHome(p) {
   p.append(el("div", { class: "actions" }, el("button", { onclick: () => setSelection([], "devices") }, "Check Devices")));
   devTimer = setInterval(() => { if (connectedPads().length !== pads.length) renderPanel(); }, 500);   // the line above flips as devices wake
   p.append(el("h4", {}, "Reference Screenshot"));
-  p.append(el("div", { class: "hint" }, "Place widgets around your HUD with a Star Citizen screenshot behind them. It shows only while you edit. Capture Game View takes one from OBS."));
+  p.append(el("div", { class: "hint" }, "Place widgets around your HUD with a Star Citizen screenshot behind them. It shows only while you edit. Capture Game View counts down 5 s: switch to the game and JOI takes the screenshot from OBS. Press C to capture right away."));
   p.append(el("div", { class: "actions" },
-    el("button", { onclick: captureGameView, title: "Take a screenshot of your game capture in OBS (C)", "aria-keyshortcuts": "C" }, "Capture Game View"),
+    el("button", { onclick: captureGameView, title: "Counts down 5 s, then takes a screenshot of your game capture in OBS (C)", "aria-keyshortcuts": "C" }, "Capture Game View"),
     obsCfg.source ? el("button", { class: "text", onclick: () => openObsDialog(), title: "Port, password and which OBS source to capture" }, "OBS Connection") : null));
   if (obsCfg.source) p.append(el("div", { class: "hint small" }, "From OBS: " + obsCfg.source));
   if (availableSamples.length) {

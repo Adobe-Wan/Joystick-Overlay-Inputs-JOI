@@ -56,15 +56,22 @@ Layouts are designed on a 1920×1080 canvas and **fit to the screen size** autom
 - Grid size, safe margin, and turning guides or the grid off are in **Settings**.
 
 ## Capture the game view from OBS
-**Capture Game View** on the Setup tab (or **C** in the editor) asks OBS for a screenshot of your game capture and puts it behind the editor, so you line widgets up against exactly what you see. It captures the game source, not the scene, so JOI's own widgets are never in the picture. It works in OBS Interact and in a normal browser, as long as OBS is running on the same PC.
+**Capture Game View** on the Setup tab (or **C** in the editor) asks OBS for a screenshot of the source that shows your game and puts it behind the editor, so you line widgets up against exactly what you see. It captures that source, not the scene, so JOI's own widgets are never in the picture. It works in OBS Interact and in a normal browser, as long as OBS is running on the same PC.
 
+The game has to be on screen for OBS to have a picture of it, and the editor is in front while you click. So the capture **counts down 5 seconds**: click it, switch to the game, and JOI (still running in OBS behind the game) takes the screenshot. When you come back, it's behind the editor. Press **C** again during the countdown, or **Capture Now** in the dialog, to capture right away, for example when the game is on another monitor.
+
+First time:
 1. In OBS, open **Tools → WebSocket Server Settings** and turn on **Enable WebSocket server** (built into OBS 28 and later).
 2. Click **Show Connect Info** there to see the port (usually 4455) and the password.
-3. In JOI, press **Capture Game View**, enter the port and password, and press **Connect**. If OBS has more than one Game, Window or Display Capture, pick the one that shows your game and press **Capture**.
+3. In JOI, press **Capture Game View**, enter the port and password, and press **Connect**.
+4. Pick the source that shows your game. The list has every source that could (Game, Window and Display Capture, capture cards and so on), grouped by scene in the order of OBS's Scenes dock, with the scene on air first and already chosen. Use a separate scene for VR or 2D? Pick the capture under that scene.
+5. Press **Capture in 5 s** and switch to the game.
 
-After that it's one click (or **C**). JOI keeps the password only until it reloads unless you tick **Remember Password on This PC**. The password lets anything that has it control OBS, and other local pages on this PC can read what JOI remembers, so leave it off on a shared PC. It's never in Profiles & Share files. A capture that comes back black usually means the game is minimized or Game Capture hasn't hooked it yet: put the game on screen and try again.
+After that it's one click (or **C**). If the chosen source has no picture (a Game Capture that hasn't hooked the game, or one in a scene you aren't using), JOI tries your other Game, Window and Display Captures, on-air ones first, and keeps the first one that works.
 
-**Without the WebSocket server:** in OBS, right-click your game capture source and choose **Screenshot (Source)**. OBS saves it in your recording folder; load it with **Load My Own Screenshot**.
+JOI keeps the password only until it reloads unless you tick **Remember Password on This PC**. The password lets anything that has it control OBS, and other local pages on this PC can read what JOI remembers, so leave it off on a shared PC. It's never in Save and Share files.
+
+**Without the WebSocket server:** in OBS, right-click the source that shows your game and choose **Screenshot (Source)**. OBS saves it in your recording folder; load it with **Load My Own Screenshot**.
 
 ## Sample backgrounds
 Sample screenshots live in the `Background Images for Edit Mode` folder next to `JOI.html`. The download includes 16:9 and 21:9 ultrawide samples. The editor uses whichever sample best matches your screen shape, as long as the files keep these exact names:
@@ -207,7 +214,7 @@ The single-key shortcuts work when no button or field has focus: click an empty 
 | Ctrl+A / Ctrl+D | Select all / duplicate |
 | Ctrl+Z / Ctrl+Y | Undo / redo (also Ctrl+Shift+Z; the small buttons above the + do the same) |
 | P | Hide / show the side panel |
-| C | Capture the game view from OBS (see *Capture the game view from OBS*) |
+| C | Capture the game view from OBS after a 5 s countdown; press again to capture now (see *Capture the game view from OBS*) |
 | ? | The shortcut list |
 | Alt (while dragging) | Turn snapping off |
 
