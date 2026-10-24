@@ -61,6 +61,14 @@ test.describe("visual", () => {
       expect(app.consoleErrors).toEqual([]);
     });
   }
+  // Place values: Along the axes on both sticks, the projected radar with its column on the right, the flat stick on the left.
+  test("stick values along the axes", async ({ app, page }) => {
+    await shot(app, page, "values-along-axes", () => {
+      const [s1, s2] = profile.widgets.filter(w => w.type === "stick");
+      s1.valueLayout = s2.valueLayout = "axes"; s2.valueSide = "left"; s2.axisNames = "flight"; s2.showValues = true;
+      save(); rebuildAll();
+    });
+  });
   test("Flat on every widget", async ({ app, page }) => {
     await shot(app, page, "flat", () => {
       const l = LOOK_PRESETS.find(x => x.name === "Flat");

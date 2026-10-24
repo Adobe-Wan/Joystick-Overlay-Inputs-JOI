@@ -72,6 +72,18 @@ body.preview:not(.editing).has-widgets #preview-chip { display: flex; }
    short reading leaves on the right, so "X 0%" looks centered under its half. */
 .readout.pair { display: grid; grid-template-columns: 1fr 1fr; justify-items: center; gap: 0 10px; width: max-content; margin-left: auto; margin-right: auto; }
 .readout.pair > span { padding-left: 1.5ch; }
+/* Stick, values along the axes (w.valueLayout "axes"): the up and down value stands in a column beside the gate,
+   vertically centered on it, label above value; the left and right value is centered under the gate. The column's
+   value keeps its 5ch, so the widget never changes width as the reading moves. The name stays over the gate. */
+.axes { display: grid; grid-template-columns: auto auto; grid-template-areas: "t ." "g y" "x ."; column-gap: 8px; justify-items: center; align-items: center; }
+.axes.left { grid-template-areas: ". t" "y g" ". x"; }
+.axes > .title { grid-area: t; }
+.axes > canvas { grid-area: g; }
+.axes > .ycol { grid-area: y; flex-direction: column; align-items: center; gap: 0; margin-top: 0; }
+.axes > .xval { grid-area: x; }
+.readout.ycol b { margin-right: 0; }
+.readout.ycol .val { text-align: center; }
+.readout.xval > span { padding-left: 1.5ch; }
 /* Pedals with axis labels off: L | rudder | R. 0% sits dead center; positive readings grow to the right
    from the "0" position, negative ones to the left, so the number tracks the rudder's direction. */
 .readout.ped-split { display: grid; grid-template-columns: 1fr 9ch 1fr; gap: 6px; }
@@ -121,7 +133,7 @@ body.preview:not(.editing).has-widgets #preview-chip { display: flex; }
    background, and its scanlines (rscan) instead of the box's. Title and readouts stand on the scene like a Label. */
 .widget.radar { background: none !important; border-color: transparent !important; box-shadow: none !important; }
 .widget.radar canvas:not(.holo-fringe) { border-radius: 50%; background-color: var(--wbg); }
-.widget.radar.rscan > canvas { background-image: repeating-linear-gradient(180deg, rgba(0,0,0,0) 0 2px, rgba(0,0,0,0.2) 2px 3px); }
+.widget.radar.rscan > canvas, .widget.radar.rscan > .axes > canvas { background-image: repeating-linear-gradient(180deg, rgba(0,0,0,0) 0 2px, rgba(0,0,0,0.2) 2px 3px); }
 /* Projector look: the widget is a hologram emitted from a base on the dash. Each projected widget has one rig
    (base disc, light cone, ray fan) under it, all static CSS and SVG painted once from the widget's projected corners.
    Colors are the --holo-* custom properties derived from the widget's theme; --holo-i scales every alpha with
@@ -173,10 +185,10 @@ body.editing .holo-rig.selected .holo-base { outline: 1px dashed var(--ui-accent
 .widget.holo.live.drop { margin-top: 1px; }
 /* The falloff toward the base is on the drawn faces only: readouts and titles stay fully legible, like the Gladius labels. */
 /* --holo-fall-a is what's left at the base end: 1 - Fade Toward Base. */
-.widget.holo .holo-in > canvas, .widget.holo .holo-in .bars {
+.widget.holo .holo-in > canvas, .widget.holo .holo-in > .axes > canvas, .widget.holo .holo-in .bars {
   -webkit-mask-image: linear-gradient(var(--holo-mask-dir, 180deg), #000 0 60%, rgba(0,0,0,var(--holo-fall-a, 0.5)) 100%);
   mask-image: linear-gradient(var(--holo-mask-dir, 180deg), #000 0 60%, rgba(0,0,0,var(--holo-fall-a, 0.5)) 100%); }
-.widget.holo.radar .holo-in > canvas {
+.widget.holo.radar .holo-in > canvas, .widget.holo.radar .holo-in > .axes > canvas {
   -webkit-mask-image: linear-gradient(var(--holo-mask-dir, 180deg), #000 0 55%, rgba(0,0,0,var(--holo-fall-a, 0.7)) 100%);
   mask-image: linear-gradient(var(--holo-mask-dir, 180deg), #000 0 55%, rgba(0,0,0,var(--holo-fall-a, 0.7)) 100%); }
 /* Scan roll: a 2px band sweeping down the widget, compositor-only. Subtle tier and up. The outer element clips it
@@ -187,10 +199,10 @@ body.editing .holo-rig.selected .holo-base { outline: 1px dashed var(--ui-accent
 .widget.holo.live .holo-roll { display: block; }
 /* A projected radar face: scanlines live on the disc itself (the canvas background, clipped round) instead of the
    widget's rectangle, so nothing square shows around the disc. */
-.widget.holo.radar .holo-in > canvas { border-radius: 50%; }
-.widget.holo.radar .holo-in > canvas { background-image: var(--holo-face, none); }
-.widget.holo.radar.rscan .holo-in > canvas { background-image: repeating-linear-gradient(180deg, rgba(0,0,0,0) 0 2px, rgba(0,0,0,0.2) 2px 3px), var(--holo-face, none); }
-.widget.holo.radar.rscan.bright .holo-in > canvas { background-image: repeating-linear-gradient(180deg, rgba(0,0,0,0) 0 2px, rgba(var(--holo-acc-rgb), 0.15) 2px 3px), var(--holo-face, none); }
+.widget.holo.radar .holo-in > canvas, .widget.holo.radar .holo-in > .axes > canvas { border-radius: 50%; }
+.widget.holo.radar .holo-in > canvas, .widget.holo.radar .holo-in > .axes > canvas { background-image: var(--holo-face, none); }
+.widget.holo.radar.rscan .holo-in > canvas, .widget.holo.radar.rscan .holo-in > .axes > canvas { background-image: repeating-linear-gradient(180deg, rgba(0,0,0,0) 0 2px, rgba(0,0,0,0.2) 2px 3px), var(--holo-face, none); }
+.widget.holo.radar.rscan.bright .holo-in > canvas, .widget.holo.radar.rscan.bright .holo-in > .axes > canvas { background-image: repeating-linear-gradient(180deg, rgba(0,0,0,0) 0 2px, rgba(var(--holo-acc-rgb), 0.15) 2px 3px), var(--holo-face, none); }
 @keyframes holo-roll { from { transform: translateY(-2px); } to { transform: translateY(100%); } }
 /* Bright footage: dark scanlines vanish over clouds, so they become lines of the highlight color instead. */
 .widget.holo.bright.scan::after { background: repeating-linear-gradient(180deg, rgba(0,0,0,0) 0 2px, rgba(var(--holo-acc-rgb), 0.15) 2px 3px), linear-gradient(180deg, var(--beam, transparent), transparent 65%); }
@@ -1068,6 +1080,7 @@ const WIDGET_CHECK = {
   pad: numRange(0, 100), radius: numRange(0, 100), depth: numRange(0, 100),
   dims: v => pickFields(v, { box: numRange(1, 1000), bw: numRange(1, 1000), bh: numRange(1, 1000), rw: numRange(1, 1000), rh: numRange(1, 1000), cd: numRange(1, 1000) }),
   showTitle: optBool, showValues: optBool, showAxisLabels: optBool, axisNames: v => oneOf(v, ["xy", "flight", "strafe", "strafefb", "yaw", "roll", "rudder"]),
+  valueLayout: v => oneOf(v, ["below", "axes"]), valueSide: v => oneOf(v, ["right", "left"]),   // a stick's values: under the gate, or along its axes (and on which side)
   fonts: v => isObj(v) ? pickFields(v, { title: FONT_CHECK, values: FONT_CHECK, labels: FONT_CHECK }) : undefined,
   accent: optHex, text: optHex, bg: optHex, border: optHex, bgAlpha: numRange(0, 100), theme: idText,
   axes: AXIS_MAP, inv: BOOL_MAP,
@@ -2089,9 +2102,16 @@ function buildWidget(w, grow) {
     // pixels, so the Full tier's fringe copies only the rings and ticks, not a tinted disc.
     if (holo.on && w.face === "radar") rt.canvas.style.setProperty("--holo-face", `radial-gradient(circle closest-side, ${hexA(w.bg || profile.settings.panel, 0.25)} 98%, transparent 100%)`);
     const sn = stickNames(w);
-    const ro = readout(el("span", {}, lab(sn.x), span("x")), el("span", {}, lab(sn.y), span("y")));
-    if (ro) { ro.classList.add("pair"); ro.style.minWidth = rt.canvas.style.width; }
-    root.append(...[title, rt.canvas, ro].filter(Boolean));
+    if (showVals && w.valueLayout === "axes") {
+      // Along the axes: the Y value in a column beside the gate (label above value), the X value under it (see .axes).
+      const ycol = el("div", { class: "readout ycol" }, lab(sn.y), span("y"));
+      const xro = el("div", { class: "readout xval" }, el("span", {}, lab(sn.x), span("x")));
+      root.append(el("div", { class: "axes" + (w.valueSide === "left" ? " left" : "") }, ...[title, rt.canvas, ycol, xro].filter(Boolean)));
+    } else {
+      const ro = readout(el("span", {}, lab(sn.x), span("x")), el("span", {}, lab(sn.y), span("y")));
+      if (ro) { ro.classList.add("pair"); ro.style.minWidth = rt.canvas.style.width; }
+      root.append(...[title, rt.canvas, ro].filter(Boolean));
+    }
   } else if (isBar(w) && isDial(w)) {
     rt.canvas = makeCanvas(D.cd * k, D.cd * k);
     root.append(...[title, dial(rt.canvas, showVals ? span("v") : null)].filter(Boolean));
@@ -2359,6 +2379,9 @@ function layoutHolo(w, rt) {
   else if (side === "above") by = Math.min(edge[0].y, edge[1].y) - gap;
   else if (side === "left") bx = Math.min(edge[0].x, edge[1].x) - gap;
   else bx = Math.max(edge[0].x, edge[1].x) + gap;
+  // A radar disc with its values along the axes has a column of text beside it: the base stays under (or over) the
+  // disc, not the middle of the disc and the text.
+  if (vert && rt.holoDisc && w.valueLayout === "axes") bx = P(rt.holoDisc.x, rt.holoDisc.y).x;
   rt.holoBase0 = { x: bx, y: by };   // where the base lands without offsets; Project From One Base measures from here
   bx += h.base.dx || 0; by += h.base.dy || 0;
   rt.holoBaseBox = { x: bx - bw / 2, y: by - bh / 2, w: bw, h: bh };   // relative to the widget; footprintOf() and the base drag read it
@@ -4383,7 +4406,10 @@ function showSection(p, ws) {
   const flag = key => new Proxy({}, { get: () => ws[0][key] !== false, set: (_, k, v) => { for (const w of ws) w[key] = v; return true; } });
   p = section(p, "Show", { key: "show", fam: "widget", icon: "show" });
   toggleRow(p, "Name", flag("showTitle"), "v", upd);
-  toggleRow(p, "Values", flag("showValues"), "v", upd, "The percentage readouts under the widget.");
+  const vals = flag("showValues"), place = placeValueRows(ws, live, upd);
+  const paintPlace = () => { if (place) place.hidden = !vals.v; };
+  toggleRow(p, "Values", vals, "v", () => { paintPlace(); upd(); }, "The percentage readouts under the widget.");
+  if (place) { paintPlace(); p.append(place); }
   const labels = flag("showAxisLabels"), names = axisNameRows(ws, upd);
   names.hidden = !labels.v;
   toggleRow(p, "Axis labels", labels, "v", () => { names.hidden = !labels.v; upd(); });
@@ -4397,6 +4423,32 @@ function showSection(p, ws) {
   const show = () => { all.hidden = split.v; each.hidden = !split.v; };
   toggleRow(p, "Set each text separately", split, "v", show, "Its own font and size for the name, the values and the axis labels.");
   show(); p.append(all, each);
+}
+// Where a stick's values sit: both under the gate, or each along its axis (w.valueLayout), with the up and down value
+// on the right or the left (w.valueSide). Nested under the Values switch; only when every live widget is a stick.
+// Switching keeps each gate where it was on screen: the box is rebuilt around its center as for the other Show
+// switches, then moved by however far the gate went, so the box grows or shifts around the gate.
+function placeValueRows(ws, live, upd) {
+  if (!live.every(w => w.type === "stick")) return null;
+  const nest = el("div", { class: "nest" });
+  const layout = { get v() { return live[0].valueLayout === "axes" ? "axes" : "below"; }, set v(x) { for (const w of live) { if (x === "axes") w.valueLayout = x; else delete w.valueLayout; } } };
+  const side = { get v() { return live[0].valueSide === "left" ? "left" : "right"; }, set v(x) { for (const w of live) { if (x === "left") w.valueSide = x; else delete w.valueSide; } } };
+  const gateAt = w => { const c = runtime[w.id] && runtime[w.id].canvas; return c && c.isConnected ? [w.x + c.offsetLeft + c.offsetWidth / 2, w.y + c.offsetTop + c.offsetHeight / 2] : null; };
+  const keepGates = () => {
+    const was = live.map(gateAt);
+    upd();
+    const now = live.map(gateAt);
+    live.forEach((w, i) => { if (was[i] && now[i]) moveWidgets([w], was[i][0] - now[i][0], was[i][1] - now[i][1]); });
+    syncPositionFields(ws); placeResize();
+  };
+  const sides = el("div", { class: "nest" });
+  choiceRow(sides, "Side", side, "v", [["right", "Right"], ["left", "Left"]], keepGates, { aria: "Side for the up and down value" });
+  const show = () => { sides.hidden = layout.v !== "axes"; };
+  choiceRow(nest, "Place values", layout, "v", [["below", "Below", "Both values in a row under the gate."],
+    ["axes", "Along the axes", "Along the axes: the up and down value stands beside the gate, the left and right value sits under it."]],
+  () => { show(); keepGates(); }, { aria: "Place values" });
+  show(); nest.append(sides);
+  return nest;
 }
 // Yaw and Pitch, Strafe or X and Y for a stick; Yaw, Roll or Rudder for pedals. Nested under the Axis labels switch.
 function axisNameRows(ws, upd) {
