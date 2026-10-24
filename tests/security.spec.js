@@ -203,7 +203,8 @@ test.describe("Content-Security-Policy", () => {
     expect(dir["script-src"] || []).not.toContain("*");
     expect(dir["object-src"]).toEqual(["'none'"]);
     expect(dir["base-uri"]).toEqual(["'none'"]);
-    expect(dir["connect-src"] === undefined || dir["connect-src"].join(" ") === "'none'").toBe(true);
+    // Only Capture Game View connects anywhere: to OBS's WebSocket server on this PC.
+    expect(dir["connect-src"]).toEqual(["ws://localhost:*"]);
   });
 
   test("the network guard itself catches a remote load (self-test)", async ({ app, page }) => {

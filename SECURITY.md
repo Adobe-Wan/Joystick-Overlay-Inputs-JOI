@@ -1,6 +1,8 @@
 # Security
 
-Joystick Overlay Inputs (JOI) is a single HTML file. It makes no network requests, loads no remote code, and stores your layout only in the browser's local storage and in files you save yourself.
+Joystick Overlay Inputs (JOI) is a single HTML file. It loads no remote code and stores your layout only in the browser's local storage and in files you save yourself. Its only network connection is **Capture Game View**: when you press it, JOI connects to OBS's WebSocket server on this PC (`ws://localhost`), asks for one screenshot and disconnects. The page's Content Security Policy allows nothing else.
+
+The OBS WebSocket password is kept in memory until the page reloads, unless you choose **Remember Password on This PC**. Then it's in the browser's local storage, which other local HTML files can read. It's never written to a layout or profile file.
 
 ## Reporting a problem
 
