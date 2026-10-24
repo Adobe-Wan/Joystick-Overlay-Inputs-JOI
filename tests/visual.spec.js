@@ -77,3 +77,28 @@ test.describe("visual", () => {
     });
   });
 });
+
+// The two templates as they look in use at 1080p over a dark backdrop: built from their tiles, then bound to a
+// device held at fixed readings (the ones in AdobeWan's screenshots), so every widget is live.
+test.describe("visual: templates", () => {
+  test.beforeEach(async ({ page }) => {
+    // Pinned but not constant: the template's widgets each need their own id.
+    await page.addInitScript(() => { let s = 7; Math.random = () => (s = (s * 16807) % 2147483647) / 2147483647; });
+  });
+  const DEV = { id: "Dev (Vendor: 0001 Product: 0002)", axes: [0.02, 1, 0.09, 0.4, 0, -0.55, 0.8, 0], buttons: 32 };
+  const BIND = { "Strafe": { x: 0, y: 1 }, "Pitch / Yaw": { x: 2, y: 3 }, "Roll": { a: 4 }, "Pedals": { r: 5 }, "Rev / Fwd": { a: 6 } };
+  for (const id of ["adobewan-projections", "adobewan-minimalist"]) {
+    test(`template ${id}`, async ({ app, page }) => {
+      await page.setViewportSize({ width: 1920, height: 1080 });
+      await app.open({ profile: { ver: 3, savedAt: 1, settings: { background: "solid", bgColor: "#0b1016" }, widgets: [] }, devices: [DEV], query: "?transparent" });
+      await page.evaluate(([id, bind, dev]) => {
+        addPreset(id); closeWizard();
+        for (const w of profile.widgets) Object.assign(w, { match: dev, nth: 0, axes: bind[w.label] });
+        for (const w of profile.widgets) if (w.holo) w.holo.tier = "static";
+        save(); rebuildAll();
+      }, [id, BIND, DEV.id]);
+      await app.frames(10);
+      await expect(page).toHaveScreenshot(`template-${id}.png`, { maxDiffPixelRatio: 0.01, stylePath: fixturePath("screenshot.css") });
+    });
+  }
+});
