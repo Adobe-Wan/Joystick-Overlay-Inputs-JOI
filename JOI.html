@@ -4772,8 +4772,8 @@ function renderSettingsPanel(p) {
   if (s.scaleMode !== "auto") size.append(el("div", { class: "fields" }, fld("Overlay scale", numIn(s, "scale", 0.3, 4, 0.05, rebuildAll), "×", true)));
   choiceRow(size, "Editor text size", s, "uiScale", [["auto", "Auto", "Grows with the screen, so 4K stays readable."], [1, "100%"], [1.25, "125%"], [1.5, "150%"], [2, "200%"], [2.5, "250%"]], applySettings, { wrap: true });
   const perfSec = section(p, "Performance", { key: "s-perf" });
-  choiceRow(perfSec, "Draw rate", s, "fps", [[60, "60 FPS", "Every frame, the smoothest."], [30, "30 FPS", "Half the drawing work for OBS, Projector motion included. Pick it if the overlay lags behind your game or OBS shows rendering lag."]], applySettings, { aria: "Draw rate" });
-  perfSec.append(el("div", { class: "hint small" }, "Small wobbles a device makes at rest are never drawn. Projector Subtle and Full keep OBS drawing even when nothing moves (30 times a second at 30 FPS); Static or Flat don't."));
+  choiceRow(perfSec, "Draw rate", s, "fps", [[60, "60 FPS", "The smoothest motion. Best for most setups."], [30, "30 FPS", "Half the work for OBS. Motion looks a little less smooth, but a press still shows right away. Pick it if the overlay stutters, lags or falls out of sync with your game."]], applySettings, { aria: "Draw rate" });
+  perfSec.append(el("div", { class: "hint small" }, "How many times a second the overlay redraws while you move your controls. When you let go it stops redrawing, unless the Projector look is set to Subtle or Full."));
   themeSection(p, profile.widgets.filter(w => w.type !== "label"), true);
   const bg = section(p, "Page Background", { key: "s-bg" });
   toggleRow(bg, "Solid page background", { get v() { return s.background === "solid"; }, set v(x) { s.background = x ? "solid" : "transparent"; } }, "v", applySettings,
