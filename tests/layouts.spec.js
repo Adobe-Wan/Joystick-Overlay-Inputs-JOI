@@ -1,4 +1,4 @@
-// Profiles (one layout per ship or controller setup) and the starter presets on the panel's Profiles tab: switching,
+// Profiles (one layout per ship or controller setup) and the starter presets in the toolbar's Profiles & Share panel: switching,
 // renaming, duplicating, deleting and importing never lose a layout, Undo covers each of them, and the presets build
 // the right widgets and walk through binding the ones that need a device.
 const fs = require("fs");
@@ -11,7 +11,7 @@ const OLD = { ver: 2, savedAt: 1, settings: { theme: "default", gridSize: 24, la
 
 const lib = page => page.evaluate(() => ({ active: profile.layouts.active, names: profile.layouts.list.map(e => e.name),
   current: profile.layouts.list.find(e => e.id === profile.layouts.active).name, labels: profile.widgets.map(w => w.label) }));
-const openProfilesTab = page => page.click("#tab-profiles");
+const openProfiles = page => page.click("#toolbar [data-act=profiles]");
 const profileButton = (page, name) => page.locator(".prof-list button", { has: page.locator(`b:text-is("${name}")`) });
 
 test.describe("profiles", () => {
@@ -25,10 +25,10 @@ test.describe("profiles", () => {
     expect(stored.widgets).toHaveLength(2);
   });
 
-  test("the Profiles tab switches, renames, duplicates and deletes, and Undo takes each back", async ({ app, page }) => {
+  test("Profiles & Share switches, renames, duplicates and deletes, and Undo takes each back", async ({ app, page }) => {
     await app.open({ profile: OLD, query: "?edit", devices: [h.DEV.virpil()] });
-    await openProfilesTab(page);
-    await expect(page.locator("#tab-profiles")).toHaveAttribute("aria-selected", "true");
+    await openProfiles(page);
+    await expect(page.locator("#panel h3")).toHaveText("Profiles & Share");
 
     // Rename
     const name = page.getByRole("textbox", { name: "Profile name" });
@@ -72,7 +72,7 @@ test.describe("profiles", () => {
 
   test("the only profile can't be deleted", async ({ app, page }) => {
     await app.open({ profile: OLD, query: "?edit" });
-    await openProfilesTab(page);
+    await openProfiles(page);
     await expect(page.locator('#panel button.danger:has-text("Delete")')).toBeDisabled();
   });
 
@@ -120,6 +120,23 @@ test.describe("profiles", () => {
     expect(backup.layouts.list[0].widgets.map(w => w.label)).toEqual(["Left Stick", "Right Stick"]);
   });
 
+  test("Profiles & Share holds the profiles, sharing and the profile.js backup in one panel; Setup has no tabs", async ({ app, page }) => {
+    await app.open({ profile: OLD, query: "?edit" });
+    await expect(page.locator("#panel .p-tabs, #panel [role=tab]")).toHaveCount(0);
+    await expect(page.locator("#panel h3")).toHaveText("Setup");
+    await openProfiles(page);
+    const heads = await page.evaluate(() => [...document.querySelectorAll("#panel h3, #panel h5")].map(e => e.textContent));
+    expect(heads).toEqual(["Profiles & Share", "This Profile", "Back Up Every Profile", "Start From a Preset"]);
+    for (const [label, file] of [["Download .json", "joi-my-profile.json"], ["Download profile.js", "profile.js"]]) {
+      const [d] = await Promise.all([page.waitForEvent("download"), page.click(`#panel button:text-is("${label}")`)]);
+      expect(d.suggestedFilename()).toBe(file);
+    }
+    await expect(page.locator('#panel button:text-is("Import a Profile")')).toBeVisible();
+    // Clicking an empty spot goes back to Setup, as it does from Settings
+    await page.evaluate(() => setSelection([]));
+    await expect(page.locator("#panel h3")).toHaveText("Setup");
+  });
+
   test("a damaged profile list loads what it can", async ({ app, page }) => {
     const bad = { ...OLD, layouts: { active: "nope", list: [null, { id: "a b" }, { id: "ok", name: "  Spare  ", widgets: [{ id: "q", type: "label", label: "Q" }, { id: "__proto__", type: "nope" }] }] } };
     await app.open({ profile: bad, query: "?edit" });
@@ -149,7 +166,7 @@ test.describe("presets", () => {
   test("HOTAS + Pedals asks to bind each device, in order", async ({ app, page }) => {
     await app.open({ query: "?edit" });
     await page.evaluate(() => closeWelcome());
-    await openProfilesTab(page);
+    await openProfiles(page);
     await page.click('#panel .presets button:has-text("HOTAS + Pedals")');
     await expect(page.locator("#wiz-body .kicker")).toHaveText("Bind Inputs · 1 of 5 · Throttle");
     expect(await page.evaluate(() => [...document.querySelectorAll("#stage .widget.unbound")].length)).toBe(5);

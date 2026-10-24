@@ -121,10 +121,10 @@ test.describe("review", () => {
     await expect(page.locator('#panel button:has-text("Hide Heatmap")')).toBeVisible();
     expect(await page.evaluate(() => [...document.querySelectorAll("#panel .sec-t .name")].map(e => e.textContent))).not.toContain("Session Heatmap");
   });
-  test("the toolbar is Edit Mode, Add, Review, Settings, Save and Share, Help and the panel toggle", async ({ app, page }) => {
+  test("the toolbar is Edit Mode, Add, Review, Settings, Profiles & Share, Help and the panel toggle", async ({ app, page }) => {
     await open(app, base([stick()]));
     await page.evaluate(() => setEditing(true));
-    expect(await page.evaluate(() => [...document.querySelectorAll("#toolbar button")].map(b => b.textContent))).toEqual(["+ Add", "Review", "Settings", "Save and Share", "Help", "Hide Panel"]);
+    expect(await page.evaluate(() => [...document.querySelectorAll("#toolbar button")].map(b => b.textContent))).toEqual(["+ Add", "Review", "Settings", "Profiles & Share", "Help", "Hide Panel"]);
     await page.click("#toolbar [data-act=panel]");
     expect(await page.evaluate(() => [document.body.classList.contains("panel-hidden"), document.getElementById("panel-btn").textContent])).toEqual([true, "Show Panel"]);
     await page.click("#toolbar [data-act=add-device]");
