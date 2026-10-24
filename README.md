@@ -174,7 +174,7 @@ Every color in the effect comes from the widget's theme, so switching the theme 
 
 ## Performance in OBS
 If the overlay lags behind your game, or OBS's stats show rendering lag or skipped frames:
-- **Settings → Performance → Draw rate: 30 FPS** halves the frames OBS has to draw for JOI, while you fly and while the Projector's motion plays. Inputs still show within a frame or two. It applies to every profile.
+- **Settings → Performance → Draw rate** is how many times a second the overlay redraws while you move your controls. **60 FPS** is the smoothest. **30 FPS** halves the work OBS does for JOI: motion looks a little less smooth, but a press still shows right away. Pick it if the overlay stutters, lags or falls out of sync with your game. It applies to every profile.
 - **Projector Subtle and Full** animate even when nothing moves, so OBS keeps redrawing the source (60 times a second, or 30 at a 30 FPS draw rate). **Static** or **Flat** costs nothing while your hands are off the controls.
 - Make the Browser source the same size as your OBS canvas (Base Resolution), not larger: a 4K source is four times the work of a 1080p one. JOI scales its layout to the source size.
 - Widgets only redraw when an input actually changes. Small wobbles a stick, throttle or pedal makes at rest (under half a percent) are ignored, so a resting device costs nothing to draw.
