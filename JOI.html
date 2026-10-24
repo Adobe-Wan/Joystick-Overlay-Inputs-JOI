@@ -42,6 +42,11 @@ body.preview:not(.editing).has-widgets #preview-chip { display: flex; }
   box-shadow: 0 4px 18px rgba(0,0,0,0.55);
   text-shadow: 0 1px 2px rgba(0,0,0,0.9);
 }
+/* Effects: the user's container shadow and glow paint on a layer of their own (::before, one border width out so it
+   lines up with the widget's edge), so they add to what 3D depth, Projector and the keycap draw instead of replacing
+   it. A drop shadow takes the place of the built-in one above. Painted once; nothing changes per frame. */
+.widget.fx-box::before { content: ""; position: absolute; inset: -1px; border-radius: inherit; box-shadow: var(--fx-box); pointer-events: none; z-index: -1; }
+.widget.fx-drop { box-shadow: none; }
 .widget .title {
   font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
   margin-bottom: 8px; white-space: nowrap;
@@ -1042,6 +1047,13 @@ const HOLO_CHECK = { on: optBool, tier: v => oneOf(v, ["static", "subtle", "full
   cone: optBool, float: optBool, flicker: optBool, fringe: optBool, footage: v => oneOf(v, ["dark", "bright"]),
   // What Projector replaced, so switching back to Flat restores it.
   prev: v => isObj(v) ? pickFields(v, { proj: p => isObj(p) ? pickFields(p, PROJ_CHECK) : undefined, face: f => oneOf(f, ["square", "radar"]) }) : undefined };
+// Effects: a drop shadow and an outer glow for the text (name, values, axis labels) and for the container, all off
+// to start. a: opacity 0-100, b: blur in px, x / y: a shadow's offset in px. c: color; unset, a shadow is black and a
+// glow follows the Highlight, so it changes with the theme.
+const FX_DEFAULT = { textShadow: { on: false, a: 80, b: 2, x: 0, y: 1 }, textGlow: { on: false, a: 70, b: 6 },
+  boxShadow: { on: false, a: 60, b: 16, x: 0, y: 6 }, boxGlow: { on: false, a: 50, b: 16 } };
+const FX_PART = { on: optBool, c: optHex, a: numRange(0, 100), b: numRange(0, 64), x: numRange(-64, 64), y: numRange(-64, 64) };
+const FX_CHECK = Object.fromEntries(Object.keys(FX_DEFAULT).map(k => [k, v => isObj(v) ? pickFields(v, FX_PART) : undefined]));
 const WIDGET_CHECK = {
   label: textMax(200), match: textMax(256), nth: intRange(0, 15), slot: intRange(0, 15), button: intRange(0, 127), hat: intRange(0, 63), hatDir: intRange(0, 7),
   x: numRange(-10000, 10000), y: numRange(-10000, 10000), size: numRange(0.25, 4), scaleW: numRange(0.25, 4), scaleH: numRange(0.25, 4),   // scaleW / scaleH: buttons only; pedals' are read once, to migrate
@@ -1054,7 +1066,8 @@ const WIDGET_CHECK = {
   fonts: v => isObj(v) ? pickFields(v, { title: FONT_CHECK, values: FONT_CHECK, labels: FONT_CHECK }) : undefined,
   accent: optHex, text: optHex, bg: optHex, border: optHex, bgAlpha: numRange(0, 100), theme: idText,
   axes: AXIS_MAP, inv: BOOL_MAP,
-  persp: v => isObj(v) ? pickFields(v, PERSP_CHECK) : undefined, proj: v => isObj(v) ? pickFields(v, PROJ_CHECK) : undefined, holo: v => isObj(v) ? pickFields(v, HOLO_CHECK) : undefined
+  persp: v => isObj(v) ? pickFields(v, PERSP_CHECK) : undefined, proj: v => isObj(v) ? pickFields(v, PROJ_CHECK) : undefined, holo: v => isObj(v) ? pickFields(v, HOLO_CHECK) : undefined,
+  fx: v => isObj(v) ? pickFields(v, FX_CHECK) : undefined
 };
 const DEF = DEFAULT_SETTINGS;
 const SETTINGS_CHECK = {
@@ -1950,6 +1963,24 @@ function applyProjection(root, w) {
     root.style.boxShadow = `0 0 ${(4 + 16 * g).toFixed(1)}px ${hexA(accent, 0.4 * g)}, inset 0 0 ${(6 + 18 * g).toFixed(1)}px ${hexA(accent, 0.2 * g)}`;
   }
 }
+const fxOf = (w, part) => ({ ...FX_DEFAULT[part], ...((w.fx || {})[part] || {}) });
+const fxColor = (w, part, e = fxOf(w, part)) => e.c || (part.endsWith("Glow") ? w.accent || profile.settings.accent : "#000000");
+const TEXT_SHADOW = "0 1px 2px rgba(0,0,0,0.9)";   // the built-in one in .widget
+// Effects go on last, over the theme, 3D depth and Projector. Text layers lead the text-shadow, keeping Projector's
+// glow; container layers go to the ::before layer (see .fx-box). A widget with Background opacity 0 has no container
+// to shadow, so it keeps only the text effects, as with Projector's glow.
+function applyEffects(root, w) {
+  const e = part => fxOf(w, part), col = (part, x) => hexA(fxColor(w, part, x), x.a / 100);
+  const shadow = part => { const x = e(part); return x.on && `${x.x}px ${x.y}px ${x.b}px ${col(part, x)}`; };
+  const glow = (part, spread) => { const x = e(part); return x.on && `0 0 ${x.b}px ${spread ? Math.round(x.b / 4) + "px " : ""}${col(part, x)}`; };
+  const text = [shadow("textShadow"), glow("textGlow")].filter(Boolean);
+  if (text.length) root.style.textShadow = [...text, root.style.textShadow || (e("textShadow").on ? "" : TEXT_SHADOW)].filter(Boolean).join(", ");
+  const solid = (w.bgAlpha ?? profile.settings.panelAlpha) > 0;
+  const box = solid ? [shadow("boxShadow"), glow("boxGlow", true)].filter(Boolean) : [];
+  root.classList.toggle("fx-box", box.length > 0);
+  root.classList.toggle("fx-drop", box.length > 0 && e("boxShadow").on);
+  if (box.length) root.style.setProperty("--fx-box", box.join(", "));
+}
 // A projected widget that moves (Subtle, Full) keeps a transform (and its promoted layer) even when every angle is 0.
 // Its idle float is the holo-float animation, which writes this same transform with the float between perspective()
 // and the rotations; --holo-pre and --holo-post hand it the two halves.
@@ -2014,6 +2045,7 @@ function buildWidget(w, grow) {
   root.style.left = w.x + "px"; root.style.top = w.y + "px";
   styleWidget(root, w);
   applyProjection(root, w);
+  applyEffects(root, w);
   const holo = holoOf(w);
   applyPerspective(root, w);
   const rt = getRt(w); rt.root = root; rt.spans = {};
@@ -4156,6 +4188,7 @@ const SEC_ICONS = {
   theme: '<circle cx="9" cy="9" r="7"/><circle cx="6" cy="7.5" r="1"/><circle cx="10.5" cy="6" r="1"/><circle cx="12" cy="10.5" r="1"/>',
   colors: '<path d="M9 2.5S4 8 4 11a5 5 0 0 0 10 0c0-3-5-8.5-5-8.5z"/>',
   look: '<path d="M3 5l6-3 6 3v8l-6 3-6-3zM3 5l6 3 6-3M9 8v8"/>',
+  effects: '<rect x="2.5" y="2.5" width="10" height="10" rx="2"/><path d="M15.5 6v8a1.5 1.5 0 0 1-1.5 1.5H6"/>',
   projector: '<path d="M9 14V9M5 3.5 9 9l4-5.5"/><ellipse cx="9" cy="14.5" rx="5.5" ry="1.8"/>',
   device: '<rect x="2" y="5" width="14" height="8" rx="3"/><path d="M6 7.5v3M4.5 9h3"/><circle cx="12" cy="9" r=".7"/>'
 };
@@ -4784,6 +4817,41 @@ function colorSection(p, ws) {
   } }, "Use These Colors for All Widgets")));
 }
 
+// Effects: Drop Shadow and Outer Glow for the text and for the container. Each switch brings its settings, nested
+// under it while it is on. A glow's color follows the Highlight until one is picked.
+function effectsSection(p, ws) {
+  const w0 = ws[0], upd = () => { for (const w of ws) refreshWidget(w); syncSelectionClasses(); };
+  p = section(p, "Effects", { key: "effects", fam: "style", icon: "effects" });
+  const fx = part => new Proxy({}, { get: (_, k) => k === "c" ? fxColor(w0, part) : fxOf(w0, part)[k],
+    set: (_, k, v) => { for (const w of ws) { w.fx = { ...(w.fx || {}) }; w.fx[part] = { ...(w.fx[part] || {}), [k]: v }; } return true; } });
+  const effect = (label, part, what) => {
+    const o = fx(part), name = what + " " + label.toLowerCase(), nest = el("div", { class: "nest" });
+    nest.hidden = !o.on;
+    toggleRow(p, label, o, "on", () => { nest.hidden = !o.on; upd(); });
+    nest.append(el("div", { class: "cgrid" }, ccell("Color", colorIn(o, "c", upd, name + " color"))));
+    sliderRow(nest, "Opacity", o, "a", 0, 100, "%", upd).setAttribute("aria-label", name + " opacity");
+    sliderRow(nest, "Blur", o, "b", 0, part.startsWith("text") ? 24 : 64, " px", upd).setAttribute("aria-label", name + " blur");
+    if (part.endsWith("Shadow")) {
+      const off = (k, axis) => { const i = numIn(o, k, -64, 64, 1, upd); i.setAttribute("aria-label", name + " " + axis + " offset in pixels"); return fld(axis, i, "px"); };
+      nest.append(el("div", { class: "fields" }, off("x", "X"), off("y", "Y")));
+    }
+    p.append(nest);
+  };
+  p.append(el("h5", {}, "Text"));
+  effect("Drop Shadow", "textShadow", "Text");
+  effect("Outer Glow", "textGlow", "Text");
+  p.append(el("h5", {}, "Container"));
+  if (ws.some(w => !((w.bgAlpha ?? profile.settings.panelAlpha) > 0))) p.append(el("div", { class: "hint small" }, "Shows once Background opacity is above 0%."));
+  effect("Drop Shadow", "boxShadow", "Container");
+  effect("Outer Glow", "boxGlow", "Container");
+  p.append(el("div", { class: "actions" },
+    el("button", { onclick: () => {
+      for (const o of profile.widgets) if (w0.fx) o.fx = JSON.parse(JSON.stringify(w0.fx)); else delete o.fx;
+      save(); rebuildAll(); toast("Effects applied to all widgets");
+    } }, "Use These Effects for All Widgets"),
+    el("button", { class: "subtle", onclick: () => { for (const w of ws) delete w.fx; upd(); save(); renderPanel(); } }, "Reset Effects")));
+}
+
 // Width and Height of the stick, bar or rudder as it sits on screen, in px or as a percent of its default (the choice
 // is remembered per browser). A bar's thickness and length, or a rudder's, swap with its direction. Under Fill the box
 // decides the length: that slider shows the size Fill worked out, dimmed, and dragging it takes over from Fill.
@@ -5084,6 +5152,7 @@ function renderWidgetPanel(p) {
   showSection(p, [w]);
   themeSection(p, [w]);
   colorSection(p, [w]);
+  effectsSection(p, [w]);
   perspectiveSection(p, [w]);
   projectorSection(p, [w]);
   if (w.key) {
@@ -5130,6 +5199,7 @@ function renderMultiPanel(p) {
   showSection(p, ws);
   themeSection(p, ws);
   colorSection(p, ws);
+  effectsSection(p, ws);
   perspectiveSection(p, ws);
   projectorSection(p, ws);
   panelFoot(p, "Remove " + ws.length, "Remove " + ws.length + " widgets");
