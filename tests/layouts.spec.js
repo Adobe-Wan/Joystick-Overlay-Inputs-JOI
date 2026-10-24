@@ -126,7 +126,7 @@ test.describe("profiles", () => {
     await expect(page.locator("#panel h3")).toHaveText("Setup");
     await openProfiles(page);
     const heads = await page.evaluate(() => [...document.querySelectorAll("#panel h3, #panel h5")].map(e => e.textContent));
-    expect(heads).toEqual(["Profiles & Share", "This Profile", "Back Up Every Profile", "Start From a Preset"]);
+    expect(heads).toEqual(["Profiles & Share", "This Profile", "Back Up Every Profile", "Start From a Preset", "Templates"]);
     for (const [label, file] of [["Download .json", "joi-my-profile.json"], ["Download profile.js", "profile.js"]]) {
       const [d] = await Promise.all([page.waitForEvent("download"), page.click(`#panel button:text-is("${label}")`)]);
       expect(d.suggestedFilename()).toBe(file);
@@ -159,7 +159,8 @@ test.describe("presets", () => {
       expect(st.off, id + " widgets off screen").toBe(0);
     }
     // The first preset took the empty starting profile; each other one is its own profile.
-    expect((await lib(page)).names).toEqual(["WASD + Mouse", "HOSAS + Pedals", "HOTAS + Pedals", "HOSAM", "Directional Inputs"]);
+    expect((await lib(page)).names).toEqual(["WASD + Mouse", "HOSAS + Pedals", "HOTAS + Pedals", "HOSAM", "Directional Inputs",
+      "AdobeWan Projections Layout", "AdobeWan Minimalist (Advanced HUD Off)"]);
     expect(app.consoleErrors).toEqual([]);
   });
 

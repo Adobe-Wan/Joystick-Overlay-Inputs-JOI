@@ -566,6 +566,7 @@ body.panel-hidden #coach::after { display: none; }
 #welcome .wq { margin: 0.2rem 0 0.5rem; font-size: 1.25rem; font-weight: 600; }
 #welcome .presets { grid-template-columns: repeat(3, 1fr); margin: 0 0 0.8rem; }
 #welcome .wsub { color: #a9b6c4; font-size: 0.95rem; margin: 0 0 1.1rem; }
+#welcome .wsub.tsub { margin: -0.25rem 0 0.5rem; }
 #welcome .foot { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; flex-wrap: wrap; color: #a9b6c4; }
 #welcome .keys { margin-top: 1.2rem; font-size: 0.93rem; color: #b6c3d1; }
 #welcome .keys summary { cursor: pointer; color: #a9b6c4; font-weight: 600; }
@@ -682,6 +683,9 @@ body:not(.editing):not(.has-widgets) #enter-edit { display: flex; }
     <h3 class="wq">What do you fly with?</h3>
     <div class="presets" id="welcome-presets" role="group" aria-label="Starter setups"></div>
     <p class="wsub">Pick one and its widgets appear at the bottom of the screen. Then move each stick, throttle or pedal once when asked, drag the widgets where you want them, and press <kbd>E</kbd> to leave edit mode.</p>
+    <h3 class="wq" id="welcome-templates-title">Templates</h3>
+    <p class="wsub tsub" id="welcome-templates-hint"></p>
+    <div class="presets" id="welcome-templates" role="group" aria-labelledby="welcome-templates-title"></div>
     <div class="foot">
       <span>Already have a setup? <button class="text" data-welcome="import">Import a Profile</button></span>
       <span style="display:flex;gap:0.5rem;flex-wrap:wrap"><button data-welcome="close">Explore on My Own</button><button data-welcome="device">Add Devices One by One</button></span>
@@ -1443,6 +1447,18 @@ const PRESET_ROLL = [{ w: { type: "axis", label: "Roll", orient: "c", axes: {}, 
 const PRESET_UPDOWN = [{ w: { type: "axis", label: "Up / Down", axes: {}, inv: {} } }];
 const PRESET_PEDALS = [{ w: { type: "pedals", label: "Pedals", axes: {}, inv: {} } }];
 const PRESET_CLICKS = [PRESET_KEY("MouseLeft", "LMB", 0, 0), PRESET_KEY("MouseRight", "RMB", 1, 0)];
+// A template (template: true) is a finished screen instead of a row: its widgets carry every field a saved profile
+// would, at x / y on the 1920 x 1080 baseline, measured from AdobeWan's stream and rounded to the 4 px grid.
+// addPreset keeps each widget's center at the same place on another canvas (placeTemplate). The looks are the
+// fields the Cockpit Look tiles of the same name set (LOOK_PRESETS is defined further down, so they are spelled
+// out here; templates.spec.js checks they still match). A projector's base offset and size are the template's own.
+const LOOK_FLAT_PERSP = { rx: 0, ry: 0, rz: 0, sx: 0, sy: 0, d: 900 };
+const LOOK_VISOR = { persp: LOOK_FLAT_PERSP, proj: { glow: 70, scan: false }, bgAlpha: 0 };   // Visor HUD
+const LOOK_HOLOGRAM = { persp: LOOK_FLAT_PERSP, proj: { glow: 55, scan: false }, bgAlpha: 55 };   // Hologram (Facing You)
+const LOOK_DASH_PROJECTOR = { persp: { ...LOOK_FLAT_PERSP, rx: 12 }, proj: { glow: 55, scan: false }, bgAlpha: 35 };   // Dash Projector
+const TEMPLATES_HINT = "AdobeWan's own screens, with every widget already in place.";
+const TEMPLATE_W = (w, look, holo) => ({ showTitle: true, showValues: true, showAxisLabels: true, ...w, axes: {}, inv: {},
+  ...JSON.parse(JSON.stringify(look)), ...(holo ? { holo } : {}) });
 const PRESETS = [
   { id: "wasd-mouse", name: "WASD + Mouse", hint: "W A S D strafe, Space and Ctrl go up and down, Q and E roll, the mouse pitches and yaws. Nothing to bind.",
     groups: [[PRESET_KEY("KeyQ", "Q", 0, 0), PRESET_KEY("KeyW", "W", 1, 0), PRESET_KEY("KeyE", "E", 2, 0),
@@ -1455,7 +1471,25 @@ const PRESETS = [
   { id: "hosam", name: "HOSAM", full: "Hands On Stick And Mouse", hint: "The stick strafes, with Up / Down and Roll; the mouse pitches and yaws.",
     groups: [[PRESET_STICK("Strafe", "strafe")], PRESET_UPDOWN, PRESET_ROLL, [PRESET_MOUSE], PRESET_CLICKS] },
   { id: "directional", name: "Directional Inputs", hint: "Up, down, left and right, for a hat, D-pad or arrow keys.",
-    groups: [[PRESET_HAT("↑", 1, 0), PRESET_HAT("←", 0, 1), PRESET_HAT("→", 2, 1), PRESET_HAT("↓", 1, 2)]] }
+    groups: [[PRESET_HAT("↑", 1, 0), PRESET_HAT("←", 0, 1), PRESET_HAT("→", 2, 1), PRESET_HAT("↓", 1, 2)]] },
+  // Templates: AdobeWan's own screens, every widget where it sits in his stream (see TEMPLATE_W below).
+  { id: "adobewan-projections", name: "AdobeWan Projections Layout", template: true,
+    hint: "Two floating sticks beside the reticle with Roll and Pedals under it, in the projected look.",
+    widgets: [
+      TEMPLATE_W({ type: "stick", label: "Strafe", axisNames: "strafe", x: 620, y: 476, dims: { box: 68 }, grid: 1, cross: true, outline: false }, LOOK_VISOR),
+      TEMPLATE_W({ type: "stick", label: "Pitch / Yaw", axisNames: "flight", x: 1144, y: 476, dims: { box: 68 }, grid: 1, cross: true, outline: false }, LOOK_VISOR),
+      TEMPLATE_W({ type: "axis", label: "Roll", orient: "c", x: 932, y: 688, dims: { cd: 48 } }, LOOK_VISOR),
+      TEMPLATE_W({ type: "pedals", label: "Pedals", x: 904, y: 756, dims: { rw: 96, rh: 12 }, showAxisLabels: false }, LOOK_VISOR)] },
+  { id: "adobewan-minimalist", name: "AdobeWan Minimalist (Advanced HUD Off)", template: true,
+    hint: "Small sticks beside the center console with Roll and Rev / Fwd, nothing else on the glass.",
+    widgets: [
+      TEMPLATE_W({ type: "stick", label: "Strafe", axisNames: "strafe", x: 800, y: 904, dims: { box: 80 }, showTitle: false, showValues: false },
+        LOOK_DASH_PROJECTOR, { on: true, base: { dx: 40, dy: 12, size: 150 } }),
+      TEMPLATE_W({ type: "stick", label: "Pitch / Yaw", axisNames: "flight", x: 1020, y: 904, dims: { box: 80 }, showTitle: false, showValues: false },
+        LOOK_DASH_PROJECTOR, { on: true, base: { dx: -40, dy: 12, size: 150 } }),
+      TEMPLATE_W({ type: "axis", label: "Roll", orient: "c", x: 932, y: 864, dims: { cd: 48 } }, LOOK_HOLOGRAM),
+      TEMPLATE_W({ type: "axis", label: "Rev / Fwd", orient: "h", x: 904, y: 948, dims: { bw: 12, bh: 96 }, showValues: false },
+        LOOK_DASH_PROJECTOR, { on: true, base: { dy: 36 } })] }
 ];
 const isUnbound = w => w.type !== "label" && !w.match && !w.key && !w.mouse;
 // Readout labels by flight function. Star Citizen's keybinding screen says Pitch, Yaw, Roll and Strafe, so a stick can
@@ -1476,6 +1510,29 @@ function addPreset(id) {
   if (!empty && !roomForLayout()) return;
   if (empty) { const e = activeLayout(); if (e.name === FIRST_LAYOUT_NAME || /^New Profile( \d+)?$/.test(e.name)) e.name = uniqueLayoutName(pr.name); e.preset = pr.id; }   // an empty profile takes the preset in place
   else newLayout(pr.name).preset = pr.id;
+  if (pr.template) {
+    profile.widgets = pr.widgets.map(t => ({ ...newWidgetBase(), ...JSON.parse(JSON.stringify(t)) })); rebuildAll();
+    placeTemplate(profile.widgets);
+  } else layOutPresetGroups(pr);
+  saveStep(); renderPanel();
+  toast(`Created ${activeLayout().name}`);
+  if (profile.widgets.some(isUnbound)) startBinding();
+}
+// A template on a canvas other than 1920 x 1080: each widget's center moves with the canvas (a stick beside the
+// reticle stays beside it) while its size stays, then lands on the 4 px grid inside the safe margin, its projector
+// base included.
+const TEMPLATE_GRID = 4;
+function placeTemplate(ws) {
+  const C = canvasSize(), m = profile.settings.margin, g = TEMPLATE_GRID, fx = C.w / DESIGN_W, fy = C.h / DESIGN_H;
+  const fit = (v, lo, hi) => Math.max(Math.ceil(lo / g) * g, Math.min(Math.floor(hi / g) * g, Math.round(v / g) * g));
+  for (const w of ws) {
+    const b = boxOf(w), f = footprintOf(w), ox = f.x - w.x, oy = f.y - w.y;
+    w.x = fit((w.x + b.w / 2) * fx - b.w / 2, m - ox, C.w - m - ox - f.w);
+    w.y = fit((w.y + b.h / 2) * fy - b.h / 2, m - oy, C.h - m - oy - f.h);
+    positionWidget(w);
+  }
+}
+function layOutPresetGroups(pr) {
   const groups = pr.groups.map(g => g.map(c => ({ ...c, w: { ...newWidgetBase(), ...JSON.parse(JSON.stringify(c.w)) } })));
   profile.widgets = groups.flatMap(g => g.map(c => c.w)); rebuildAll();
   // Lay the groups out in one row along the bottom middle, like new widgets, cells PRESET_GAP apart within a group.
@@ -1500,9 +1557,6 @@ function addPreset(id) {
     });
     x += o.w + PLACE_GAP;
   }
-  saveStep(); renderPanel();
-  toast(`Created ${activeLayout().name}`);
-  if (profile.widgets.some(isUnbound)) startBinding();
 }
 // Bind Inputs: Detect Device for each widget still waiting for an input, one after another. Closing the dialog stops;
 // Skip leaves that one for later.
@@ -3956,14 +4010,17 @@ function openWelcome(keys) {
   welcomeBack = document.activeElement;
   $("#welcome-where").hidden = !document.body.classList.contains("preview");   // in OBS the page is already where it belongs
   const tiles = $("#welcome-presets"); tiles.innerHTML = ""; presetTiles(tiles, "data-welcome-preset");
+  const tpl = $("#welcome-templates"); tpl.innerHTML = ""; presetTiles(tpl, "data-welcome-preset", true);
+  $("#welcome-templates-hint").textContent = TEMPLATES_HINT;
   $("#welcome-keys").open = !!keys;
   $("#welcome").classList.add("open");
   setTimeout(() => (keys ? $("#welcome-keys summary") : $("#welcome-presets button")).focus(), 0);
 }
 // Preset tiles, on the welcome and in Profiles & Share: the hardware as icons, the acronym spelled out, what it adds.
-function presetTiles(box, attr) {
-  for (const pr of PRESETS) {
-    const kinds = [...new Set(pr.groups.map(g => g[0].w.type))];
+// templates: true lists the templates instead, with the same tile.
+function presetTiles(box, attr, templates = false) {
+  for (const pr of PRESETS.filter(o => !!o.template === templates)) {
+    const kinds = [...new Set(pr.template ? pr.widgets.map(w => w.type) : pr.groups.map(g => g[0].w.type))];
     const icons = el("span", { class: "icons", "aria-hidden": "true" });
     for (const k of kinds) { const it = ADD_ITEMS.find(i => i.key === k); if (it) icons.append(el("span", { html: `<svg viewBox="0 0 24 24">${it.icon}</svg>`, style: "display:contents" })); }
     box.append(el("button", { [attr]: pr.id, title: "New profile: " + pr.name, "aria-label": pr.name + (pr.full ? ", " + pr.full : "") },
@@ -4563,8 +4620,12 @@ function renderProfilesPanel(p) {
   p.append(el("h5", {}, "Start From a Preset"));
   p.append(el("div", { class: "hint small" }, "Adds a common setup as a new profile. Keys and the mouse work right away; move each stick, throttle or pedal once to bind it."));
   const g = el("div", { class: "presets" }); presetTiles(g, "data-preset");
-  g.addEventListener("click", e => { const b = e.target.closest("[data-preset]"); if (b) addPreset(b.dataset.preset); });
   p.append(g);
+  p.append(el("h5", {}, "Templates"));
+  p.append(el("div", { class: "hint small" }, TEMPLATES_HINT));
+  const t = el("div", { class: "presets", id: "profile-templates" }); presetTiles(t, "data-preset", true);
+  p.append(t);
+  for (const box of [g, t]) box.addEventListener("click", e => { const b = e.target.closest("[data-preset]"); if (b) addPreset(b.dataset.preset); });
 }
 
 function renderHome(p) {
