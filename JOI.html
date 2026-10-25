@@ -384,6 +384,7 @@ body.panel-hidden #toolbar { left: 50%; max-width: calc(100vw - 1.5rem); }
   position: fixed; top: var(--vg-space-3); left: calc(50% - (var(--vg-size-panel-w) + var(--vg-space-3)) / 2); transform: translateX(-50%); z-index: 20;
   display: flex; align-items: center; gap: var(--vg-space-2); padding: var(--vg-space-2) var(--vg-space-3);
   flex-wrap: wrap; justify-content: center; max-width: calc(100vw - var(--vg-size-panel-w) - 3rem);
+  width: max-content;   /* left: 50% would otherwise shrink it to the right half of the screen and wrap it with Hide Panel */
 }
 #toolbar .divider { width: 1px; align-self: stretch; background: var(--vg-line-default); margin: 0 var(--vg-space-1); }
 button, select, input[type=text], input[type=number] {
@@ -584,7 +585,11 @@ input[type=checkbox] { accent-color: var(--vg-accent-default); width: 1.25rem; h
 .crow > span { display: block; color: var(--vg-text-2); margin-bottom: var(--vg-space-1); }
 .crow .tiles { margin: 0; }
 .tiles.wrap { grid-auto-flow: row; grid-template-columns: repeat(3, 1fr); }
+.tiles.stack { grid-auto-flow: row; grid-template-columns: 1fr; }   /* labels too long for a column of three, one per line */
 #panel .hint.small { font-size: var(--vg-text-xs); line-height: var(--vg-leading-xs); color: var(--vg-text-3); margin: var(--vg-space-1) 0 var(--vg-space-2); }
+/* A small hint can carry a status too (the bind row's "Not bound yet"): the status color wins over text-3. */
+#panel .hint.small.warn { color: var(--vg-status-warn); }
+#panel .hint.small.ok { color: var(--vg-status-ok); }
 /* Quiet buttons for resets: there when you need them, not competing with the controls. */
 button.subtle { border-color: transparent; color: var(--vg-text-2); }
 button.subtle:hover { border-color: var(--vg-line-control); color: var(--vg-text-1); background: var(--vg-surface-ink-2); }
@@ -4473,11 +4478,12 @@ function toggleRow(p, label, obj, key, after, hint) {
   p.append(t); return t;
 }
 // A small choice as a full-width tile group, with the chosen tile's description under it.
-function choiceRow(p, label, obj, key, options, after, { wrap, aria } = {}) {
+function choiceRow(p, label, obj, key, options, after, { wrap, stack, aria } = {}) {
   const hint = el("div", { class: "hint small" });
   const paint = () => { const o = options.find(o => String(o[0]) === String(obj[key])); hint.textContent = (o && o[2]) || ""; hint.hidden = !hint.textContent; };
   const g = tilesIn(obj, key, options, () => { paint(); after && after(); }, aria || label);
   if (wrap) g.classList.add("wrap");
+  if (stack) g.classList.add("stack");
   paint();
   p.append(el("div", { class: "crow" }, el("span", {}, label), g, hint));
   return g;
@@ -4650,7 +4656,7 @@ function axisNameRows(ws, upd) {
   if (!kind) return nest;
   const def = kind === "stick" ? "xy" : "yaw", table = kind === "stick" ? STICK_NAMES : PEDAL_NAMES;
   const names = { get v() { return table[ws[0].axisNames] ? ws[0].axisNames : def; }, set v(x) { for (const w of ws) { if (x === def) delete w.axisNames; else w.axisNames = x; } } };
-  choiceRow(nest, "Call them", names, "v", Object.entries(table).map(([k, t]) => [k, t.name || t.word, t.hint]), upd, { wrap: true, aria: "Axis names" });
+  choiceRow(nest, "Call them", names, "v", Object.entries(table).map(([k, t]) => [k, t.name || t.word, t.hint]), upd, { wrap: true, stack: kind === "stick", aria: "Axis names" });
   return nest;
 }
 const FONT_PARTS = ["title", "values", "labels"], FONT_PART_NAMES = { title: "Name", values: "Values", labels: "Axis labels" };
