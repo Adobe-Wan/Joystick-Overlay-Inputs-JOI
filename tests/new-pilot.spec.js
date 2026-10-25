@@ -48,7 +48,7 @@ test.describe("welcome", () => {
     await page.evaluate(() => openWelcome());
     expect(await page.evaluate(() => document.getElementById("welcome-where").hidden)).toBe(true);
   });
-  test("? opens the shortcut list; the empty editor shows a card that leads to the setups", async ({ app, page }) => {
+  test("? opens Help with the shortcut list; the empty editor shows a card that leads to the setups", async ({ app, page }) => {
     await app.open({ profile: base([]), query: "?edit" });
     await expect(page.locator("#empty-edit")).toBeVisible();
     await page.click("#empty-presets");
@@ -56,8 +56,8 @@ test.describe("welcome", () => {
     await expect(page.locator("#empty-edit")).toBeHidden();
     await page.evaluate(() => { closeWelcome(); document.activeElement.blur(); });   // single-key shortcuts act with nothing focused
     await page.keyboard.press("?");
-    await expect(page.locator("#welcome")).toHaveClass(/open/);
-    expect(await page.evaluate(() => document.getElementById("welcome-keys").open)).toBe(true);
+    await expect(page.locator("#help")).toHaveClass(/open/);
+    await expect(page.locator("#help .keys")).toBeVisible();
   });
 });
 

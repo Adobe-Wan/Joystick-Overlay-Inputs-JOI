@@ -4,6 +4,10 @@
 const { test, expect } = require("./fixtures/app");
 const h = require("./fixtures/gamepad");
 
+const VID = h.DEV.virpil().id;
+const stick = (o = {}) => ({ id: "s1", type: "stick", x: 400, y: 300, label: "Stick", match: VID, nth: 0, axes: { x: 0, y: 1 }, inv: {}, ...o });
+const base = (widgets, extra = {}) => ({ ver: 2, savedAt: 1, settings: { background: "solid", bgColor: "#24303c" }, widgets, ...extra });
+const blur = page => page.evaluate(() => { if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur(); });
 const DIRECTION = /\b(up|down|left|right|forward|back)\b/i;
 
 test.describe("R01 bind steps name a direction", () => {
@@ -40,5 +44,139 @@ test.describe("R01 bind steps name a direction", () => {
     expect([w.axes.a, w.inv.a]).toEqual([h.AX.twist, true]);
     await page.evaluate(() => { closeWizard(); wizChooseType("axis"); });
     await expect(page.locator("#wiz-title")).toHaveText("Move the axis to its maximum");
+  });
+});
+
+test.describe("R04 the welcome fits a laptop screen", () => {
+  for (const [w, hgt] of [[1366, 768], [1600, 900]]) {
+    test(`at ${w} x ${hgt} the foot and both template tiles are on screen, inside the dialog`, async ({ app, page }) => {
+      await page.setViewportSize({ width: w, height: hgt });
+      await app.open({ query: "?edit" });
+      await expect(page.locator("#welcome")).toHaveClass(/open/);
+      const m = await page.evaluate(() => {
+        const R = e => { const b = e.getBoundingClientRect(); return { l: b.left, t: b.top, r: b.right, b: b.bottom, name: e.textContent.trim().slice(0, 30) }; };
+        const d = document.querySelector("#welcome .dialog");
+        return { vw: innerWidth, vh: innerHeight, dialog: R(d), whole: [d.scrollHeight, d.clientHeight], mid: R(document.getElementById("welcome-mid")),
+          items: [...document.querySelectorAll("#welcome .foot button"), ...document.querySelectorAll("#welcome-templates button")].map(R) };
+      });
+      expect(m.whole[0], "the dialog itself never scrolls").toBeLessThanOrEqual(m.whole[1]);
+      expect(m.items.length).toBe(5);   // Import a Profile, Explore on My Own, Add Devices One by One, two templates
+      for (const r of m.items) {
+        expect(r.l, r.name).toBeGreaterThanOrEqual(Math.max(0, m.dialog.l)); expect(r.r, r.name).toBeLessThanOrEqual(Math.min(m.vw, m.dialog.r));
+        expect(r.t, r.name).toBeGreaterThanOrEqual(Math.max(0, m.dialog.t)); expect(r.b, r.name).toBeLessThanOrEqual(Math.min(m.vh, m.dialog.b));
+      }
+      for (const r of m.items.slice(3)) { expect(r.t, r.name + " not scrolled away").toBeGreaterThanOrEqual(m.mid.t); expect(r.b, r.name).toBeLessThanOrEqual(m.mid.b + 0.5); }
+    });
+  }
+  test("on a shorter screen only the middle scrolls, with a scrollbar, and the foot stays in view", async ({ app, page }) => {
+    await page.setViewportSize({ width: 1280, height: 560 });
+    await app.open({ query: "?edit" });
+    const m = await page.evaluate(() => {
+      const mid = document.getElementById("welcome-mid"), d = document.querySelector("#welcome .dialog"), f = document.querySelector("#welcome .foot").getBoundingClientRect();
+      return { scrolls: mid.scrollHeight > mid.clientHeight, overflow: getComputedStyle(mid).overflowY, bar: getComputedStyle(mid).scrollbarColor, whole: d.scrollHeight - d.clientHeight, footBottom: f.bottom, vh: innerHeight };
+    });
+    expect(m.scrolls).toBe(true);
+    // Headless Chromium hides scrollbars, so check the middle asks for a classic, colored one rather than measuring it.
+    expect(m.overflow).toBe("auto");
+    expect(m.bar, "a scrollbar color is set").not.toBe("auto");
+    expect(m.whole).toBeLessThanOrEqual(0);
+    expect(m.footBottom).toBeLessThanOrEqual(m.vh);
+  });
+});
+
+test.describe("R06 focus after a setup dialog closes", () => {
+  const togglesPanel = async page => {
+    const before = await page.evaluate(() => document.body.classList.contains("panel-hidden"));
+    await page.keyboard.press("p");
+    expect(await page.evaluate(() => document.body.classList.contains("panel-hidden")), "P toggles the panel").toBe(!before);
+  };
+  test("Escape out of Bind Inputs after a preset leaves nothing focused, so P works", async ({ app, page }) => {
+    await app.open({ query: "?edit", devices: [h.DEV.virpil()] });
+    await page.click('#welcome [data-welcome-preset="hosas-pedals"]');
+    await expect(page.locator("#wizard")).toHaveClass(/open/);
+    await page.keyboard.press("Escape");
+    await expect(page.locator("#wizard")).not.toHaveClass(/open/);
+    expect(await page.evaluate(() => document.activeElement === document.body)).toBe(true);
+    await togglesPanel(page);
+  });
+  test("Skip for Now through every widget leaves nothing focused, so P works", async ({ app, page }) => {
+    await app.open({ query: "?edit", devices: [h.DEV.virpil()] });
+    await page.click('#welcome [data-welcome-preset="adobewan-projections"]');
+    for (let i = 0; i < 4; i++) await page.click('#wiz-body .actions button:has-text("Skip for Now")');
+    await expect(page.locator("#wizard")).not.toHaveClass(/open/);
+    expect(await page.evaluate(() => document.activeElement === document.body)).toBe(true);
+    await togglesPanel(page);
+  });
+  test("the wizard hands focus back to the control that opened it", async ({ app, page }) => {
+    await app.open({ profile: base([stick()]), devices: [h.DEV.virpil()], query: "?edit" });
+    await page.click("#toolbar [data-act=add-device]");
+    await expect(page.locator("#wizard")).toHaveClass(/open/);
+    await page.keyboard.press("Escape");
+    await expect(page.locator("#toolbar [data-act=add-device]")).toBeFocused();
+    // The round + menu: focus goes back to the +.
+    await blur(page);
+    await page.keyboard.press("a");
+    await page.click('#fab-menu button[aria-label="Add Stick"]');
+    await expect(page.locator("#wizard")).toHaveClass(/open/);
+    await page.keyboard.press("Escape");
+    await expect(page.locator("#fab")).toBeFocused();
+  });
+});
+
+test.describe("R10 Help", () => {
+  const fs = require("fs"), path = require("path");
+  const slug = t => t.trim().toLowerCase().replace(/[^\w\- ]/g, "").replace(/ /g, "-");
+  const anchors = fs.readFileSync(path.join(__dirname, "..", "README.md"), "utf8").split("\n").filter(l => /^#{1,6} /.test(l)).map(l => slug(l.replace(/^#+ /, "")));
+  test("the toolbar's Help opens shortcuts, four how-tos with README links, and Start a New Setup; Escape goes back to Help", async ({ app, page }) => {
+    await app.open({ profile: base([stick()]), devices: [h.DEV.virpil()], query: "?edit" });
+    await page.click("#toolbar [data-act=help]");
+    await expect(page.locator("#help")).toHaveClass(/open/);
+    await expect(page.locator("#welcome")).not.toHaveClass(/open/);
+    const c = await page.evaluate(() => ({
+      heads: [...document.querySelectorAll("#help h3")].map(e => e.textContent),
+      keys: document.querySelectorAll("#help .keys dt").length,
+      howtos: [...document.querySelectorAll("#help .howto section")].map(s => ({ title: s.querySelector("h4").textContent, sentences: s.querySelector("p").textContent.split(/[.?!](\s|$)/).filter(x => x && x.trim()).length, last: s.lastElementChild.tagName, href: s.querySelector("a").href })),
+      tiles: document.querySelectorAll("#help [data-welcome-preset], #help [data-preset]").length,
+      setup: [...document.querySelectorAll("#help button")].map(b => b.textContent)
+    }));
+    expect(c.heads).toEqual(["Keyboard Shortcuts", "How To"]);
+    expect(c.keys).toBeGreaterThanOrEqual(14);
+    expect(c.howtos.map(o => o.title)).toEqual(["Bind or Rebind a Widget", "Arrange and Align", "Back Up and Share a Profile", "Add to OBS and Capture the Game View"]);
+    for (const o of c.howtos) {
+      expect(o.sentences, o.title).toBeGreaterThanOrEqual(2); expect(o.sentences, o.title).toBeLessThanOrEqual(3);
+      expect(o.last, o.title + " ends with its link").toBe("A");
+      const [url, anchor] = o.href.split("#");
+      expect(url).toBe("https://github.com/Adobe-Wan/Joystick-Overlay-Inputs-JOI");
+      expect(anchors, o.title).toContain(anchor);
+    }
+    expect(c.tiles, "no preset tiles to click by accident").toBe(0);
+    expect(c.setup).toContain("Start a New Setup");
+    await page.keyboard.press("Escape");
+    await expect(page.locator("#help")).not.toHaveClass(/open/);
+    await expect(page.locator("#toolbar [data-act=help]")).toBeFocused();
+  });
+  test("? opens Help, and Start a New Setup opens the welcome, which goes back to Help on Escape", async ({ app, page }) => {
+    await app.open({ profile: base([stick()]), devices: [h.DEV.virpil()], query: "?edit" });
+    await blur(page);
+    await page.keyboard.press("?");
+    await expect(page.locator("#help")).toHaveClass(/open/);
+    await page.keyboard.press("Escape");
+    await expect(page.locator("#help")).not.toHaveClass(/open/);
+    await page.click("#toolbar [data-act=help]");
+    await page.click('#help button:has-text("Start a New Setup")');
+    await expect(page.locator("#help")).not.toHaveClass(/open/);
+    await expect(page.locator("#welcome")).toHaveClass(/open/);
+    await expect(page.locator("#welcome-presets button").first()).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(page.locator("#welcome")).not.toHaveClass(/open/);
+    await expect(page.locator("#toolbar [data-act=help]")).toBeFocused();
+  });
+  test("Help fits 1366 x 768 with its foot in view", async ({ app, page }) => {
+    await page.setViewportSize({ width: 1366, height: 768 });
+    await app.open({ profile: base([stick()]), devices: [h.DEV.virpil()], query: "?edit" });
+    await page.click("#toolbar [data-act=help]");
+    const m = await page.evaluate(() => { const d = document.querySelector("#help .dialog"), f = document.querySelector("#help .foot").getBoundingClientRect(); return { whole: d.scrollHeight - d.clientHeight, foot: f.bottom, vh: innerHeight }; });
+    expect(m.whole).toBeLessThanOrEqual(0);
+    expect(m.foot).toBeLessThanOrEqual(m.vh);
   });
 });

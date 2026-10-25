@@ -370,7 +370,7 @@ body.editing .widget.selected { outline: 2px solid var(--vg-accent-default); out
    Editor text size, and every length is a token. Only the editor chrome lives here; the widgets on the stage keep
    their own --font, --mono and per-widget Color Theme, so nothing in this block changes what OBS shows. ---------- */
 html { font-size: 16px; }   /* set from JS: grows with the viewport so 4K stays readable */
-#ui, #welcome, #wizard, #confirm, #save-copy, #obs-dlg, #enter-edit, #empty-edit, #coach, #toast, #preview-chip, .cpop {
+#ui, #welcome, #help, #wizard, #confirm, #save-copy, #obs-dlg, #enter-edit, #empty-edit, #coach, #toast, #preview-chip, .cpop {
   font-family: var(--vg-font-ui); font-size: var(--vg-text-sm); line-height: var(--vg-leading-sm); color: var(--vg-text-1); }
 #ui { display: none; }
 body.editing #ui { display: block; }
@@ -403,7 +403,7 @@ button, select, input[type=text], input[type=number] {
 select, input[type=text], input[type=number] { background: var(--vg-surface-ink-1); }
 /* Native dropdown lists: dark menu with light text. Without this, Windows draws the open list
    white while the options inherit our light text color, which is unreadable. */
-#ui, #wizard, #welcome, #coach { color-scheme: dark; }
+#ui, #wizard, #welcome, #help, #coach { color-scheme: dark; }
 select { background-color: var(--vg-navy-800); }
 select option, select optgroup { background-color: var(--vg-navy-800); color: var(--vg-text-1); }
 select option:checked { background-color: var(--vg-navy-600); color: #ffffff; }
@@ -699,24 +699,53 @@ body.panel-hidden #coach::after { display: none; }
 #obs-dlg .check { display: flex; align-items: center; gap: var(--vg-space-2); }
 #obs-dlg p.small { font-size: var(--vg-text-sm); line-height: var(--vg-leading-sm); margin: var(--vg-space-1) 0 var(--vg-space-4); }
 #obs-dlg p.err { color: var(--vg-status-danger); margin: 0 0 var(--vg-space-3); }
-#welcome .dialog { width: min(40rem, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); overflow: auto; padding: var(--vg-space-6) var(--vg-space-8); font-size: var(--vg-text-md); line-height: var(--vg-leading-md); }
+/* A dialog in three parts: the head and the foot stay put and only the middle scrolls, so the way out is always on
+   screen, even at 1366 x 768. */
+.dialog.pinned { display: flex; flex-direction: column; overflow: hidden; max-height: calc(100vh - 2rem); box-sizing: border-box; }
+.dialog.pinned > .head, .dialog.pinned > .foot { flex: none; }
+.dialog.pinned > .mid { flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; margin: 0 calc(-1 * var(--vg-space-8)); padding: 0 var(--vg-space-8);
+  scrollbar-color: var(--vg-surface-ink-3) transparent; }
+.dialog.pinned > .mid::-webkit-scrollbar { width: 12px; }
+.dialog.pinned > .mid::-webkit-scrollbar-thumb { background: var(--vg-surface-ink-3); border-radius: var(--vg-radius-pill); border: 2px solid transparent; background-clip: padding-box; }
+.dialog.pinned > .foot { border-top: 1px solid var(--vg-line-default); padding-top: var(--vg-space-4); }
+#welcome .dialog { width: min(56rem, calc(100vw - 2rem)); padding: var(--vg-space-6) var(--vg-space-8); font-size: var(--vg-text-md); line-height: var(--vg-leading-md); }
 #welcome h2 { margin: 0 0 var(--vg-space-1); font-size: var(--vg-text-2xl); line-height: var(--vg-leading-2xl); font-weight: var(--vg-weight-semibold); letter-spacing: -0.005em; }
-#welcome .lead { color: var(--vg-text-2); margin: 0 0 var(--vg-space-4); }
+#welcome .lead { color: var(--vg-text-2); margin: 0 0 var(--vg-space-3); }
 #welcome .lead.where { color: var(--vg-text-accent); font-size: var(--vg-text-sm); line-height: var(--vg-leading-sm); margin-top: calc(-1 * var(--vg-space-2)); }
-#welcome .wq { margin: var(--vg-space-1) 0 var(--vg-space-2); font-size: var(--vg-text-lg); line-height: var(--vg-leading-lg); font-weight: var(--vg-weight-semibold); }
+#welcome .wq { margin: 0 0 var(--vg-space-2); font-size: var(--vg-text-lg); line-height: var(--vg-leading-lg); font-weight: var(--vg-weight-semibold); }
 #welcome .presets { grid-template-columns: repeat(3, 1fr); margin: 0 0 var(--vg-space-3); }
+/* A tile's name and its hardware icons share the first line, so the tiles stay short */
+#welcome .presets button { grid-template-columns: 1fr auto; align-items: center; column-gap: var(--vg-space-2); }
+#welcome .presets .icons { grid-column: 2; grid-row: 1; }
+#welcome .presets button small { grid-column: 1 / -1; }
+/* Templates: one row of two short tiles, the heading and its hint on one line above them */
+#welcome .trow { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--vg-space-3); margin: 0 0 var(--vg-space-2); }
+#welcome .trow .wq, #welcome .trow .wsub { margin: 0; }
+#welcome .presets.tpl { grid-template-columns: repeat(2, 1fr); margin-bottom: var(--vg-space-1); }
+#welcome .presets.tpl button { padding: var(--vg-space-2) var(--vg-space-3); }
 #welcome .wsub { color: var(--vg-text-2); font-size: var(--vg-text-sm); line-height: var(--vg-leading-sm); margin: 0 0 var(--vg-space-4); }
-#welcome .wsub.tsub { margin: calc(-1 * var(--vg-space-1)) 0 var(--vg-space-2); }
 #welcome .foot { display: flex; justify-content: space-between; align-items: center; gap: var(--vg-space-2); flex-wrap: wrap; color: var(--vg-text-2); }
-#welcome .keys { margin-top: var(--vg-space-4); font-size: var(--vg-text-sm); line-height: var(--vg-leading-sm); color: var(--vg-text-2); }
-#welcome .keys summary { cursor: pointer; color: var(--vg-text-2); font-weight: var(--vg-weight-semibold); }
-#welcome .keys .hint-k { font-weight: var(--vg-weight-regular); }
-#welcome .keys table { width: 100%; border-collapse: collapse; margin-top: var(--vg-space-2); }
-#welcome .keys td { padding: var(--vg-space-1) var(--vg-space-2) var(--vg-space-1) 0; vertical-align: top; }
-#welcome .keys td:nth-child(odd) { white-space: nowrap; color: var(--vg-text-1); }
+#welcome .foot .btns { display: flex; gap: var(--vg-space-2); flex-wrap: wrap; }
+/* Help: shortcuts, four short how-tos and Start a New Setup, on the welcome's dialog styles */
+#help { position: fixed; inset: 0; z-index: 50; display: none; align-items: center; justify-content: center; background: var(--vg-surface-scrim); }
+#help.open { display: flex; }
+#help .dialog { width: min(48rem, calc(100vw - 2rem)); padding: var(--vg-space-6) var(--vg-space-8); font-size: var(--vg-text-md); line-height: var(--vg-leading-md); }
+#help h2 { margin: 0 0 var(--vg-space-2); font-size: var(--vg-text-2xl); line-height: var(--vg-leading-2xl); font-weight: var(--vg-weight-semibold); letter-spacing: -0.005em; }
+#help h3 { margin: var(--vg-space-2) 0 var(--vg-space-2); font-size: var(--vg-text-lg); line-height: var(--vg-leading-lg); font-weight: var(--vg-weight-semibold); }
+#help h4 { margin: 0 0 var(--vg-space-1); font-size: var(--vg-text-md); line-height: var(--vg-leading-md); font-weight: var(--vg-weight-semibold); }
+#help p { margin: 0 0 var(--vg-space-2); color: var(--vg-text-2); font-size: var(--vg-text-sm); line-height: var(--vg-leading-sm); }
+#help .keys { display: grid; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); gap: var(--vg-space-1) var(--vg-space-6); margin: 0 0 var(--vg-space-4); font-size: var(--vg-text-sm); line-height: var(--vg-leading-sm); }
+#help .keys > div { display: grid; grid-template-columns: 9rem 1fr; gap: var(--vg-space-2); }
+#help .keys dt { color: var(--vg-text-1); }
+#help .keys dd { margin: 0; color: var(--vg-text-2); }
+#help-title:focus { outline: none; }   /* focus starts on the title so a screen reader reads from the top; it is not a control */
+#help .howto { display: grid; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); gap: var(--vg-space-3); margin: 0 0 var(--vg-space-4); }
+#help .howto section { padding: var(--vg-space-3) var(--vg-space-4); border: 1px solid var(--vg-line-default); border-radius: var(--vg-radius-md); background: var(--vg-surface-ink-1); }
+#help .howto a { color: var(--vg-text-accent); font-size: var(--vg-text-sm); line-height: var(--vg-leading-sm); text-underline-offset: 2px; }
+#help .foot { display: flex; justify-content: space-between; align-items: center; gap: var(--vg-space-2); flex-wrap: wrap; color: var(--vg-text-2); }
 #empty-edit { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; z-index: 9; pointer-events: none; }
 body.editing:not(.has-widgets) #empty-edit { display: flex; }
-body:has(#welcome.open) #empty-edit, body:has(#wizard.open) #empty-edit { display: none; }
+body:has(#welcome.open) #empty-edit, body:has(#help.open) #empty-edit, body:has(#wizard.open) #empty-edit { display: none; }
 #empty-edit .card { pointer-events: auto; text-align: center; padding: var(--vg-space-6) var(--vg-space-8); max-width: min(28rem, calc(100vw - 26rem)); font-size: var(--vg-text-md); line-height: var(--vg-leading-md); }
 #empty-edit h2 { margin: 0 0 var(--vg-space-1); font-size: var(--vg-text-lg); line-height: var(--vg-leading-lg); font-weight: var(--vg-weight-semibold); }
 #empty-edit p { margin: 0 0 var(--vg-space-4); color: var(--vg-text-2); }
@@ -831,32 +860,67 @@ html[data-vg-transparency="reduced"] .paper { -webkit-backdrop-filter: none; bac
 <div id="preview-chip" class="paper" role="note"><span class="pill" aria-hidden="true">Preview</span><span>Browser preview. In OBS this background is transparent.</span><span class="warn" id="offscreen-note" hidden></span><button class="text" id="preview-edit">Open Editor (E)</button></div>
 
 <div id="welcome" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
-  <div class="dialog paper">
-    <h2 id="welcome-title">Welcome to Joystick Overlay Inputs</h2>
-    <p class="lead">Show your sticks, throttle and pedals on stream, then watch your replays to see what your hands and feet were doing.</p>
-    <p class="lead where" id="welcome-where" hidden>You're previewing in a browser. When the layout is ready, add <code>JOI.html</code> to OBS as a Browser source; it is transparent there.</p>
-    <h3 class="wq">What do you fly with?</h3>
-    <div class="presets" id="welcome-presets" role="group" aria-label="Starter setups"></div>
-    <p class="wsub">Pick one and its widgets appear at the bottom of the screen. Then move each stick, throttle or pedal once when asked, drag the widgets where you want them, and press <kbd>E</kbd> to leave edit mode.</p>
-    <h3 class="wq" id="welcome-templates-title">Templates</h3>
-    <p class="wsub tsub" id="welcome-templates-hint"></p>
-    <div class="presets" id="welcome-templates" role="group" aria-labelledby="welcome-templates-title"></div>
+  <div class="dialog paper pinned">
+    <div class="head">
+      <h2 id="welcome-title">Welcome to Joystick Overlay Inputs</h2>
+      <p class="lead">Show your sticks, throttle and pedals on stream, then watch your replays to see what your hands and feet were doing.</p>
+      <p class="lead where" id="welcome-where" hidden>You're previewing in a browser. When the layout is ready, add <code>JOI.html</code> to OBS as a Browser source; it is transparent there.</p>
+    </div>
+    <div class="mid" id="welcome-mid">
+      <h3 class="wq">What do you fly with?</h3>
+      <div class="presets" id="welcome-presets" role="group" aria-label="Starter setups"></div>
+      <p class="wsub">Pick one and its widgets appear at the bottom of the screen. Then move each stick, throttle or pedal once when asked, drag the widgets where you want them, and press <kbd>E</kbd> to leave edit mode.</p>
+      <div class="trow"><h3 class="wq" id="welcome-templates-title">Templates</h3><p class="wsub tsub" id="welcome-templates-hint"></p></div>
+      <div class="presets tpl" id="welcome-templates" role="group" aria-labelledby="welcome-templates-title"></div>
+    </div>
     <div class="foot">
       <span>Already have a setup? <button class="text" data-welcome="import">Import a Profile</button></span>
-      <span style="display:flex;gap:0.5rem;flex-wrap:wrap"><button data-welcome="close">Explore on My Own</button><button data-welcome="device">Add Devices One by One</button></span>
+      <span class="btns"><button data-welcome="close">Explore on My Own</button><button data-welcome="device">Add Devices One by One</button></span>
     </div>
-    <details class="keys" id="welcome-keys">
-      <summary>Keyboard shortcuts <span class="hint-k">(press <kbd>?</kbd> in the editor)</span></summary>
-      <table>
-        <tr><td><kbd>E</kbd></td><td>Open or close the editor</td><td><kbd>A</kbd></td><td>Add a device, button or label</td></tr>
-        <tr><td><kbd>P</kbd></td><td>Hide or show the side panel</td><td><kbd>H</kbd> / <kbd>R</kbd></td><td>Show / reset the session heatmap</td></tr>
-        <tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Y</kbd></td><td>Undo / redo</td><td><kbd>Ctrl</kbd>+<kbd>A</kbd> / <kbd>D</kbd></td><td>Select all / duplicate</td></tr>
-        <tr><td>Arrows</td><td>Nudge 1 px (Shift: 10 px)</td><td><kbd>Delete</kbd></td><td>Remove the selection</td></tr>
-        <tr><td><kbd>Shift</kbd> / <kbd>Ctrl</kbd> while resizing</td><td>Keep proportions / from the center</td><td><kbd>Alt</kbd> while dragging</td><td>No snapping</td></tr>
-        <tr><td><kbd>Esc</kbd></td><td>Clear the selection, then leave the editor</td><td><kbd>?</kbd></td><td>This list</td></tr>
-        <tr><td><kbd>C</kbd></td><td>Capture the game view from OBS</td><td><kbd>L</kbd></td><td>Show the game live behind the editor</td></tr>
-      </table>
-    </details>
+  </div>
+</div>
+<div id="help" role="dialog" aria-modal="true" aria-labelledby="help-title">
+  <div class="dialog paper pinned">
+    <div class="head"><h2 id="help-title" tabindex="-1">Help</h2></div>
+    <div class="mid" id="help-mid">
+      <h3 id="help-keys-title">Keyboard Shortcuts</h3>
+      <p class="sub">Single keys work when no button or field has focus: click an empty part of the screen first.</p>
+      <dl class="keys" aria-labelledby="help-keys-title">
+        <div><dt><kbd>E</kbd></dt><dd>Open or close the editor</dd></div>
+        <div><dt><kbd>A</kbd></dt><dd>Open the round + menu to add a widget</dd></div>
+        <div><dt><kbd>P</kbd></dt><dd>Hide or show the side panel</dd></div>
+        <div><dt><kbd>H</kbd> / <kbd>R</kbd></dt><dd>Show / reset the session heatmap</dd></div>
+        <div><dt><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Y</kbd></dt><dd>Undo / redo</dd></div>
+        <div><dt><kbd>Ctrl</kbd>+<kbd>A</kbd> / <kbd>D</kbd></dt><dd>Select all / duplicate</dd></div>
+        <div><dt>Arrows</dt><dd>Nudge 1 px (Shift: 10 px)</dd></div>
+        <div><dt><kbd>Delete</kbd></dt><dd>Remove the selection</dd></div>
+        <div><dt><kbd>Shift</kbd> / <kbd>Ctrl</kbd> while resizing</dt><dd>Keep proportions / from the center</dd></div>
+        <div><dt><kbd>Alt</kbd> while dragging</dt><dd>No snapping</dd></div>
+        <div><dt><kbd>Esc</kbd></dt><dd>Clear the selection, then leave the editor</dd></div>
+        <div><dt><kbd>?</kbd></dt><dd>Open this Help</dd></div>
+        <div><dt><kbd>C</kbd></dt><dd>Capture the game view from OBS</dd></div>
+        <div><dt><kbd>L</kbd></dt><dd>Show the game live behind the editor</dd></div>
+      </dl>
+      <h3>How To</h3>
+      <div class="howto">
+        <section aria-labelledby="help-bind"><h4 id="help-bind">Bind or Rebind a Widget</h4>
+          <p>Select the widget and press Bind or Rebind under its name, then move the stick or pedal, or press the button, when asked. Bind Inputs on the Setup panel walks through every widget that isn't bound yet.</p>
+          <a href="https://github.com/Adobe-Wan/Joystick-Overlay-Inputs-JOI#a-device-isnt-showing-up" target="_blank" rel="noopener noreferrer">More in the README: A device isn't showing up</a></section>
+        <section aria-labelledby="help-arrange"><h4 id="help-arrange">Arrange and Align</h4>
+          <p>Drag a widget to move it: smart guides snap it to the screen center, the edges and other widgets, and Alt drags without snapping. Drag a box or Shift+click to select several, then use the align icons at the top of the panel.</p>
+          <a href="https://github.com/Adobe-Wan/Joystick-Overlay-Inputs-JOI#positioning" target="_blank" rel="noopener noreferrer">More in the README: Positioning</a></section>
+        <section aria-labelledby="help-backup"><h4 id="help-backup">Back Up and Share a Profile</h4>
+          <p>In Profiles &amp; Share, press Download profile.js and save it in the folder that holds JOI.html, so your layouts survive OBS clearing its cache. To share one profile, send its Download .json file; the other pilot adds it with Import a Profile.</p>
+          <a href="https://github.com/Adobe-Wan/Joystick-Overlay-Inputs-JOI#profiles-and-presets" target="_blank" rel="noopener noreferrer">More in the README: Profiles and presets</a></section>
+        <section aria-labelledby="help-obs"><h4 id="help-obs">Add to OBS and Capture the Game View</h4>
+          <p>In OBS, add a Browser source, check Local file, pick JOI.html and set it to your canvas size. Right-click the source and choose Interact to edit. Capture Game View on the Setup panel puts a screenshot of your game behind the editor, so you can place widgets around the HUD.</p>
+          <a href="https://github.com/Adobe-Wan/Joystick-Overlay-Inputs-JOI#set-up-in-obs" target="_blank" rel="noopener noreferrer">More in the README: Set up in OBS</a></section>
+      </div>
+    </div>
+    <div class="foot">
+      <span>Flying something new? <button data-help="setup" title="Pick your hardware and get a new profile with its widgets. Your profiles stay as they are.">Start a New Setup</button></span>
+      <button class="primary" data-help="close">Close</button>
+    </div>
   </div>
 </div>
 <div id="coach" class="paper" role="dialog" aria-labelledby="coach-title">
@@ -908,7 +972,7 @@ html[data-vg-transparency="reduced"] .paper { -webkit-backdrop-filter: none; bac
     <button data-act="review" id="heat-btn" title="Session heatmap and what it says about your flying">Review</button>
     <button data-act="settings">Settings</button>
     <button data-act="profiles" title="Switch, add and back up profiles, and share one with another pilot">Profiles &amp; Share</button>
-    <button data-act="help" title="Starter setups and keyboard shortcuts (?)">Help</button>
+    <button data-act="help" title="Keyboard shortcuts and how-tos (?)" aria-keyshortcuts="?">Help</button>
     <button data-act="panel" id="panel-btn" title="Show / hide the side panel (P)" aria-keyshortcuts="P">Hide Panel</button>
   </div>
   <div id="panel" class="paper" role="complementary" aria-label="Editor panel"></div>
@@ -1769,13 +1833,24 @@ function stepAsk(s) {
 let wiz = null;
 
 let wizAdded = [];   // names added since the wizard opened, for the "Added so far" summary
-function startDeviceWizard() { closeFab(); closeWelcome(); wiz = { kind: "device", stage: "type" }; renderWiz(); }
-function startButtonWizard() { closeFab(); closeWelcome(); wiz = { kind: "button", stage: "press" }; renderWiz(); }
+// Closing the wizard hands focus back to the control that opened it (the round + for its menu), or to the stage
+// with nothing focused when that control is gone or there was none (Bind Inputs after a preset), so P, A, E and H
+// work straight away.
+let wizBack = null;
+function noteWizOpener() {
+  if (wiz) return;
+  const a = document.activeElement;
+  wizBack = a && a.closest && a.closest("#fab-menu") ? $("#fab") : a;
+}
+function startDeviceWizard() { noteWizOpener(); closeFab(); closeWelcome(); wiz = { kind: "device", stage: "type" }; renderWiz(); }
+function startButtonWizard() { noteWizOpener(); closeFab(); closeWelcome(); wiz = { kind: "button", stage: "press" }; renderWiz(); }
 function closeWizard() {
-  const finished = wiz && wiz.kind === "done";
+  const was = !!wiz, finished = wiz && wiz.kind === "done";
   const stopped = bindQueue.length > 0;
   wiz = null; wizAdded = []; bindQueue = []; renderWiz();
   if (stopped) setSelection([]);   // back to Setup, which has Bind Inputs on it
+  if (was && editing) refocus(wizBack);
+  if (was) wizBack = null;
   if (finished) maybeTip("groups");
 }
 // ---------- one-time tips ----------
@@ -1793,7 +1868,7 @@ function closeTip(id) {
   tipsSeen[id] = true; try { localStorage.setItem(TIPS_KEY, JSON.stringify(tipsSeen)); } catch (e) {}
 }
 function wizChooseType(t) {
-  closeFab(); closeWelcome();
+  noteWizOpener(); closeFab(); closeWelcome();
   if (t === "button") return startButtonWizard();
   if (t === "label") { closeWizard(); return addLabel(); }
   wiz = { kind: "device", type: t, name: TYPES[t].name, stage: "steps", step: 0, axes: {}, inv: {} };
@@ -1802,7 +1877,7 @@ function wizChooseType(t) {
 // Bind or Rebind (the button under the widget's name): rerun the move/press steps for an existing widget and bind it
 // in place, keeping its name, position, size and colors. verb is the button's word, which the dialog repeats.
 function startRemap(w) {
-  closeFab(); closeWelcome(); wizAdded = [];
+  noteWizOpener(); closeFab(); closeWelcome(); wizAdded = [];
   const verb = isUnbound(w) ? "Bind" : "Rebind";
   wiz = w.type === "button"
     ? { kind: "button", stage: "press", remap: w.id, label: w.label, verb }
@@ -3510,7 +3585,7 @@ function placeOnScreen(where) {
 let drag = null, marquee = null, sizing = null, baseDrag = null;
 document.addEventListener("pointerdown", e => {
   if (!editing || e.button !== 0) return;
-  if (e.target.closest("#ui, #welcome, #wizard, #confirm, #save-copy, #enter-edit, #empty-edit, #coach")) return;
+  if (e.target.closest("#ui, #welcome, #help, #wizard, #confirm, #save-copy, #enter-edit, #empty-edit, #coach")) return;
   // A projector base: drag it where you like. It moves with its widget's offset (holo.base.dx / dy), so presets,
   // undo and Project from One Base keep working. With several projector widgets selected, they all follow.
   // A base sitting under one of the selected widget's edge handles still wins the click (the strips are invisible).
@@ -3664,7 +3739,7 @@ document.addEventListener("pointerup", () => {
 
 // ---------- keys ----------
 document.addEventListener("keydown", e => {
-  if (e.target.matches("input, select, textarea") || $("#welcome").classList.contains("open") || wiz) return;
+  if (e.target.matches("input, select, textarea") || $("#welcome").classList.contains("open") || $("#help").classList.contains("open") || wiz) return;
   if (e.target.closest("#fab-menu, .tsel")) return;   // the + menu and theme dropdown handle their own keys
   const k = e.key.toLowerCase(), mod = e.ctrlKey || e.metaKey;
   // Single-key shortcuts act only with nothing focused (WCAG 2.1.4): on a focused button, E or Escape belongs to it.
@@ -3677,7 +3752,7 @@ document.addEventListener("keydown", e => {
   else if (onCanvas && !mod && !e.altKey && k === "p") togglePanel();
   else if (onCanvas && !mod && !e.altKey && k === "c") captureGameView();
   else if (onCanvas && !mod && !e.altKey && k === "l") toggleLive();
-  else if (onCanvas && !mod && e.key === "?") { e.preventDefault(); openWelcome(true); }
+  else if (onCanvas && !mod && e.key === "?") { e.preventDefault(); openHelp(); }
   else if ((e.key === "Delete" || e.key === "Backspace") && selected.size) deleteSelected();
   else if (e.key === "Escape") { if (selected.size) setSelection([]); else if (onCanvas) setEditing(false); }
   else if (k === "a" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); setSelection(profile.widgets.map(w => w.id)); }
@@ -3693,7 +3768,7 @@ document.addEventListener("keydown", e => {
     moveWidgets(selectedWidgets(), dx, dy); save(); renderPanel();
   }
 });
-document.addEventListener("dblclick", e => { if (!editing && !e.target.closest("#ui, #welcome, #wizard, #save-copy, #enter-edit, #empty-edit, #coach")) setEditing(true); });
+document.addEventListener("dblclick", e => { if (!editing && !e.target.closest("#ui, #welcome, #help, #wizard, #save-copy, #enter-edit, #empty-edit, #coach")) setEditing(true); });
 
 // ---------- edit mode ----------
 // The browser preview chip opens in full each time the editor closes, then folds to a pill (unless it is warning that
@@ -3709,7 +3784,7 @@ function setEditing(on) {
   editing = on;
   document.body.classList.toggle("editing", on);
   $("#edit-switch").checked = on;
-  if (!on) { closeWelcome(); closeFab(); if (wiz) closeWizard(); if (live) stopLive(false); showPreviewChip(); }
+  if (!on) { closeWelcome(); closeHelp(); closeFab(); if (wiz) closeWizard(); if (live) stopLive(false); showPreviewChip(); }
   // First time out of the editor with a layout and no profile.js next to the page: say once how to keep it.
   if (leaving && profile.widgets.length && !tipsSeen.backup && !window.JOI_PROFILE && !window.STAYONTARGET_PROFILE && !window.JOYVIZ_PROFILE) {
     tipsSeen.backup = true; try { localStorage.setItem(TIPS_KEY, JSON.stringify(tipsSeen)); } catch (e) {}
@@ -4224,18 +4299,23 @@ $("#edit-switch").addEventListener("change", e => setEditing(e.target.checked));
 $("#enter-edit-btn").addEventListener("click", () => setEditing(true));
 
 // ---------- first-run / getting-started dialog ----------
-// Closing hands focus back to what opened the dialog, or to Getting Started when it opened on its own (first run,
-// Reset All). A step that opens the wizard moves focus on again from there.
+// Closing hands focus back to what opened the dialog. When it opened on its own (first run, Reset All), focus goes
+// to the stage, with nothing focused, so the single-key shortcuts work straight away. A step that opens the wizard
+// moves focus on again from there.
 let welcomeBack = null;
-function openWelcome(keys) {
+function openWelcome() {
   welcomeBack = document.activeElement;
   $("#welcome-where").hidden = !document.body.classList.contains("preview");   // in OBS the page is already where it belongs
   const tiles = $("#welcome-presets"); tiles.innerHTML = ""; presetTiles(tiles, "data-welcome-preset");
   const tpl = $("#welcome-templates"); tpl.innerHTML = ""; presetTiles(tpl, "data-welcome-preset", true);
   $("#welcome-templates-hint").textContent = TEMPLATES_HINT;
-  $("#welcome-keys").open = !!keys;
-  $("#welcome").classList.add("open");
-  setTimeout(() => (keys ? $("#welcome-keys summary") : $("#welcome-presets button")).focus(), 0);
+  $("#welcome").classList.add("open"); $("#welcome-mid").scrollTop = 0;
+  setTimeout(() => $("#welcome-presets button").focus(), 0);
+}
+// Focus back to where it was before a dialog opened, or to the stage when that is gone or was nothing.
+function refocus(back) {
+  if (back && back !== document.body && back.isConnected && !back.closest("[inert]")) back.focus();
+  else if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
 }
 // Preset tiles, on the welcome and in Profiles & Share: the hardware as icons, the acronym spelled out, what it adds.
 // templates: true lists the templates instead, with the same tile.
@@ -4251,10 +4331,33 @@ function presetTiles(box, attr, templates = false) {
 function closeWelcome() {
   const w = $("#welcome"); if (!w.classList.contains("open")) return;
   w.classList.remove("open");
-  const back = welcomeBack && welcomeBack !== document.body && welcomeBack.isConnected ? welcomeBack : $("#toolbar [data-act=help]");
-  welcomeBack = null;
-  if (editing) back.focus();
+  const back = welcomeBack; welcomeBack = null;
+  if (editing) refocus(back);
 }
+// Help: the shortcuts, a few how-tos with links to the README, and Start a New Setup, which opens the welcome.
+let helpBack = null;
+function openHelp() {
+  closeFab();
+  if (!$("#help").classList.contains("open")) helpBack = document.activeElement;
+  $("#help").classList.add("open"); $("#help-mid").scrollTop = 0;
+  setTimeout(() => $("#help-title").focus(), 0);
+}
+function closeHelp(back = true) {
+  const d = $("#help"); if (!d.classList.contains("open")) return;
+  d.classList.remove("open");
+  const to = helpBack; helpBack = null;
+  if (back && editing) refocus(to);
+  return to;
+}
+$("#help").addEventListener("click", e => {
+  const act = e.target.closest("[data-help]")?.dataset.help;
+  if (e.target.id === "help" || act === "close") closeHelp();
+  else if (act === "setup") { const back = closeHelp(false); openWelcome(); welcomeBack = back; }
+});
+$("#help").addEventListener("keydown", e => {
+  if (e.key === "Escape") { e.stopPropagation(); closeHelp(); }
+  trapTab(e, $("#help"), "button, a[href]");
+});
 
 // Keeps Tab inside a modal dialog: past the last control it wraps to the first, and back.
 function trapTab(e, box, sel = "button") {
@@ -4298,7 +4401,7 @@ async function resetAll() {
 }
 $("#welcome").addEventListener("click", e => {
   const pick = e.target.closest("[data-welcome-preset]");
-  if (pick) { closeWelcome(); return addPreset(pick.dataset.welcomePreset); }
+  if (pick) { welcomeBack = null; closeWelcome(); return addPreset(pick.dataset.welcomePreset); }   // new widgets: focus to the stage
   const act = e.target.closest("[data-welcome]")?.dataset.welcome;
   if (e.target.id === "welcome") return closeWelcome();
   if (!act) return;
@@ -4308,7 +4411,7 @@ $("#welcome").addEventListener("click", e => {
 });
 $("#welcome").addEventListener("keydown", e => {
   if (e.key === "Escape") { e.stopPropagation(); closeWelcome(); }
-  trapTab(e, $("#welcome"), "button, summary");
+  trapTab(e, $("#welcome"), "button");
 });
 $("#empty-presets").addEventListener("click", () => openWelcome());
 $("#empty-device").addEventListener("click", startDeviceWizard);
@@ -4325,7 +4428,7 @@ $("#toolbar").addEventListener("click", e => {
   else if (act === "settings") setSelection([], "settings");
   else if (act === "profiles") setSelection([], "profiles");
   else if (act === "panel") togglePanel();
-  else if (act === "help") openWelcome();
+  else if (act === "help") openHelp();
 });
 $("#file-in").addEventListener("change", async e => {
   const f = e.target.files[0]; if (!f) return;
@@ -4927,11 +5030,10 @@ const deviceLabel = (id, nth) => prettyName(id) + (nth ? " #" + (nth + 1) : "");
 const devName = d => deviceLabel(d.id, d.nth);
 function renderWiz() {
   const host = $("#wizard"), b = $("#wiz-body");
-  const was = host.classList.contains("open");
   host.classList.toggle("open", !!wiz);
   b.innerHTML = "";
   if (wiz) wake();   // the steps poll the devices every frame
-  if (!wiz) { if (was && editing) $("#fab").focus(); return; }
+  if (!wiz) return;   // closeWizard puts focus back
   if (wiz.remap && wiz.stage === "name") return finishRemap();   // re-detecting keeps the widget's name
   const total = 3;
   const queued = !!wiz.remap && bindQueue[0] === wiz.remap;

@@ -26,7 +26,7 @@ Download the new zip and replace `JOI.html` in your folder. Keep your `profile.j
 2. In OBS, add a **Browser** source, check **Local file** and pick `JOI.html`.
    - **Width / Height:** use your OBS canvas size (Settings → Video → Base Canvas, usually **1920 × 1080**). The overlay then maps 1:1 to your screen, and you position widgets by dragging them in step 4 rather than by moving the source.
    - **FPS:** check **Use custom frame rate** and set **60**.
-3. Right-click the source and choose **Interact**. The first time, JOI opens in edit mode with a welcome dialog that asks **What do you fly with?** (Later, press **E** or click **Open Editor** to return; **Help** in the top bar brings the dialog back.)
+3. Right-click the source and choose **Interact**. The first time, JOI opens in edit mode with a welcome dialog that asks **What do you fly with?** (Later, press **E** or click **Open Editor** to return; **Help** in the top bar lists the shortcuts and has **Start a New Setup**, which brings the dialog back.)
 4. Pick the setup closest to your hardware: **WASD + Mouse**, **HOSAS + Pedals** (two sticks), **HOTAS + Pedals** (stick and throttle), **HOSAM** (stick and mouse) or **Directional Inputs**. Each tile spells out its acronym and lists what it adds. The widgets appear along the bottom middle of the screen, where most streamers keep their inputs, named for what they fly (**Pitch / Yaw**, **Strafe**, **Roll**), and **Bind Inputs** opens:
    1. **Move it** when asked: push the stick fully right, then fully forward. It detects the axis and its direction. The browser only lists a controller once it has moved, so wiggle it if nothing happens.
    2. **Skip for Now** leaves a widget for later; **Bind Inputs** on the Setup panel (or in **Profiles & Share**) finishes the rest.
@@ -235,7 +235,7 @@ The single-key shortcuts work when no button or field has focus: click an empty 
 | P | Hide / show the side panel |
 | C | Capture the game view from OBS after a 5 s countdown; press again to capture now (see *Capture the game view from OBS*) |
 | L | Live: show the game behind the editor, refreshed about twice a second |
-| ? | The shortcut list |
+| ? | Help: the shortcut list and short how-tos |
 | Alt (while dragging) | Turn snapping off |
 
 ## Review: the session heatmap
