@@ -535,22 +535,23 @@ input[type=checkbox] { accent-color: var(--vg-accent-default); width: 1.25rem; h
 .presets .icons { display: flex; gap: var(--vg-space-1); color: var(--vg-text-3); }
 .presets .icons svg { width: var(--vg-size-icon); height: var(--vg-size-icon); stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 /* Panel sections: a header you can collapse (remembered per browser), an optional switch or summary beside it.
-   Three levels of grouping, each with its own shape: a family label (colored, with a rule), a section card (colored
-   keel, icon, bold title) and, inside it, sub-headings (h5) and indented groups (.nest). Open sections sit a step
-   lighter than closed ones, so the open ones stand out in a long panel. */
-.fam, .sec { --fc: var(--vg-text-3); }
-[data-fam=pos] { --fc: var(--vg-accent-default); } [data-fam=widget] { --fc: var(--vg-status-ok); } [data-fam=style] { --fc: #B59CFF; } [data-fam=input] { --fc: var(--vg-status-warn); }
-.fam { display: flex; align-items: center; gap: var(--vg-space-2); margin: var(--vg-space-5) 0 0; font-size: var(--vg-text-xs); line-height: var(--vg-leading-xs); font-weight: var(--vg-weight-semibold); letter-spacing: var(--vg-tracking-caps); text-transform: uppercase; color: var(--fc); }
-.fam::after { content: ""; flex: 1; height: 1px; background: var(--fc); opacity: 0.4; }
-.sec { margin: var(--vg-space-2) 0 0; padding: 0 var(--vg-space-3) 0 var(--vg-space-2); border: 1px solid var(--vg-line-subtle); border-left: 2px solid var(--fc); border-radius: var(--vg-radius-sm); background: transparent;
+   Three levels of grouping, each with its own shape: a family label (a Verseglass eyebrow: accent tick, label, rule),
+   a section card (keel, icon, bold title) and, inside it, sub-headings (h5) and indented groups (.nest). Open sections
+   sit a step lighter than closed ones and draw their keel in the accent, so the open ones stand out in a long panel.
+   Families differ by their label only: one accent, and green and amber stay for real status (bound, not connected). */
+.fam { display: flex; align-items: center; gap: var(--vg-space-2); margin: var(--vg-space-5) 0 0; font-size: var(--vg-text-xs); line-height: var(--vg-leading-xs); font-weight: var(--vg-weight-semibold); letter-spacing: var(--vg-tracking-caps); text-transform: uppercase; color: var(--vg-text-2); }
+.fam::before { content: ""; flex: none; width: var(--vg-space-3); height: 2px; background: var(--vg-line-accent); }
+.fam::after { content: ""; flex: 1; height: 1px; background: var(--vg-line-default); }
+.sec { margin: var(--vg-space-2) 0 0; padding: 0 var(--vg-space-3) 0 var(--vg-space-2); border: 1px solid var(--vg-line-subtle); border-left: 2px solid var(--vg-line-default); border-radius: var(--vg-radius-sm); background: transparent;
   transition: background var(--vg-duration-fast) var(--vg-ease-out), border-color var(--vg-duration-fast) var(--vg-ease-out); }
-.sec.open { background: var(--vg-surface-ink-1); border-color: var(--vg-line-default); border-left-color: var(--fc); }
+.sec.open { background: var(--vg-surface-ink-1); border-color: var(--vg-line-default); border-left-color: var(--vg-line-accent); }
 .sec-h { display: flex; align-items: center; gap: var(--vg-space-2); }
 .sec-h > .sec-t { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--vg-space-2); min-height: var(--vg-size-control); padding: var(--vg-space-1) 0; border-color: transparent; text-align: left;
   font-size: var(--vg-text-sm); color: var(--vg-text-2); letter-spacing: 0; font-weight: var(--vg-weight-semibold); }
 .sec.open > .sec-h > .sec-t { color: var(--vg-text-1); }
 .sec-h > .sec-t:hover { background: transparent; border-color: transparent; color: var(--vg-text-1); }
-.sec-t .ico { flex: none; display: inline-flex; color: var(--fc); }
+.sec-t .ico { flex: none; display: inline-flex; color: var(--vg-text-3); }
+.sec.open > .sec-h > .sec-t .ico { color: var(--vg-text-accent); }
 .sec-t .ico svg { width: var(--vg-size-icon); height: var(--vg-size-icon); stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 .sec-t .sum { margin-left: auto; color: var(--vg-text-3); text-transform: none; letter-spacing: 0; font-weight: var(--vg-weight-regular); font-size: var(--vg-text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sec-t .chev { margin-left: auto; flex: none; font-size: 0.625rem; color: var(--vg-text-3); transition: transform var(--vg-duration-base) var(--vg-ease-out); }
@@ -4408,8 +4409,8 @@ function secOpen(key, def) {
   if (!secState) { try { secState = JSON.parse(localStorage.getItem(SEC_KEY) || "{}") || {}; } catch (e) { secState = {}; } }
   return key in secState ? !!secState[key] : def;
 }
-// Three levels of grouping, each with its own shape, so the panel reads at a glance: a family (a colored label with a
-// rule, between groups of sections), a section (a card with a colored edge and an icon, as these headers), and
+// Three levels of grouping, each with its own shape, so the panel reads at a glance: a family (an eyebrow label with a
+// rule, between groups of sections), a section (a card with a keel and an icon, as these headers), and
 // a sub-group inside it (a small heading with a rule, h5, or an indented group, .nest).
 const FAMILIES = { pos: "Position", widget: "Widget", style: "Style", input: "Input" };
 const SEC_ICONS = {
