@@ -140,3 +140,26 @@ test("Settings has a Display section with Editor text size and Reduce transparen
   await expect(page.locator("#sec-s-display")).toBeHidden();
   await expect(page.locator("#sec-s-size")).toBeVisible();
 });
+
+// R15: click-to-type slider values are at least 24 px targets, and their rows stay on the 4 px grid.
+test("every slider value button in the stick panel is at least 24 px tall, on the 4 px grid, and typing does not shift the row", async ({ app, page }) => {
+  await app.open({ profile: base([stick()]), devices: [h.DEV.virpil()], query: "?transparent" });
+  await edit(page, ["s1"]);
+  await openAll(page);
+  const vals = await page.evaluate(() => [...document.querySelectorAll("#panel .srow .val")].filter(b => b.offsetParent).map(b => ({
+    label: b.getAttribute("aria-label"), h: b.getBoundingClientRect().height, w: b.getBoundingClientRect().width, top: b.parentNode.getBoundingClientRect().height })));
+  expect(vals.length).toBeGreaterThanOrEqual(10);
+  for (const v of vals) {
+    expect(v.h, v.label).toBeGreaterThanOrEqual(24);
+    expect(v.w, v.label).toBeGreaterThanOrEqual(24);
+    expect(v.top % 4, v.label + " row height " + v.top).toBe(0);
+  }
+  const i = await page.evaluate(() => [...document.querySelectorAll("#panel .srow")].findIndex(r => r.querySelector(".val") && r.offsetParent));
+  const row = page.locator("#panel .srow").nth(i);
+  const before = await row.evaluate(r => r.getBoundingClientRect().height);
+  await row.locator(".val").click();
+  await expect(row.locator("input.val-in")).toBeFocused();
+  expect(await row.evaluate(r => r.getBoundingClientRect().height)).toBe(before);
+  await page.keyboard.press("Escape");
+  await expect(row.locator(".val")).toBeFocused();
+});
