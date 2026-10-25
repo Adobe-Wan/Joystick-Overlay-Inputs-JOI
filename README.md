@@ -26,12 +26,12 @@ Download the new zip and replace `JOI.html` in your folder. Keep your `profile.j
 2. In OBS, add a **Browser** source, check **Local file** and pick `JOI.html`.
    - **Width / Height:** use your OBS canvas size (Settings → Video → Base Canvas, usually **1920 × 1080**). The overlay then maps 1:1 to your screen, and you position widgets by dragging them in step 4 rather than by moving the source.
    - **FPS:** check **Use custom frame rate** and set **60**.
-3. Right-click the source and choose **Interact**. The first time, JOI opens in edit mode with a welcome dialog that asks **What do you fly with?** (Later, press **E** or click **Open Editor** to return; **Help** in the top bar brings the dialog back.)
+3. Right-click the source and choose **Interact**. The first time, JOI opens in edit mode with a welcome dialog that asks **What do you fly with?** (Later, press **E** or click **Open Editor** to return; **Help** in the top bar lists the shortcuts and has **Start a New Setup**, which brings the dialog back.)
 4. Pick the setup closest to your hardware: **WASD + Mouse**, **HOSAS + Pedals** (two sticks), **HOTAS + Pedals** (stick and throttle), **HOSAM** (stick and mouse) or **Directional Inputs**. Each tile spells out its acronym and lists what it adds. The widgets appear along the bottom middle of the screen, where most streamers keep their inputs, named for what they fly (**Pitch / Yaw**, **Strafe**, **Roll**), and **Bind Inputs** opens:
    1. **Move it** when asked: push the stick fully right, then fully forward. It detects the axis and its direction. The browser only lists a controller once it has moved, so wiggle it if nothing happens.
    2. **Skip for Now** leaves a widget for later; **Bind Inputs** on the Setup panel (or in **Profiles & Share**) finishes the rest.
 
-   Prefer to build it yourself? **Add Devices One by One** opens the same wizard for a single Stick, Pedals, Button/Key, Throttle, Single Axis or Label, and asks you to **Name It**. The round **+** button (bottom right, or press **A**) and **+ Add** in the top bar add more at any time.
+   Prefer to build it yourself? **Add Devices One by One** opens the same wizard for a single Stick, Pedals, Button/Key, Throttle, Single Axis or Label, and asks you to **Name It**. **+ Add** in the top bar or on the Setup panel adds more at any time, and the round **+** button (bottom right, or press **A**) lists the same types.
 5. Drag the widgets where you want them (see *Positioning* below). The **Reference Screenshot** on the Setup panel puts a Star Citizen screenshot behind the editor, so you can place them around the HUD instead of on top of it; it never shows on stream. **Capture Game View** takes that screenshot straight from OBS (see *Capture the game view from OBS* below). Click a widget to change its name, binding, size or colors.
 6. Switch **Edit Mode** off in the top bar (or press **E**). The reference screenshot disappears with the editor. The first time, a tip reminds you of step 7.
 7. **Profiles & Share → Download profile.js**, and save it in the same folder as `JOI.html`. This keeps the setup safe if OBS clears its cache. OBS's own browser can't download files, so when you edit inside OBS (**Interact**) the Download buttons show the file's text instead: select **Copy**, paste it into Notepad, and save it with **Save as type** set to **All files** under the name the dialog gives.
@@ -42,7 +42,7 @@ Opened in a normal browser instead of OBS, the welcome says so and reminds you t
 Outside OBS the page shows a dark preview background with a note that it's transparent in OBS. In OBS it stays fully transparent. If another streaming app shows the dark background, add `?transparent` to the end of the file URL. Add `?edit` to open straight into the editor.
 
 ## 4K and other resolutions
-Layouts are designed on a 1920×1080 canvas and **fit to the screen size** automatically, so a layout made at 1080p looks the same at 1440p or 4K, and the whole layout always fits in a shorter browser window or on an ultrawide. The editor's text scales up too. If a widget ever ends up outside the window, the editor home panel offers **Bring Into View**. Both can be changed in **Settings → Size** (*Fit overlay to screen size*, *Editor text size*).
+Layouts are designed on a 1920×1080 canvas and **fit to the screen size** automatically, so a layout made at 1080p looks the same at 1440p or 4K, and the whole layout always fits in a shorter browser window or on an ultrawide. The editor's text scales up too. If a widget ever ends up outside the window, the editor home panel offers **Bring Into View**. Both can be changed in **Settings**: *Fit overlay to screen size* under **Size**, *Editor text size* under **Display**.
 
 **Moving a layout between screens.** Each profile remembers the screen shape it was arranged on. Open it on a different shape (a 4K browser tab with toolbars, a 1080p OBS source, an ultrawide) and each group of widgets keeps its place: things along the bottom middle stay at the bottom middle, and a widget near an edge or corner keeps its distance from it. Nothing is overwritten until you edit, so going back to the original screen puts everything back where it was. Profiles from v1.1 and earlier record their screen the next time you change something or download profile.js.
 
@@ -50,6 +50,7 @@ Layouts are designed on a 1920×1080 canvas and **fit to the screen size** autom
 - **Reference screenshot.** The editor shows a Star Citizen screenshot behind your widgets so you can place them around the HUD. It only shows in the editor, never on stream. Change it any time on the editor's Setup tab: **Capture Game View** (from OBS, below), a sample, **Load My Own Screenshot** or **No Screenshot**.
 - **Center lines** (blue) mark the middle of the screen. While dragging, **smart guides** (pink) snap a widget's edges or center to the screen center, edges, safe margin and other widgets. When nothing is close, it snaps to the **grid**. Hold **Alt** to drag freely.
 - **Select several:** drag a box on empty space, or Shift+click widgets. Ctrl+A selects all. Drag any selected widget to move them together.
+- **Group:** with several selected, press Ctrl+G (or the Group button in the panel) and they stay together after that: dragging or nudging any member moves the whole group, and a click on one selects the group. A second click on a member picks just that one. Ctrl+Shift+G or Ungroup lets them move on their own again. On Screen lists a group as one row.
 - **Align and place:** with a selection, use the panel's align buttons (left, center, right, top, middle, bottom). *Center on Screen*, *Center Horizontally*, *Center at Bottom* and *Move to Bottom* move the selection as one block.
 - **Spacing:** with 2+ selected, type a **Gap** in px (for example 16) and press **Space Horizontally** or **Space Vertically** to set them that far apart. Leave the gap on *Auto* to spread 3+ widgets evenly across their current width or height.
 - **Nudge** with the arrow keys (Shift = 10px). **P** or **Hide Panel** hides the side panel so you can see the whole screen. **?** lists every shortcut.
@@ -127,9 +128,9 @@ Every slider's value is clickable: click it, type a number and press Enter (Esca
 Widgets keep a fixed size while you fly. The % values reserve room for their widest reading, so moving a stick never resizes anything.
 
 ## Keyboard keys (WASD overlays)
-A **Button/Key** can show a keyboard key instead of a device button. Choose **+ Button/Key** (or the round **+**), then press the key. It binds straight away, named after the letter it types on your keyboard, and shows as a **Keycap**. Space and Enter bind too; Escape closes the dialog and Tab moves between its buttons.
+A **Button/Key** can show a keyboard key instead of a device button. Choose **+ Add** and then **Button/Key** (or **Button/Key** on the round **+**), then press the key. It binds straight away, named after the letter it types on your keyboard, and shows as a **Keycap**. Space and Enter bind too; Escape closes the dialog and Tab moves between its buttons.
 
-For movement keys, press **Add W, A, S and D Keys** in the same step. It adds the four keycaps laid out like a keyboard (W above S, A and D beside it) at the bottom middle, selected together so you can style them at once. Keys are stored by their place on the keyboard, so a binding survives a change of keyboard layout. **Detect Again** in the **Key** section rebinds one, to another key or to a device button.
+For movement keys, press **Add W, A, S and D Keys** in the same step. It adds the four keycaps laid out like a keyboard (W above S, A and D beside it) at the bottom middle, selected together so you can style them at once. Keys are stored by their place on the keyboard, so a binding survives a change of keyboard layout. **Rebind**, under the widget's name in the side panel, moves one to another key or to a device button.
 
 ![Circular displays, WASD keycaps (W held) and the Circle, Pill and Rounded Square shapes](docs/keys-and-dials.png)
 
@@ -153,7 +154,7 @@ Keep a layout for each ship or controller setup and swap between them. Click **P
 | **HOSAM** (Hands on Stick and Mouse) | Strafe (stick), Up / Down, Roll, a mouse **Pitch / Yaw** widget, LMB / RMB |
 | **Directional Inputs** | Up, Left, Right and Down in a cross, for a hat, D-pad or arrow keys |
 
-Every flight preset covers all six ways a ship moves: pitch and yaw, roll, and strafe left / right, up / down and forward / back. Widgets are named for what they fly. **Roll** is a dial (a circular Single Axis): bind it to the axis you roll with, usually a stick's twist. **Up / Down** is a bar for your vertical strafe axis. Rename or rebind any of them to match your own bindings. Keyboard keys and the mouse work straight away. Sticks, throttles, pedals and hat directions can't be guessed (every pilot's devices differ), so they start **not bound yet** and **Bind Inputs** opens: it asks you to move each device or press each button in turn, with the same steps as **+ Device**. **Skip for Now** leaves one for later, and the **Bind Inputs** button on both tabs picks up the rest.
+Every flight preset covers all six ways a ship moves: pitch and yaw, roll, and strafe left / right, up / down and forward / back. Widgets are named for what they fly. **Roll** is a dial (a circular Single Axis): bind it to the axis you roll with, usually a stick's twist. **Up / Down** is a bar for your vertical strafe axis. Rename or rebind any of them to match your own bindings. Keyboard keys and the mouse work straight away. Sticks, throttles, pedals and hat directions can't be guessed (every pilot's devices differ), so they start **not bound yet** and **Bind Inputs** opens: it asks you to move each device or press each button in turn, with the same steps as **+ Add**. A single axis a preset made names its control and the way to move it ("Push the control you use for Up / Down all the way up"), so it is never bound upside down. **Skip for Now** leaves one for later, and the **Bind Inputs** button on both tabs picks up the rest.
 
 **Templates** (under the presets, in **Profiles & Share** and on the welcome) start you from a finished screen instead of a row: two of AdobeWan's own layouts, every widget already in place. **AdobeWan Projections Layout** floats Strafe and Pitch / Yaw beside the reticle, with Roll and Pedals under it, in the Visor HUD look (outline and glowing readouts, no panel). **AdobeWan Minimalist (Advanced HUD Off)** puts two small sticks beside the center console, with Roll and a Rev / Fwd bar between them, standing on projector bases at the bottom of the screen. The places were measured at 1920 x 1080; on another canvas each widget keeps its spot on the screen, on the 4 px grid and inside the safe margin. Like a preset, a template becomes a new profile with its name, and **Bind Inputs** walks through its sticks and axes.
 
@@ -172,11 +173,18 @@ Click a color to open the picker: drag in the square for saturation and brightne
 
 **Effects** adds a **Drop Shadow** and an **Outer Glow**, for the text (name, values and axis labels) and for the container (the widget's box). All four start off. Turn one on to set its Color, Opacity and Blur, plus X and Y offset for a shadow. A glow uses your Highlight color until you pick another, so it follows the theme. Container effects show only while Background opacity is above 0%. **Use These Effects for All Widgets** copies them to every widget; **Reset Effects** turns them off again.
 
+## Editor look
+The editor (side panel, toolbar, dialogs) is drawn with **Verseglass**, a small design system for Star Citizen adjacent overlays: dark navy frosted glass, one blue accent, text that meets WCAG AA on the glass, and every size on a 4 px grid. It uses IBM Plex Sans and IBM Plex Mono when they are installed on your PC, and Segoe UI and Cascadia Mono otherwise; the file never downloads a font. Only the editor is dressed this way: the widgets on stream keep their own Color Theme, fonts and sizes, so nothing in OBS changes.
+
+- **Reduce transparency** (Settings, under Display) swaps the glass for solid panels: easier to read over a busy game view, and less work for OBS. Windows' own "Transparency effects" setting does the same where the browser passes it on.
+- When every widget wears the same **Ship manufacturer** theme, the editor's accent takes that maker's color too.
+- The editor's rem is 16 px at Editor text size 100%, so a 1440p or 4K screen still gets the same proportions.
+
 ## Cockpit Look (perspective and projection)
 Select a widget (or several) and use **Cockpit Look** in the side panel to make it sit naturally in your cockpit, either on an angled screen or projected like a hologram. Widgets start Flat; the looks are optional.
-- **Style:** **Flat** or **Projector** comes first. Flat shows the **Screens** presets (Flat, Left, Right, Dash, Low Left, Low Right, Overhead) and **Holograms** (Facing You, Visor HUD, Canopy Glass, Left Wall, Right Wall); Projector shows the Projector presets described in the next section. Hover a tile for its full name and a short description; the section header shows the style and the active preset.
+- **Style:** **Flat** or **Projector** comes first. Flat shows the **Screens** presets (Straight On, Left, Right, Dash, Low Left, Low Right, Overhead) and **Holograms** (Facing You, Visor HUD, Canopy Glass, Left Wall, Right Wall); Projector shows the Projector presets described in the next section. Hover a tile for its full name and a short description; the section header shows the style and the active preset.
 - Under the presets, for both styles and always visible: **Angle** (Tilt, Turn, Rotate, Skew X, Skew Y and Perspective, lower is stronger) and **Light and Background**: Glow (a halo in your highlight color, so it follows the theme), Background fade (lets the scene show through; the line under it says what the background actually shows at, from Background opacity in **Colors** and the fade) and Scanlines (off unless you turn them on).
-- **Reset to Flat** undoes all of it.
+- **Reset Look** undoes all of it: back to Flat and Straight On. Background opacity stays as you set it.
 - Snapping and alignment use the widget's flat footprint, so the tilted corners can sit slightly outside the guides.
 
 Perspective is a single CSS 3D transform per widget, which the GPU composites, and the projection effects are painted once. They cost nothing per frame, and flat widgets skip them entirely.
@@ -196,7 +204,7 @@ Projector makes a widget look like a hologram emitted from a small projector bas
 - **Effects:** **Fade toward base** (how much the drawn face dims toward the base; 0 keeps it even, readouts and titles always stay full strength), then **Float**, **Flicker** and **Color Fringe**, which need Subtle or Full motion.
 - **Scene: Dark / Bright.** Over planet glare, clouds or a bright sky, low-alpha light disappears. **Bright** brightens the base, rays and cone, turns the scanlines into lines of your highlight color and firms up the border so readouts stay legible.
 - **Project from One Base** (with several widgets selected) aims every selected widget at one base under the group. Dragging the group keeps them together; moving one widget on its own breaks the group, and you can press it again.
-- **Reset Projector** turns it off for the selected widgets; **Reset to Flat** removes it along with the rest of the look. While Projector is on, **3D depth** has no effect.
+- **Reset Projector** turns it off for the selected widgets; **Reset Look** removes it along with the rest of the look. While Projector is on, **3D depth** has no effect.
 
 Every color in the effect comes from the widget's theme, so switching the theme recolors the base, rays and glow. Themes with a near-white highlight borrow their border color (Esperia's pink) or use a cool white (RSI, Default).
 
@@ -224,11 +232,12 @@ The single-key shortcuts work when no button or field has focus: click an empty 
 | Delete or Backspace | Remove the selected widgets |
 | Arrows / Shift+arrows | Nudge 1px / 10px |
 | Ctrl+A / Ctrl+D | Select all / duplicate |
-| Ctrl+Z / Ctrl+Y | Undo / redo (also Ctrl+Shift+Z; the small buttons above the + do the same) |
+| Ctrl+Z / Ctrl+Y | Undo / redo (also Ctrl+Shift+Z; the Undo and Redo buttons in the toolbar do the same) |
+| Ctrl+G / Ctrl+Shift+G | Group the selection / ungroup |
 | P | Hide / show the side panel |
 | C | Capture the game view from OBS after a 5 s countdown; press again to capture now (see *Capture the game view from OBS*) |
 | L | Live: show the game behind the editor, refreshed about twice a second |
-| ? | The shortcut list |
+| ? | Help: the shortcut list and short how-tos |
 | Alt (while dragging) | Turn snapping off |
 
 ## Review: the session heatmap
@@ -246,7 +255,7 @@ Open the editor and click **Check Devices** on the home panel. It lists every co
 - **Wake it up.** Browsers hide controllers until you use them after the page opens. Pedals have no buttons, so push a pedal or a toe pedal all the way once. The Setup panel lists every device the browser has seen.
 - **Four controllers at most.** Browsers and OBS show no more than 4 game controllers at a time. If all 4 slots are taken, a fifth device (often the pedals) gets left out. Unplug or disable what you don't need on stream: a spare throttle, a wheel, an Xbox pad, or virtual controllers from Steam, vJoy or similar tools. Win+R, `joy.cpl` lists everything Windows sees.
 - **Different browsers.** A layout made in OBS also works in Chrome, Edge or Firefox; devices are matched by their USB ids.
-- **Remap a widget.** Select it and click **Detect Device** under *Device*. You move the stick or pedals (or press the button) again, and the widget switches to whatever you used, keeping its name, place, size and colors.
+- **Remap a widget.** Select it and click **Rebind** under its name at the top of the side panel (**Bind** if it has no input yet). You move the stick or pedals (or press the button) again, and the widget switches to whatever you used, keeping its name, place, size and colors.
 - Still missing? Close other apps that read controllers, unplug the device and plug it back in, then refresh.
 
 ## Inputs freeze while the game is in front
@@ -264,7 +273,7 @@ If the widgets move while OBS is the active window but stop as soon as you click
 - **Still frozen?** Note your OBS version (Help → About) and which widgets freeze (sticks, pedals, buttons, or all of them), and open an issue.
 
 ## Sharing a layout
-In **Profiles & Share**, click **Download .json** under **This Profile** and send that file (plus `JOI.html` if they don't have it yet). It holds the profile on screen. They open the editor and choose **Import a Profile**, which adds it as a new profile next to theirs. With the same hardware it works right away. With different hardware they select each widget and press **Detect Device** to use their own.
+In **Profiles & Share**, click **Download .json** under **This Profile** and send that file (plus `JOI.html` if they don't have it yet). It holds the profile on screen. They open the editor and choose **Import a Profile**, which adds it as a new profile next to theirs. With the same hardware it works right away. With different hardware they select each widget and press **Rebind** to use their own.
 
 Don't send your `profile.js`, and never use one someone else sent you. It's a personal backup that sits next to your own `JOI.html`, and it runs as a script when the overlay loads (see `SECURITY.md`). A `.json` is only data.
 

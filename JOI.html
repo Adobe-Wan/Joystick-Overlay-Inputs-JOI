@@ -7,17 +7,104 @@
 <title>Joystick Overlay Inputs (JOI)</title>
 <style>
 :root {
-  --ui-accent: #4fd1ff;
+  /* Overlay widgets: these stay as they were, so what OBS shows does not change with the editor's look. */
   --guide: #ff3fb4;
-  --panel: #0d131b;
-  --line: rgba(255, 255, 255, 0.12);
-  --text: #e8f1f8;
-  --muted: #8a9aab;
   --hot: #ff5d73;
-  --edge: rgba(255, 255, 255, 0.32);      /* control borders: 3:1 against the panel (WCAG 1.4.11) */
+  --text: #e8f1f8;
   --font: "Segoe UI", "Inter", system-ui, -apple-system, Roboto, sans-serif;
   --mono: "Cascadia Mono", "Consolas", "SF Mono", ui-monospace, monospace;
+
+  /* Verseglass design tokens (design-system/tokens.css), the editor's single source of color, space and type.
+     Tier 1 primitives (--vg-navy-900), tier 2 semantic (--vg-text-1); the editor CSS below uses tier 2 only.
+     Hex sRGB on purpose: OBS 30 still runs Chromium 103, which has no oklch(). Lengths are the design system's
+     px ÷ 16, because the editor scales with the root font-size (16px × Editor text size) so 4K stays readable. */
+  --vg-navy-950: #05080F; --vg-navy-900: #0A1020; --vg-navy-800: #101A2E; --vg-navy-700: #1A2742; --vg-navy-600: #263655; --vg-navy-500: #35496E;
+  --vg-steel-50: #F2F7FD; --vg-steel-100: #DCE6F2; --vg-steel-200: #C2D0E2; --vg-steel-300: #A3B4CA; --vg-steel-400: #7E90A8; --vg-steel-500: #5B6B82;
+  --vg-blue-200: #C4E3FF; --vg-blue-300: #93CBFF; --vg-blue-400: #5EAEFA; --vg-blue-500: #2F8FE6; --vg-blue-600: #1D6FBF; --vg-blue-900: #06111C;
+  --vg-green-300: #7EE2AE; --vg-amber-300: #FFC86E; --vg-red-300: #FF8A99; --vg-focus: #FFD166;
+  /* semantic color */
+  --vg-surface-ground: #05080F;                       /* opaque page ground when nothing shows through */
+  --vg-surface-glass: rgba(10, 16, 32, 0.86);         /* frosted panel fill; the alpha is the WCAG floor, not a taste */
+  --vg-surface-glass-hud: rgba(10, 16, 32, 0.8);      /* lighter frost for chips over the game */
+  --vg-surface-glass-menu: rgba(10, 16, 32, 0.94);    /* menus, popovers, tooltips */
+  --vg-surface-ink-1: rgba(255, 255, 255, 0.045);     /* resting field and row fill inside glass */
+  --vg-surface-ink-2: rgba(255, 255, 255, 0.08);      /* hover fill, selected row */
+  --vg-surface-ink-3: rgba(255, 255, 255, 0.12);      /* pressed fill, active tile */
+  --vg-surface-scrim: rgba(0, 0, 0, 0.45);            /* dim behind dialogs */
+  --vg-text-1: #F2F7FD; --vg-text-2: #C2D0E2; --vg-text-3: #A3B4CA; --vg-text-on-accent: #06111C; --vg-text-accent: #93CBFF;
+  --vg-line-subtle: rgba(255, 255, 255, 0.1); --vg-line-default: rgba(255, 255, 255, 0.18);
+  --vg-line-control: rgba(255, 255, 255, 0.4);        /* resting edge of fields and buttons: 3:1 on the glass (WCAG 1.4.11) */
+  --vg-line-highlight: rgba(255, 255, 255, 0.14); --vg-line-accent: #5EAEFA;
+  --vg-accent-default: #5EAEFA; --vg-accent-hover: #93CBFF; --vg-accent-strong: #2F8FE6; --vg-accent-soft: rgba(94, 174, 250, 0.14);
+  --vg-status-ok: #7EE2AE; --vg-status-warn: #FFC86E; --vg-status-danger: #FF8A99; --vg-status-danger-soft: rgba(255, 138, 153, 0.12);
+  --vg-focus-ring: #FFD166;                           /* keyboard focus: warm on purpose, the one thing that is never blue */
+  /* glass recipe */
+  --vg-blur-panel: 12px; --vg-blur-hud: 8px; --vg-blur-menu: 16px;
+  /* space (4px grid), radius, size */
+  --vg-space-1: 0.25rem; --vg-space-2: 0.5rem; --vg-space-3: 0.75rem; --vg-space-4: 1rem; --vg-space-5: 1.25rem; --vg-space-6: 1.5rem; --vg-space-8: 2rem; --vg-space-10: 2.5rem; --vg-space-12: 3rem;
+  --vg-radius-xs: 0.25rem; --vg-radius-sm: 0.5rem; --vg-radius-md: 0.75rem; --vg-radius-lg: 1rem; --vg-radius-xl: 1.5rem; --vg-radius-pill: 999px;
+  --vg-size-control: 2.25rem; --vg-size-control-sm: 1.75rem; --vg-size-control-lg: 2.75rem; --vg-size-touch: 2.75rem; --vg-size-panel-w: 22rem;
+  --vg-size-icon: 1.25rem; --vg-size-icon-sm: 1rem; --vg-size-fab: 3.5rem; --vg-size-thumb: 1.25rem; --vg-size-switch-w: 2.25rem; --vg-size-switch-h: 1.25rem;
+  --vg-size-chip-h: 1.5rem; --vg-size-meter-h: 0.5rem; --vg-size-track-h: 0.25rem;
+  /* type: IBM Plex when it is installed, else Segoe UI (Windows, offline in OBS). The file loads no web fonts (CSP, no network). */
+  --vg-font-ui: "IBM Plex Sans", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --vg-font-data: "IBM Plex Mono", "Cascadia Mono", Consolas, ui-monospace, monospace;
+  --vg-text-xs: 0.75rem; --vg-text-sm: 0.875rem; --vg-text-md: 1rem; --vg-text-lg: 1.25rem; --vg-text-xl: 1.5rem; --vg-text-2xl: 1.75rem; --vg-text-3xl: 2rem;
+  --vg-leading-xs: 1rem; --vg-leading-sm: 1.25rem; --vg-leading-md: 1.5rem; --vg-leading-lg: 1.5rem; --vg-leading-xl: 2rem; --vg-leading-2xl: 2rem; --vg-leading-3xl: 2.5rem;
+  --vg-tracking-caps: 0.08em; --vg-tracking-wide: 0.04em; --vg-tracking-normal: 0;
+  --vg-weight-regular: 400; --vg-weight-medium: 500; --vg-weight-semibold: 600;
+  /* motion */
+  --vg-duration-fast: 120ms; --vg-duration-base: 180ms; --vg-duration-slow: 260ms; --vg-duration-enter: 220ms; --vg-duration-exit: 140ms;
+  --vg-ease-out: cubic-bezier(0.22, 1, 0.36, 1); --vg-ease-in: cubic-bezier(0.55, 0, 1, 0.45); --vg-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  /* elevation */
+  --vg-shadow-raised: 0px 1px 2px 0px rgba(0, 0, 0, 0.35), 0px 8px 24px -8px rgba(5, 8, 15, 0.55);
+  --vg-shadow-overlay: 0px 2px 6px 0px rgba(0, 0, 0, 0.4), 0px 24px 48px -12px rgba(5, 8, 15, 0.7);
+
+  /* JOI's older editor variables, mapped onto the tokens (design-system/joi-adapter.css). */
+  --ui-accent: var(--vg-accent-default);
+  --panel: var(--vg-navy-900);
+  --line: var(--vg-line-subtle);
+  --muted: var(--vg-text-3);
+  --edge: var(--vg-line-control);
 }
+/* Transparency modes. The OS setting (Chromium 118+, so OBS 31 and later) and the Reduce Transparency switch in
+   Settings both land on the same attribute, because OBS does not always forward OS preferences. */
+@media (prefers-reduced-transparency: reduce) {
+  :root:not([data-vg-transparency="full"]) { --vg-surface-glass: var(--vg-navy-900); --vg-surface-glass-hud: var(--vg-navy-900);
+    --vg-surface-glass-menu: var(--vg-navy-900); --vg-blur-panel: 0px; --vg-blur-hud: 0px; --vg-blur-menu: 0px; }
+}
+:root[data-vg-transparency="reduced"] { --vg-surface-glass: var(--vg-navy-900); --vg-surface-glass-hud: var(--vg-navy-900);
+  --vg-surface-glass-menu: var(--vg-navy-900); --vg-blur-panel: 0px; --vg-blur-hud: 0px; --vg-blur-menu: 0px; }
+/* More contrast: lines go solid, tertiary text steps up a grade. */
+@media (prefers-contrast: more) {
+  :root { --vg-line-control: var(--vg-steel-300); --vg-line-default: var(--vg-steel-400); --vg-text-3: var(--vg-steel-200); }
+}
+:root[data-vg-contrast="more"] { --vg-line-control: var(--vg-steel-300); --vg-line-default: var(--vg-steel-400); --vg-text-3: var(--vg-steel-200); }
+/* Reduced motion: durations collapse to zero. The editor reads the tokens, so nothing else changes. */
+@media (prefers-reduced-motion: reduce) {
+  :root { --vg-duration-fast: 0ms; --vg-duration-base: 0ms; --vg-duration-slow: 0ms; --vg-duration-enter: 0ms; --vg-duration-exit: 0ms; }
+}
+:root[data-vg-motion="reduced"] { --vg-duration-fast: 0ms; --vg-duration-base: 0ms; --vg-duration-slow: 0ms; --vg-duration-enter: 0ms; --vg-duration-exit: 0ms; }
+/* Manufacturer accents (design-system/themes/mfd-themes.css). When every widget wears one ship maker's Color Theme the
+   editor sets data-vg-theme on <html> and its accent follows; only these six tokens change. Under the warm makers
+   (accent hue about 20 to 75 degrees: ARGO, Banu, Drake, Mirai) the amber focus ring would match the selected tile
+   and the primary button, so there it turns near white (steel-50) and focus stays the one distinct mark (WCAG 2.4.7). */
+[data-vg-theme="aegis"] { --vg-accent-default: #92C1DA; --vg-accent-hover: #C0DBEA; --vg-accent-strong: #61A5C9; --vg-text-accent: #CDDBEC; --vg-accent-soft: rgba(146, 193, 218, 0.14); --vg-line-accent: #92C1DA; }
+[data-vg-theme="anvil"] { --vg-accent-default: #84E0C8; --vg-accent-hover: #B5ECDE; --vg-accent-strong: #4FD3B0; --vg-text-accent: #B4F2E9; --vg-accent-soft: rgba(132, 224, 200, 0.14); --vg-line-accent: #84E0C8; }
+[data-vg-theme="aopoa"] { --vg-accent-default: #77D991; --vg-accent-hover: #A7E6B8; --vg-accent-strong: #43CB67; --vg-text-accent: #D3F0D8; --vg-accent-soft: rgba(119, 217, 145, 0.14); --vg-line-accent: #77D991; }
+[data-vg-theme="argo"] { --vg-accent-default: #EDD62A; --vg-accent-hover: #F2E162; --vg-accent-strong: #C4AF11; --vg-text-accent: #F2E27A; --vg-accent-soft: rgba(237, 214, 42, 0.14); --vg-line-accent: #EDD62A; --vg-focus-ring: var(--vg-steel-50); }
+[data-vg-theme="banu"] { --vg-accent-default: #DFF073; --vg-accent-hover: #ECF6AA; --vg-accent-strong: #D1EA37; --vg-text-accent: #ECF59F; --vg-accent-soft: rgba(223, 240, 115, 0.14); --vg-line-accent: #DFF073; --vg-focus-ring: var(--vg-steel-50); }
+[data-vg-theme="consolidated"] { --vg-accent-default: #7BD1CB; --vg-accent-hover: #A8E1DD; --vg-accent-strong: #4AC0B8; --vg-text-accent: #D3EBD7; --vg-accent-soft: rgba(123, 209, 203, 0.14); --vg-line-accent: #7BD1CB; }
+[data-vg-theme="crusader"] { --vg-accent-default: #65AFE0; --vg-accent-hover: #98C9EA; --vg-accent-strong: #2E92D5; --vg-text-accent: #CEE4F5; --vg-accent-soft: rgba(101, 175, 224, 0.14); --vg-line-accent: #65AFE0; }
+[data-vg-theme="drake"] { --vg-accent-default: #E9A23B; --vg-accent-hover: #EFBC72; --vg-accent-strong: #CB8117; --vg-text-accent: #F0C27A; --vg-accent-soft: rgba(233, 162, 59, 0.14); --vg-line-accent: #E9A23B; --vg-focus-ring: var(--vg-steel-50); }
+[data-vg-theme="esperia"] { --vg-accent-default: #EDF1F6; --vg-accent-hover: #FFFFFF; --vg-accent-strong: #C1CFE0; --vg-text-accent: #FFFFFF; --vg-accent-soft: rgba(237, 241, 246, 0.14); --vg-line-accent: #EDF1F6; }
+[data-vg-theme="gatac"] { --vg-accent-default: #9E70F5; --vg-accent-hover: #C5A9F9; --vg-accent-strong: #965AF1; --vg-text-accent: #E4CCFF; --vg-accent-soft: rgba(158, 112, 245, 0.14); --vg-line-accent: #9E70F5; }
+[data-vg-theme="greycat"] { --vg-accent-default: #8FE04A; --vg-accent-hover: #AFE97E; --vg-accent-strong: #6DC622; --vg-text-accent: #B9EE8F; --vg-accent-soft: rgba(143, 224, 74, 0.14); --vg-line-accent: #8FE04A; }
+[data-vg-theme="kruger"] { --vg-accent-default: #C2EBCD; --vg-accent-hover: #F0FAF3; --vg-accent-strong: #90DBA4; --vg-text-accent: #E9FBEF; --vg-accent-soft: rgba(194, 235, 205, 0.14); --vg-line-accent: #C2EBCD; }
+[data-vg-theme="mirai"] { --vg-accent-default: #C9C5AC; --vg-accent-hover: #E1DFD1; --vg-accent-strong: #AFA984; --vg-text-accent: #E4E1CC; --vg-accent-soft: rgba(201, 197, 172, 0.14); --vg-line-accent: #C9C5AC; --vg-focus-ring: var(--vg-steel-50); }
+[data-vg-theme="misc"] { --vg-accent-default: #34B3A6; --vg-accent-hover: #56CEC2; --vg-accent-strong: #2A8A80; --vg-text-accent: #E0E5E2; --vg-accent-soft: rgba(52, 179, 166, 0.14); --vg-line-accent: #34B3A6; }
+[data-vg-theme="origin"] { --vg-accent-default: #C4E3FC; --vg-accent-hover: #FEFFFF; --vg-accent-strong: #85C5F9; --vg-text-accent: #E3F1FF; --vg-accent-soft: rgba(196, 227, 252, 0.14); --vg-line-accent: #C4E3FC; }
+[data-vg-theme="rsi"] { --vg-accent-default: #E6EAF2; --vg-accent-hover: #FFFFFF; --vg-accent-strong: #BAC5DB; --vg-text-accent: #E6EAF2; --vg-accent-soft: rgba(230, 234, 242, 0.14); --vg-line-accent: #E6EAF2; }
 * { box-sizing: border-box; }
 html, body {
   margin: 0; height: 100%; overflow: hidden;
@@ -28,7 +115,7 @@ body.editing { background-color: #11161d; background-size: cover; background-pos
 body.bg-solid:not(.editing) { background: var(--bgcolor, #00ff00); }
 /* Opened in a normal browser (not OBS): dark preview instead of a blank white page. */
 body.preview:not(.editing):not(.bg-solid) { background: #0b1016; }
-#preview-chip { position: fixed; left: 1rem; bottom: 1rem; z-index: 10; display: none; align-items: center; gap: 0.6rem; padding: 0.5rem 0.9rem; font: 500 0.93rem/1.4 var(--font); color: #b6c3d1; max-width: calc(100vw - 2rem); flex-wrap: wrap; }
+#preview-chip { position: fixed; left: 1rem; top: 1rem; z-index: 10; display: none; align-items: center; gap: 0.6rem; padding: 0.5rem 0.9rem; font: 500 0.93rem/1.4 var(--font); color: #b6c3d1; max-width: calc(100vw - 2rem); flex-wrap: wrap; }
 body.preview:not(.editing).has-widgets #preview-chip { display: flex; }
 #preview-chip .warn { color: #ffb547; }
 #stage { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
@@ -52,11 +139,12 @@ body.preview:not(.editing).has-widgets #preview-chip { display: flex; }
   margin-bottom: 8px; white-space: nowrap;
 }
 .widget.offline { opacity: 0.45; }
-/* The note sits above the title, outside the layout, so a device coming or going never resizes the widget. */
+/* The note sits above the title, outside the layout, so a device coming or going never resizes the widget.
+   It is an editor note: only while editing, never on stream (OBS, or Edit Mode off), where the dimmed widget says enough. */
 .widget.offline .title { position: relative; }
-.widget.offline .title::after { content: "not connected"; position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%); margin-bottom: 2px;
+body.editing .widget.offline .title::after { content: "not connected"; position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%); margin-bottom: 2px;
   color: var(--hot); font-size: 11px; letter-spacing: 0.04em; text-transform: none; white-space: nowrap; }
-.widget.offline.unbound .title::after { content: "not bound yet"; color: #ffb547; }
+body.editing .widget.offline.unbound .title::after { content: "not bound yet"; color: #ffb547; }
 .widget canvas { display: block; margin: 0 auto; }
 .readout {
   font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 12px; font-weight: 600;
@@ -223,27 +311,27 @@ body.editing .holo-rig.selected .holo-base { outline: 1px dashed var(--ui-accent
 .holo-base .core { transition: transform 120ms, opacity 120ms; }
 .holo-rig.pulse .core { opacity: 1; transform: scale(1.6, 2); }
 @media (prefers-reduced-motion: reduce) { .widget.holo .holo-roll i, .holo-dust, .holo-photon { display: none; } .holo-rig.full .holo-base, .widget.holo.live .holo-in, .widget.holo.live.float { animation: none; } }
-.looks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem; margin: 0.3rem 0 0.4rem; }
-.look-tile { display: flex; flex-direction: column; align-items: center; gap: 0.35rem; padding: 0.5rem 0.2rem 0.4rem; min-height: 0; font-size: 0.8rem; font-weight: 600; line-height: 1.2; text-align: center; white-space: nowrap; }
-.look-tile[aria-pressed=true] { border-color: var(--ui-accent); box-shadow: inset 0 0 0 1px var(--ui-accent); }
-.look-prev { position: relative; width: 46px; height: 34px; display: grid; place-items: center; }
+.looks { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--vg-space-2); margin: var(--vg-space-1) 0 var(--vg-space-2); }
+.look-tile { position: relative; display: flex; flex-direction: column; align-items: center; gap: var(--vg-space-2); padding: var(--vg-space-2) var(--vg-space-1); min-height: 0;
+  font-size: var(--vg-text-xs); font-weight: var(--vg-weight-semibold); line-height: var(--vg-leading-xs); letter-spacing: 0; text-align: center; white-space: nowrap; border-radius: var(--vg-radius-md); }
+.look-prev { position: relative; width: 3rem; height: 2rem; display: grid; place-items: center; }
 /* Projector presets: a beam fanning up from a small base ellipse to the box, so the tile reads as "projected". */
-.look-prev.proj i { position: relative; margin-bottom: 8px; }
-.look-prev.proj::before { content: ""; position: absolute; left: 50%; bottom: 3px; width: 36px; height: 26px; margin-left: -18px;
-  background: linear-gradient(to top, rgba(79,209,255,0.55), rgba(79,209,255,0.05)); clip-path: polygon(50% 100%, 0 0, 100% 0); }
-.look-prev.proj::after { content: ""; position: absolute; left: 50%; bottom: 0; width: 18px; height: 6px; margin-left: -9px; border-radius: 50%;
-  border: 1px solid var(--ui-accent); box-shadow: 0 0 4px var(--ui-accent), inset 0 0 3px rgba(79,209,255,0.5); }
-.look-prev.proj.above i { margin: 8px 0 0; }
-.look-prev.proj.above::before { bottom: auto; top: 3px; clip-path: polygon(50% 0, 0 100%, 100% 100%); background: linear-gradient(to bottom, rgba(79,209,255,0.55), rgba(79,209,255,0.05)); }
+.look-prev.proj i { position: relative; margin-bottom: 0.5rem; }
+.look-prev.proj::before { content: ""; position: absolute; left: 50%; bottom: 0.1875rem; width: 2.25rem; height: 1.625rem; margin-left: -1.125rem;
+  background: linear-gradient(to top, var(--vg-accent-default), transparent); opacity: 0.5; clip-path: polygon(50% 100%, 0 0, 100% 0); }
+.look-prev.proj::after { content: ""; position: absolute; left: 50%; bottom: 0; width: 1.125rem; height: 0.375rem; margin-left: -0.5625rem; border-radius: 50%;
+  border: 1px solid var(--vg-accent-default); box-shadow: 0 0 4px var(--vg-accent-default), inset 0 0 3px var(--vg-accent-soft); }
+.look-prev.proj.above i { margin: 0.5rem 0 0; }
+.look-prev.proj.above::before { bottom: auto; top: 0.1875rem; clip-path: polygon(50% 0, 0 100%, 100% 100%); background: linear-gradient(to bottom, var(--vg-accent-default), transparent); }
 .look-prev.proj.above::after { bottom: auto; top: 0; }
-.look-prev i { display: block; width: 40px; height: 26px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.55); background: rgba(255,255,255,0.08); transform-origin: 50% 50%; }
-.look-prev i.disc { width: 30px; height: 30px; border-radius: 50%; }
-.look-prev i.holo { border-color: var(--ui-accent); box-shadow: 0 0 6px var(--ui-accent), inset 0 0 6px rgba(79,209,255,0.35);
-  background: repeating-linear-gradient(180deg, rgba(79,209,255,0.12) 0 2px, rgba(79,209,255,0.03) 2px 3px); }
+.look-prev i { display: block; width: 2.5rem; height: 1.625rem; border-radius: var(--vg-radius-xs); border: 1px solid var(--vg-line-control); background: var(--vg-surface-ink-2); transform-origin: 50% 50%; }
+.look-prev i.disc { width: 1.75rem; height: 1.75rem; border-radius: 50%; }
+.look-prev i.holo { border-color: var(--vg-accent-default); box-shadow: 0 0 6px var(--vg-accent-default), inset 0 0 6px var(--vg-accent-soft);
+  background: repeating-linear-gradient(180deg, var(--vg-accent-soft) 0 2px, transparent 2px 3px); }
 .look-prev i.visor { background: none; }
-.tiles { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 0.3rem; margin: 0.3rem 0 0.5rem; }
-.tiles button { padding: 0.4rem 0.3rem; font-size: 0.86rem; font-weight: 600; min-height: 2.3rem; }
-.tiles button[aria-pressed=true] { border-color: var(--ui-accent); box-shadow: inset 0 0 0 1px var(--ui-accent); color: var(--ui-accent); }
+.tiles { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: var(--vg-space-1); margin: var(--vg-space-1) 0 var(--vg-space-2); }
+.tiles button { padding: 0 var(--vg-space-1); font-size: var(--vg-text-xs); font-weight: var(--vg-weight-semibold); letter-spacing: 0; min-height: 2rem; }
+.tiles button[aria-pressed=true] { border-color: var(--vg-line-accent); background: var(--vg-accent-soft); color: var(--vg-text-accent); box-shadow: none; }
 #panel .row .tiles { width: 11rem; margin: 0; }
 
 /* ---------- edit mode: guides, selection ---------- */
@@ -251,7 +339,7 @@ body.editing .holo-rig.selected .holo-base { outline: 1px dashed var(--ui-accent
 body.editing #grid, body.editing #guides { display: block; }
 body.editing.show-center #center-lines { display: block; }
 #center-lines i, #guides i { position: absolute; display: block; }
-#center-lines i { background: rgba(79, 209, 255, 0.6); }
+#center-lines i { background: var(--vg-accent-default); opacity: 0.6; }
 #center-lines i.v { width: 1px; top: 0; bottom: 0; }
 #center-lines i.h { height: 1px; left: 0; right: 0; }
 #guides i { background: var(--guide); box-shadow: 0 0 4px var(--guide); }
@@ -261,7 +349,7 @@ body.editing.show-center #center-lines { display: block; }
 #resize { position: absolute; display: none; pointer-events: none; z-index: 6; --rz-k: 1; }
 body.editing #resize.on { display: block; }
 #resize i { position: absolute; z-index: 2; width: calc(10px * var(--rz-k)); height: calc(10px * var(--rz-k)); margin: calc(-5px * var(--rz-k)) 0 0 calc(-5px * var(--rz-k));
-  background: #fff; border: calc(1.5px * var(--rz-k)) solid var(--ui-accent); border-radius: calc(2px * var(--rz-k)); pointer-events: auto; box-sizing: border-box; }
+  background: #fff; border: calc(1.5px * var(--rz-k)) solid var(--vg-accent-default); border-radius: calc(2px * var(--rz-k)); pointer-events: auto; box-sizing: border-box; }
 /* Edges: an invisible strip along each side you can grab anywhere, like Figma; the corner squares sit on top. */
 #resize i.edge { z-index: 1; background: none; border: 0; border-radius: 0; margin: 0; }
 #resize i[data-c=n], #resize i[data-c=s] { left: 0; width: 100%; height: calc(8px * var(--rz-k)); cursor: ns-resize; }
@@ -271,387 +359,491 @@ body.editing #resize.on { display: block; }
 #resize i[data-c=nw] { left: 0; top: 0; cursor: nwse-resize; } #resize i[data-c=ne] { left: 100%; top: 0; cursor: nesw-resize; }
 #resize i[data-c=se] { left: 100%; top: 100%; cursor: nwse-resize; } #resize i[data-c=sw] { left: 0; top: 100%; cursor: nesw-resize; }
 #resize::after { content: attr(data-size); position: absolute; left: 50%; top: 100%; transform: translate(-50%, calc(10px * var(--rz-k))) scale(var(--rz-k)); transform-origin: 50% 0;
-  font: 600 11px/1 var(--font); color: #fff; background: rgba(10,16,22,0.85); padding: 3px 6px; border-radius: 4px; white-space: nowrap; display: none; }
+  font: 600 11px/1 var(--vg-font-data); color: var(--vg-text-1); background: var(--vg-surface-glass-menu); border: 1px solid var(--vg-line-default); padding: 3px 6px; border-radius: 4px; white-space: nowrap; display: none; }
 #resize.busy::after { display: block; }
-#marquee { position: fixed; display: none; border: 1px solid var(--ui-accent); background: rgba(79,209,255,0.12); pointer-events: none; z-index: 15; }
+#marquee { position: fixed; display: none; border: 1px solid var(--vg-accent-default); background: var(--vg-accent-soft); pointer-events: none; z-index: 15; }
 body.editing .widget { cursor: move; }
-body.editing .widget:hover { outline: 1px solid rgba(79,209,255,0.45); }
-body.editing .widget.selected { outline: 2px solid var(--ui-accent); outline-offset: 2px; }
+body.editing .widget:hover { outline: 1px solid var(--vg-line-accent); outline-offset: 1px; }
+body.editing .widget.selected { outline: 2px solid var(--vg-accent-default); outline-offset: 2px; }
 
-/* ---------- editor UI (MUI dark-theme conventions, rem-based so it scales for 4K) ---------- */
-html { font-size: 14px; }   /* set from JS: grows with the viewport so 4K stays readable */
-#ui, #welcome, #wizard, #confirm, #save-copy, #obs-dlg, #enter-edit, #toast { font-family: var(--font); }
+/* ---------- editor UI: Verseglass (design-system/). Rem-based so it scales for 4K: the root font-size is 16px × the
+   Editor text size, and every length is a token. Only the editor chrome lives here; the widgets on the stage keep
+   their own --font, --mono and per-widget Color Theme, so nothing in this block changes what OBS shows. ---------- */
+html { font-size: 16px; }   /* set from JS: grows with the viewport so 4K stays readable */
+#ui, #welcome, #help, #wizard, #confirm, #save-copy, #obs-dlg, #enter-edit, #empty-edit, #coach, #toast, #preview-chip, .cpop {
+  font-family: var(--vg-font-ui); font-size: var(--vg-text-sm); line-height: var(--vg-leading-sm); color: var(--vg-text-1); }
 #ui { display: none; }
 body.editing #ui { display: block; }
 body.panel-hidden #panel { display: none; }
 body.panel-hidden #toolbar { left: 50%; max-width: calc(100vw - 1.5rem); }
+/* Glass: one backdrop blur per surface, flat ink inside it. Reduce Transparency (Settings, or the OS) turns the fill
+   opaque through the tokens, and the rule at the end drops the blur. */
 .paper {
-  background: #121a24; color: var(--text); border: 1px solid rgba(255,255,255,0.12); border-radius: 0.5rem;
-  box-shadow: 0 0.6rem 1.2rem -0.4rem rgba(0,0,0,0.6), 0 1.6rem 2.4rem 0.2rem rgba(0,0,0,0.3);
+  background: var(--vg-surface-glass); color: var(--vg-text-1); border: 1px solid var(--vg-line-default); border-radius: var(--vg-radius-lg);
+  box-shadow: inset 0 1px 0 var(--vg-line-highlight), var(--vg-shadow-raised);
+  -webkit-backdrop-filter: blur(var(--vg-blur-panel)) saturate(1.15); backdrop-filter: blur(var(--vg-blur-panel)) saturate(1.15);
 }
 #toolbar {
-  position: fixed; top: 0.75rem; left: calc(50% - 11.5rem); transform: translateX(-50%); z-index: 20;
-  display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem;
-  flex-wrap: wrap; justify-content: center; max-width: calc(100vw - 25rem);
+  position: fixed; top: var(--vg-space-3); left: calc(50% - (var(--vg-size-panel-w) + var(--vg-space-3)) / 2); transform: translateX(-50%); z-index: 20;
+  display: flex; align-items: center; gap: var(--vg-space-2); padding: var(--vg-space-2) var(--vg-space-3);
+  flex-wrap: wrap; justify-content: center; max-width: calc(100vw - var(--vg-size-panel-w) - 3rem);
+  width: max-content;   /* left: 50% would otherwise shrink it to the right half of the screen and wrap it with Hide Panel */
 }
-#toolbar .divider { width: 1px; align-self: stretch; background: rgba(255,255,255,0.12); margin: 0 0.25rem; }
+#toolbar .divider { width: 1px; align-self: stretch; background: var(--vg-line-default); margin: 0 var(--vg-space-1); }
+/* Text buttons a step narrower than elsewhere, so Undo and Redo fit on the one row at 1280 wide in a wider fallback font. */
+#toolbar button { padding-inline: var(--vg-space-3); }
+#toolbar button.icon { width: var(--vg-size-control); padding: 0; display: grid; place-items: center; color: var(--vg-text-2); }
+#toolbar button.icon:hover:not(:disabled) { color: var(--vg-text-accent); border-color: var(--vg-line-accent); }
+#toolbar button.icon svg { width: var(--vg-size-icon); height: var(--vg-size-icon); stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
 button, select, input[type=text], input[type=number] {
-  font: 500 1rem/1.4 var(--font); color: var(--text); background: transparent;
-  border: 1px solid var(--edge); border-radius: 0.3rem; padding: 0.4rem 0.9rem; min-height: 2.5rem;
+  font: var(--vg-weight-medium) var(--vg-text-sm) / var(--vg-leading-sm) var(--vg-font-ui); color: var(--vg-text-1); background: transparent;
+  border: 1px solid var(--vg-line-control); border-radius: var(--vg-radius-sm); padding: var(--vg-space-1) var(--vg-space-4); min-height: var(--vg-size-control);
+  letter-spacing: var(--vg-tracking-wide);
 }
-select, input[type=text], input[type=number] { background: rgba(255,255,255,0.06); }
+select, input[type=text], input[type=number] { background: var(--vg-surface-ink-1); }
 /* Native dropdown lists: dark menu with light text. Without this, Windows draws the open list
    white while the options inherit our light text color, which is unreadable. */
-#ui, #wizard { color-scheme: dark; }
-select { background-color: #1b2632; }
-select option, select optgroup { background-color: #121a24; color: #e8f1f8; }
-select option:checked { background-color: #2a3d52; color: #ffffff; }
-button { cursor: pointer; letter-spacing: 0.02em; transition: background 120ms, border-color 120ms; }
-button:hover { background: rgba(79,209,255,0.08); border-color: var(--ui-accent); }
-button.primary { background: var(--ui-accent); color: #00131c; border-color: var(--ui-accent); font-weight: 650;
-  box-shadow: 0 0.2rem 0.1rem -0.1rem rgba(0,0,0,0.2), 0 0.15rem 0.15rem rgba(0,0,0,0.14); }
-button.primary:hover { background: #7fdfff; }
-button.text { border-color: transparent; color: var(--ui-accent); }
+#ui, #wizard, #welcome, #help, #coach { color-scheme: dark; }
+select { background-color: var(--vg-navy-800); }
+select option, select optgroup { background-color: var(--vg-navy-800); color: var(--vg-text-1); }
+select option:checked { background-color: var(--vg-navy-600); color: #ffffff; }
+button { cursor: pointer; transition: background var(--vg-duration-fast) var(--vg-ease-out), border-color var(--vg-duration-fast) var(--vg-ease-out), color var(--vg-duration-fast) var(--vg-ease-out); }
+button:hover { background: var(--vg-accent-soft); border-color: var(--vg-line-accent); }
+button.primary { background: var(--vg-accent-default); color: var(--vg-text-on-accent); border-color: var(--vg-accent-default); font-weight: var(--vg-weight-semibold); }
+button.primary:hover { background: var(--vg-accent-hover); border-color: var(--vg-accent-hover); }
+button.primary:active { background: var(--vg-accent-strong); border-color: var(--vg-accent-strong); }
+button.text { border-color: transparent; color: var(--vg-text-accent); }
 #panel .hint .text { display: inline; min-height: 0; padding: 0; font: inherit; }
-button.on { border-color: var(--ui-accent); color: var(--ui-accent); }
-button.danger:hover { border-color: var(--hot); color: var(--hot); background: rgba(255,93,115,0.08); }
-button:focus-visible, select:focus-visible, input:focus-visible, .switch:focus-within {
-  outline: 0.2rem solid #ffd34d; outline-offset: 0.15rem;   /* WCAG 2.4.7 visible focus */
+button.on { border-color: var(--vg-line-accent); color: var(--vg-text-accent); background: var(--vg-accent-soft); }
+button.danger:hover { border-color: var(--vg-status-danger); color: var(--vg-status-danger); background: var(--vg-status-danger-soft); }
+button:disabled { opacity: 0.45; cursor: not-allowed; }
+button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible, .switch:focus-within {
+  outline: 0.125rem solid var(--vg-focus-ring); outline-offset: 0.125rem;   /* WCAG 2.4.7 visible focus */
 }
+/* Device rows (Devices panel and the wizard): the live meter shows the device moving. */
+.dev-row { display: grid; gap: var(--vg-space-1); padding: var(--vg-space-2) var(--vg-space-3); margin: 0 0 var(--vg-space-2); border: 1px solid var(--vg-line-default); border-radius: var(--vg-radius-sm); background: var(--vg-surface-ink-1); }
+.dev-row small { color: var(--vg-text-2); font-size: var(--vg-text-xs); line-height: var(--vg-leading-xs); }
+.dev-row.hot { border-color: var(--vg-line-accent); }
+.dev-row.missing { border-style: dashed; border-color: var(--vg-status-warn); }
+.dev-meter { height: var(--vg-size-meter-h); border-radius: var(--vg-radius-xs); background: var(--vg-surface-ink-2); overflow: hidden; margin-top: var(--vg-space-1); }
+.dev-meter i { display: block; height: 100%; background: var(--vg-accent-default); }
+.warn-box { color: var(--vg-status-warn) !important; border: 1px solid var(--vg-status-warn); background: rgba(255, 200, 110, 0.08); border-radius: var(--vg-radius-sm); padding: var(--vg-space-2) var(--vg-space-3); }
 /* Color picker: a swatch button that opens a popover (saturation/brightness area, hue slider, hex, presets). */
-.dev-row { display: grid; gap: 0.15rem; padding: 0.55rem 0.7rem; margin: 0 0 0.45rem; border: 1px solid rgba(255,255,255,0.14); border-radius: 0.4rem; }
-.dev-row small { color: #a9b6c4; font-size: 0.85rem; }
-.dev-row.hot { border-color: var(--ui-accent); }
-.dev-row.missing { border-style: dashed; border-color: rgba(255,181,71,0.6); }
-.dev-meter { height: 0.3rem; border-radius: 0.2rem; background: rgba(255,255,255,0.1); overflow: hidden; margin-top: 0.25rem; }
-.dev-meter i { display: block; height: 100%; background: var(--ui-accent); }
-.warn-box { color: #ffd59a !important; border: 1px solid rgba(255,181,71,0.5); background: rgba(255,181,71,0.08); border-radius: 0.4rem; padding: 0.6rem 0.7rem; }
-.cpick { display: inline-flex; align-items: center; gap: 0.55rem; padding: 0.3rem 0.7rem 0.3rem 0.35rem; min-width: 8.4rem; background: rgba(255,255,255,0.06); }
-.cpick .chip { width: 1.75rem; height: 1.75rem; border-radius: 0.35rem; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.25), 0 1px 2px rgba(0,0,0,0.4); flex: none; }
-.cpick .hex { font: 600 0.92rem/1 var(--mono); letter-spacing: 0.04em; text-transform: uppercase; }
-.cpop { position: fixed; z-index: 70; width: 16rem; padding: 0.8rem; display: grid; gap: 0.7rem; }
-.cpop .sv { position: relative; height: 9.5rem; border-radius: 0.4rem; cursor: crosshair; touch-action: none;
+.cpick { display: inline-flex; align-items: center; gap: var(--vg-space-2); padding: var(--vg-space-1) var(--vg-space-3) var(--vg-space-1) var(--vg-space-1); min-width: 8.5rem; background: var(--vg-surface-ink-1); }
+.cpick .chip { width: 1.75rem; height: 1.75rem; border-radius: var(--vg-radius-xs); box-shadow: inset 0 0 0 1px var(--vg-line-control), 0 1px 2px rgba(0,0,0,0.4); flex: none; }
+.cpick .hex { font: var(--vg-weight-semibold) var(--vg-text-xs) / 1 var(--vg-font-data); letter-spacing: var(--vg-tracking-wide); text-transform: uppercase; }
+.cpop { position: fixed; z-index: 70; width: 16rem; padding: var(--vg-space-3); display: grid; gap: var(--vg-space-3); border-radius: var(--vg-radius-md); background: var(--vg-surface-glass-menu); box-shadow: inset 0 1px 0 var(--vg-line-highlight), var(--vg-shadow-overlay); }
+.cpop .sv { position: relative; height: 9.5rem; border-radius: var(--vg-radius-sm); cursor: crosshair; touch-action: none;
   background: linear-gradient(to top, #000, rgba(0,0,0,0)), linear-gradient(to right, #fff, rgba(255,255,255,0)), var(--hue); }
-.cpop .sv:focus-visible { outline: 0.2rem solid #ffd34d; outline-offset: 0.15rem; }
+.cpop .sv:focus-visible { outline: 0.125rem solid var(--vg-focus-ring); outline-offset: 0.125rem; }
 .cpop .knob { position: absolute; width: 1rem; height: 1rem; margin: -0.5rem 0 0 -0.5rem; border-radius: 50%;
   border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,0.5), 0 1px 4px rgba(0,0,0,0.5); pointer-events: none; }
-.cpop input.hue { -webkit-appearance: none; appearance: none; width: 100%; height: 0.8rem; border-radius: 0.4rem; margin: 0.2rem 0;
+.cpop input.hue { -webkit-appearance: none; appearance: none; width: 100%; height: 0.75rem; border-radius: var(--vg-radius-pill); margin: var(--vg-space-1) 0;
   background: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00); }
-.cpop input.hue::-webkit-slider-thumb { -webkit-appearance: none; width: 1.1rem; height: 1.1rem; border-radius: 50%; background: var(--hue);
+.cpop input.hue::-webkit-slider-thumb { -webkit-appearance: none; width: var(--vg-size-thumb); height: var(--vg-size-thumb); border-radius: 50%; background: var(--hue);
   border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,0.5), 0 1px 4px rgba(0,0,0,0.5); cursor: pointer; }
 .cpop input.hue::-moz-range-thumb { width: 1rem; height: 1rem; border-radius: 50%; background: var(--hue); border: 2px solid #fff; cursor: pointer; }
-.cpop .line { display: flex; align-items: center; gap: 0.5rem; }
-.cpop .now { width: 2.5rem; height: 2.5rem; border-radius: 0.4rem; flex: none; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.25); }
-.cpop .hexin { flex: 1 1 0; width: 0; min-width: 0; font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.04em; }
-.cpop .drop { padding: 0.4rem 0.6rem; }
-.cpop .presets { display: grid; grid-template-columns: repeat(8, 1fr); gap: 0.35rem; }
-.cpop .presets button { min-height: 0; height: 1.6rem; padding: 0; border-radius: 0.3rem; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.22); }
+.cpop .line { display: flex; align-items: center; gap: var(--vg-space-2); }
+.cpop .now { width: var(--vg-size-control); height: var(--vg-size-control); border-radius: var(--vg-radius-sm); flex: none; box-shadow: inset 0 0 0 1px var(--vg-line-control); }
+.cpop .hexin { flex: 1 1 0; width: 0; min-width: 0; font-family: var(--vg-font-data); text-transform: uppercase; letter-spacing: var(--vg-tracking-wide); }
+.cpop .drop { padding: 0 var(--vg-space-3); }
+.cpop .presets { display: grid; grid-template-columns: repeat(8, 1fr); gap: var(--vg-space-1); }
+.cpop .presets button { min-height: 0; height: var(--vg-size-chip-h); padding: 0; border-radius: var(--vg-radius-xs); box-shadow: inset 0 0 0 1px var(--vg-line-default); }
 .cpop .presets button[aria-pressed=true] { outline: 2px solid #fff; outline-offset: 1px; }
-input[type=range] { accent-color: var(--ui-accent); width: 11rem; height: 1.6rem; }
-input[type=checkbox] { accent-color: var(--ui-accent); width: 1.3rem; height: 1.3rem; }
-/* MUI-style switch */
-.switch { display: inline-flex; align-items: center; gap: 0.6rem; cursor: pointer; font-weight: 600; font-size: 1rem; padding: 0.2rem 0.4rem; border-radius: 0.3rem; }
+input[type=range] { accent-color: var(--vg-accent-default); width: 11rem; height: var(--vg-size-control-sm); }
+input[type=checkbox] { accent-color: var(--vg-accent-default); width: 1.25rem; height: 1.25rem; }
+/* Switch: a 36 × 20 track, the thumb travels 16. The edge is an inset ring so the geometry stays on the grid at every scale. */
+.switch { display: inline-flex; align-items: center; gap: var(--vg-space-3); cursor: pointer; font-weight: var(--vg-weight-medium); font-size: var(--vg-text-sm); padding: var(--vg-space-1); border-radius: var(--vg-radius-sm); }
 .switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
-.switch .track { width: 2.6rem; height: 1.1rem; border-radius: 1rem; background: rgba(255,255,255,0.4); position: relative; transition: background 150ms; }
-.switch .thumb { position: absolute; top: 50%; left: -0.1rem; width: 1.45rem; height: 1.45rem; border-radius: 50%; background: #e0e0e0;
-  transform: translateY(-50%); transition: left 150ms, background 150ms; box-shadow: 0 0.1rem 0.25rem rgba(0,0,0,0.5); }
-.switch input:checked + .track { background: rgba(79,209,255,0.35); }
-.switch input:checked + .track .thumb { left: 1.25rem; background: var(--ui-accent); }
+.switch .track { position: relative; flex: none; width: var(--vg-size-switch-w); height: var(--vg-size-switch-h); border-radius: var(--vg-radius-pill); background: var(--vg-surface-ink-3);
+  box-shadow: inset 0 0 0 1px var(--vg-line-control); transition: background var(--vg-duration-base) var(--vg-ease-out), box-shadow var(--vg-duration-base) var(--vg-ease-out); }
+.switch .thumb { position: absolute; top: 0.125rem; left: 0.125rem; width: 1rem; height: 1rem; border-radius: 50%; background: var(--vg-text-2);
+  transition: transform var(--vg-duration-base) var(--vg-ease-out), background var(--vg-duration-base) var(--vg-ease-out); }
+.switch input:checked + .track { background: var(--vg-accent-default); box-shadow: inset 0 0 0 1px var(--vg-accent-default); }
+.switch input:checked + .track .thumb { transform: translateX(1rem); background: var(--vg-text-on-accent); }
 #panel {
-  position: fixed; top: 0.75rem; right: 0.75rem; bottom: 0.75rem; width: 22rem; z-index: 20; overflow-y: auto; padding: 1.1rem;
-  font-size: 1rem;
+  position: fixed; top: var(--vg-space-3); right: var(--vg-space-3); bottom: var(--vg-space-3); width: var(--vg-size-panel-w); z-index: 20; overflow-y: auto; padding: var(--vg-space-4);
+  font-size: var(--vg-text-sm); line-height: var(--vg-leading-sm);
 }
-#panel h3 { margin: 0.2rem 0 0.8rem; font-size: 1.3rem; font-weight: 600; }
+#panel::-webkit-scrollbar { width: 10px; }
+#panel::-webkit-scrollbar-thumb { background: var(--vg-surface-ink-3); border-radius: var(--vg-radius-pill); border: 2px solid transparent; background-clip: padding-box; }
+#panel h3 { margin: var(--vg-space-1) 0 var(--vg-space-3); font-size: var(--vg-text-lg); line-height: var(--vg-leading-lg); font-weight: var(--vg-weight-semibold); letter-spacing: -0.005em; }
 /* Widget and group panels: a sticky head (title, name, align icons) and foot (Duplicate, Remove), as Figma keeps
-   its alignment row and actions in reach. Negative margins reach the panel's padding so nothing shows through. */
-#panel .p-head { position: sticky; top: -1.1rem; z-index: 3; margin: -1.1rem -1.1rem 0; padding: 1.1rem 1.1rem 0.7rem; background: #121a24;
-  border-bottom: 1px solid rgba(255,255,255,0.08); }
-#panel .p-head h3 { margin-bottom: 0.4rem; }
-#panel .p-head .row { margin: 0.4rem 0 0.6rem; }
-#panel .p-foot { position: sticky; bottom: -1.1rem; z-index: 3; margin: 0.9rem -1.1rem -1.1rem; padding: 0.7rem 1.1rem 1.1rem; background: #121a24;
-  border-top: 1px solid rgba(255,255,255,0.08); display: flex; gap: 0.5rem; }
+   its alignment row and actions in reach. Negative margins reach the panel's padding so nothing shows through;
+   the bars are opaque navy because content scrolls under them. */
+#panel .p-head { position: sticky; top: calc(-1 * var(--vg-space-4)); z-index: 3; margin: calc(-1 * var(--vg-space-4)) calc(-1 * var(--vg-space-4)) 0; padding: var(--vg-space-4) var(--vg-space-4) var(--vg-space-3);
+  background: var(--vg-navy-900); border-bottom: 1px solid var(--vg-line-subtle); border-radius: calc(var(--vg-radius-lg) - 1px) calc(var(--vg-radius-lg) - 1px) 0 0; }
+#panel .p-head h3 { margin-bottom: var(--vg-space-2); }
+#panel .p-head .row { margin: var(--vg-space-2) 0 var(--vg-space-1); }
+#panel .p-foot { position: sticky; bottom: calc(-1 * var(--vg-space-4)); z-index: 3; margin: var(--vg-space-3) calc(-1 * var(--vg-space-4)) calc(-1 * var(--vg-space-4)); padding: var(--vg-space-3) var(--vg-space-4) var(--vg-space-4);
+  background: var(--vg-navy-900); border-top: 1px solid var(--vg-line-subtle); border-radius: 0 0 calc(var(--vg-radius-lg) - 1px) calc(var(--vg-radius-lg) - 1px); display: flex; gap: var(--vg-space-2); }
 #panel .p-foot button { flex: 1; }
-/* Figma-style fields: the label sits inside the box, right next to its value, and X/Y and W/H pair up two to a row. */
-#panel .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin: 0.6rem 0; }
-#panel .fld { display: flex; align-items: center; gap: 0.5rem; min-width: 0; height: 2.25rem; padding: 0 0.6rem; border: 1px solid var(--edge);
-  border-radius: 0.35rem; background: rgba(255,255,255,0.03); color: #8a9aab; cursor: text; }
-#panel .fld:hover { border-color: rgba(255,255,255,0.5); }
-#panel .fld:focus-within { border-color: var(--ui-accent); box-shadow: 0 0 0 1px var(--ui-accent); }
+/* Fields: the label sits inside the box, right next to its value (paired, never space-between), and X/Y and W/H pair up two to a row. */
+#panel .fields { display: grid; grid-template-columns: 1fr 1fr; gap: var(--vg-space-2); margin: var(--vg-space-2) 0; }
+#panel .fld { display: flex; align-items: center; gap: var(--vg-space-2); min-width: 0; height: var(--vg-size-control); padding: 0 var(--vg-space-3); border: 1px solid var(--vg-line-control);
+  border-radius: var(--vg-radius-sm); background: var(--vg-surface-ink-1); color: var(--vg-text-3); cursor: text;
+  transition: border-color var(--vg-duration-fast) var(--vg-ease-out), background var(--vg-duration-fast) var(--vg-ease-out); }
+#panel .fld:hover { border-color: var(--vg-line-accent); }
+#panel .fld:focus-within { border-color: var(--vg-line-accent); box-shadow: inset 0 0 0 1px var(--vg-line-accent); background: var(--vg-surface-ink-2); }
 #panel .fld.wide { grid-column: 1 / -1; }
-#panel .fld > .k { flex: none; font-size: 0.85rem; font-weight: 600; letter-spacing: 0.02em; }
-#panel .fld > .u { flex: none; font-size: 0.85rem; }
+#panel .fld > .k { flex: none; font-size: var(--vg-text-xs); font-weight: var(--vg-weight-semibold); letter-spacing: var(--vg-tracking-wide); }
+#panel .fld > .u { flex: none; font: var(--vg-weight-regular) var(--vg-text-xs) / 1 var(--vg-font-data); }
 #panel .fld input { flex: 0 1 auto; min-width: 0; width: 7ch; height: 100%; min-height: 0; margin: 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none;
-  color: var(--text); font: inherit; font-variant-numeric: tabular-nums; outline: none; }
-#panel .fld input[type=number] { -moz-appearance: textfield; appearance: textfield; }   /* no spinner: the box sizes to the number */
+  color: var(--vg-text-1); font: inherit; font-variant-numeric: tabular-nums; outline: none; }
+#panel .fld input[type=number] { font-family: var(--vg-font-data); -moz-appearance: textfield; appearance: textfield; }   /* no spinner: the box sizes to the number */
 #panel .fld input::-webkit-inner-spin-button, #panel .fld input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 #panel .fld input:last-child { flex: 1 1 auto; }   /* no unit after it (Name): the value takes the box */
 #panel .fld > .u { margin-right: auto; }
-#panel .fld input::placeholder { color: var(--muted); }
+#panel .fld input::placeholder { color: var(--vg-text-3); }
 /* Color swatches two to a row, each with its name right above it, so a name never drifts away from its color. */
-#panel .cgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem 0.5rem; margin: 0.6rem 0; }
-#panel .cgrid label, #panel .cgrid .ccell { display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; color: #b6c3d1; font-size: 0.9rem; }
+#panel .cgrid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--vg-space-2); margin: var(--vg-space-2) 0; }
+#panel .cgrid label, #panel .cgrid .ccell { display: flex; flex-direction: column; gap: var(--vg-space-1); min-width: 0; color: var(--vg-text-2); font-size: var(--vg-text-sm); }
 #panel .cgrid .cpick { width: 100%; min-width: 0; }
-#panel h4 { margin: 1.4rem 0 0.6rem; font-size: 0.85rem; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600; }
-#panel .row { display: flex; align-items: center; gap: 0.6rem; margin: 0.5rem 0; }
-#panel .row > span { color: #b6c3d1; }
+/* Eyebrow: the section marker. A short accent tick, the label, a hairline that runs out. */
+#panel h4 { display: flex; align-items: center; gap: var(--vg-space-2); margin: var(--vg-space-5) 0 var(--vg-space-2); font-size: var(--vg-text-xs); line-height: var(--vg-leading-xs);
+  color: var(--vg-text-3); letter-spacing: var(--vg-tracking-caps); text-transform: uppercase; font-weight: var(--vg-weight-semibold); }
+#panel h4::before { content: ""; flex: none; width: 0.75rem; height: 0.125rem; border-radius: 1px; background: var(--vg-accent-default); }
+#panel h4::after { content: ""; flex: 1; height: 1px; background: var(--vg-line-subtle); }
+#panel .row { display: flex; align-items: center; gap: var(--vg-space-2); margin: var(--vg-space-2) 0; }
+#panel .row > span { color: var(--vg-text-2); }
+#panel .on-group .row.member { margin-left: var(--vg-space-4); padding-left: var(--vg-space-3); border-left: 1px solid var(--vg-line-default); }
 #panel .row select, #panel .row input[type=text], #panel .row input[type=number] { width: 11rem; }
-#panel .hint { color: #a9b6c4; line-height: 1.5; margin: 0.6rem 0; }
-#panel .hint.warn { color: #ffb547; }
-#panel .hint.ok { color: #7fe0a8; }
-#panel .bind-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin: 0.35rem 0 0.1rem; }
+#panel .hint { color: var(--vg-text-2); line-height: var(--vg-leading-sm); margin: var(--vg-space-2) 0; }
+#panel .hint.warn { color: var(--vg-status-warn); }
+#panel .hint.ok { color: var(--vg-status-ok); }
+#panel .bind-row { display: flex; align-items: center; justify-content: space-between; gap: var(--vg-space-2); margin: var(--vg-space-1) 0 0; }
 #panel .bind-row .hint { margin: 0; }
-#panel .bind-row button { min-height: 1.9rem; padding: 0.15rem 0.7rem; font-size: 0.9rem; white-space: nowrap; }
-#panel .review-list { display: grid; gap: 0.45rem; margin: 0.4rem 0 0.6rem; }
+#panel .bind-row button { min-height: var(--vg-size-control-sm); padding: 0 var(--vg-space-3); font-size: var(--vg-text-xs); white-space: nowrap; }
+#panel .review-list { display: grid; gap: var(--vg-space-2); margin: var(--vg-space-2) 0; }
 #panel .review-list .row { display: block; }
-#panel .review-list b { display: block; font-weight: 600; }
-#panel .review-list .meter { display: flex; height: 0.45rem; margin: 0.25rem 0; border-radius: 0.3rem; overflow: hidden; background: rgba(255,255,255,0.08); }
+#panel .review-list b { display: block; font-weight: var(--vg-weight-semibold); }
+#panel .review-list .meter { display: flex; height: var(--vg-size-meter-h); margin: var(--vg-space-1) 0; border-radius: var(--vg-radius-xs); overflow: hidden; background: var(--vg-surface-ink-2); }
 #panel .review-list .meter i { display: block; height: 100%; }
-#panel .review-list .meter .full { background: #ffb547; }
-#panel .review-list .meter .rest { background: rgba(255,255,255,0.28); }
-#panel .review-list small { color: #a9b6c4; font-size: 0.86rem; }
-#panel .actions { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.9rem; }
-/* Profiles list: one button per profile, the active one outlined; presets as two-column tiles. */
-.prof-list { display: grid; gap: 0.35rem; margin: 0.4rem 0 0.6rem; }
-.prof-list button { display: flex; align-items: baseline; gap: 0.6rem; text-align: left; padding: 0.55rem 0.7rem; }
-.prof-list button > b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
-.prof-list button > small { flex: none; color: #a9b6c4; font-size: 0.82rem; }
-.prof-list button[aria-current=true] { border-color: var(--ui-accent); box-shadow: inset 0 0 0 1px var(--ui-accent); }
-.prof-list button[aria-current=true] > b { color: var(--ui-accent); }
-.presets { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; margin: 0.4rem 0 0.6rem; }
-.presets button { display: grid; gap: 0.2rem; align-content: start; text-align: left; padding: 0.55rem 0.6rem; font-weight: 600; }
-.presets button small { color: #a9b6c4; font-size: 0.8rem; font-weight: 500; line-height: 1.35; }
-.presets button small.full { color: var(--ui-accent); margin-top: -0.15rem; }
-.presets .icons { display: flex; gap: 0.3rem; color: #b6c3d1; }
-.presets .icons svg { width: 1.3rem; height: 1.3rem; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+#panel .review-list .meter .full { background: var(--vg-status-warn); }
+#panel .review-list .meter .rest { background: var(--vg-line-control); }
+#panel .review-list small { color: var(--vg-text-2); font-size: var(--vg-text-xs); line-height: var(--vg-leading-xs); }
+#panel .actions { display: flex; gap: var(--vg-space-2); flex-wrap: wrap; margin-top: var(--vg-space-3); }
+/* Profiles list: one row per profile, the keel (a 2px rail) marks the current one; presets as two-column cards. */
+.prof-list { display: grid; gap: var(--vg-space-1); margin: var(--vg-space-2) 0 var(--vg-space-3); }
+.prof-list button { position: relative; display: flex; align-items: baseline; gap: var(--vg-space-3); text-align: left; padding: var(--vg-space-2) var(--vg-space-3); background: var(--vg-surface-ink-1); border-color: transparent; }
+.prof-list button:hover { background: var(--vg-surface-ink-2); border-color: var(--vg-line-default); }
+.prof-list button > b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--vg-weight-semibold); }
+.prof-list button > small { flex: none; color: var(--vg-text-3); font: var(--vg-weight-regular) var(--vg-text-xs) / 1 var(--vg-font-data); font-variant-numeric: tabular-nums; }
+.prof-list button[aria-current=true] { background: var(--vg-accent-soft); border-color: var(--vg-line-accent); }
+.prof-list button[aria-current=true]::before { content: ""; position: absolute; left: -1px; top: var(--vg-space-2); bottom: var(--vg-space-2); width: 2px; border-radius: 1px; background: var(--vg-accent-default); }
+.prof-list button[aria-current=true] > b { color: var(--vg-text-accent); }
+.prof-list button[aria-current=true] > small { color: var(--vg-text-2); }
+.presets { display: grid; grid-template-columns: 1fr 1fr; gap: var(--vg-space-2); margin: var(--vg-space-2) 0 var(--vg-space-3); }
+.presets button { display: grid; gap: var(--vg-space-1); align-content: start; text-align: left; padding: var(--vg-space-3); font-weight: var(--vg-weight-semibold); letter-spacing: 0;
+  background: var(--vg-surface-ink-1); border-color: var(--vg-line-default); border-radius: var(--vg-radius-md); }
+.presets button:hover { background: var(--vg-surface-ink-2); border-color: var(--vg-line-accent); }
+.presets button small { color: var(--vg-text-2); font-size: var(--vg-text-xs); font-weight: var(--vg-weight-regular); line-height: var(--vg-leading-xs); }
+.presets button small.full { color: var(--vg-text-accent); font-weight: var(--vg-weight-semibold); }
+.presets .icons { display: flex; gap: var(--vg-space-1); color: var(--vg-text-3); }
+.presets .icons svg { width: var(--vg-size-icon); height: var(--vg-size-icon); stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 /* Panel sections: a header you can collapse (remembered per browser), an optional switch or summary beside it.
-   Three levels of grouping, each with its own shape: a family label (colored, with a rule), a section card (colored
-   edge, icon, bold title) and, inside it, sub-headings (h5) and indented groups (.nest). Open sections sit a step
-   lighter than closed ones, so the open ones stand out in a long panel. */
-.fam, .sec { --fc: #7f8c99; }
-[data-fam=pos] { --fc: #4fd1ff; } [data-fam=widget] { --fc: #3ddc97; } [data-fam=style] { --fc: #b388ff; } [data-fam=input] { --fc: #ffb547; }
-.fam { display: flex; align-items: center; gap: 0.6rem; margin: 1.2rem 0 0.1rem; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--fc); }
-.fam::after { content: ""; flex: 1; height: 1px; background: var(--fc); opacity: 0.4; }
-.sec { margin: 0.45rem 0 0; padding: 0 0.7rem 0 0.55rem; border: 1px solid rgba(255,255,255,0.08); border-left: 3px solid var(--fc); border-radius: 0.4rem; background: rgba(255,255,255,0.02); }
-.sec.open { background: rgba(255,255,255,0.045); border-color: rgba(255,255,255,0.14); border-left-color: var(--fc); }
-.sec-h { display: flex; align-items: center; gap: 0.5rem; }
-.sec-h > .sec-t { flex: 1; min-width: 0; display: flex; align-items: center; gap: 0.6rem; min-height: 2.6rem; padding: 0.3rem 0.1rem; border-color: transparent; text-align: left;
-  font-size: 1rem; color: #b6c3d1; letter-spacing: 0; font-weight: 600; }
-.sec.open > .sec-h > .sec-t { color: var(--text); font-weight: 650; }
-.sec-h > .sec-t:hover { background: rgba(255,255,255,0.04); color: var(--text); }
-.sec-t .ico { flex: none; display: inline-flex; color: var(--fc); }
-.sec-t .ico svg { width: 1.25rem; height: 1.25rem; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
-.sec-t .sum { margin-left: auto; color: #b6c3d1; text-transform: none; letter-spacing: 0; font-weight: 500; font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sec-t .chev { margin-left: auto; flex: none; font-size: 0.75rem; transition: transform 150ms; }
+   Three levels of grouping, each with its own shape: a family label (a Verseglass eyebrow: accent tick, label, rule),
+   a section card (keel, icon, bold title) and, inside it, sub-headings (h5) and indented groups (.nest). Open sections
+   sit a step lighter than closed ones and draw their keel in the accent, so the open ones stand out in a long panel.
+   Families differ by their label only: one accent, and green and amber stay for real status (bound, not connected). */
+.fam { display: flex; align-items: center; gap: var(--vg-space-2); margin: var(--vg-space-5) 0 0; font-size: var(--vg-text-xs); line-height: var(--vg-leading-xs); font-weight: var(--vg-weight-semibold); letter-spacing: var(--vg-tracking-caps); text-transform: uppercase; color: var(--vg-text-2); }
+.fam::before { content: ""; flex: none; width: var(--vg-space-3); height: 2px; background: var(--vg-line-accent); }
+.fam::after { content: ""; flex: 1; height: 1px; background: var(--vg-line-default); }
+.sec { margin: var(--vg-space-2) 0 0; padding: 0 var(--vg-space-3) 0 var(--vg-space-2); border: 1px solid var(--vg-line-subtle); border-left: 2px solid var(--vg-line-default); border-radius: var(--vg-radius-sm); background: transparent;
+  transition: background var(--vg-duration-fast) var(--vg-ease-out), border-color var(--vg-duration-fast) var(--vg-ease-out); }
+.sec.open { background: var(--vg-surface-ink-1); border-color: var(--vg-line-default); border-left-color: var(--vg-line-accent); }
+.sec-h { display: flex; align-items: center; gap: var(--vg-space-2); }
+.sec-h > .sec-t { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--vg-space-2); min-height: var(--vg-size-control); padding: var(--vg-space-1) 0; border-color: transparent; text-align: left;
+  font-size: var(--vg-text-sm); color: var(--vg-text-2); letter-spacing: 0; font-weight: var(--vg-weight-semibold); }
+.sec.open > .sec-h > .sec-t { color: var(--vg-text-1); }
+.sec-h > .sec-t:hover { background: transparent; border-color: transparent; color: var(--vg-text-1); }
+.sec-t .ico { flex: none; display: inline-flex; color: var(--vg-text-3); }
+.sec.open > .sec-h > .sec-t .ico { color: var(--vg-text-accent); }
+.sec-t .ico svg { width: var(--vg-size-icon); height: var(--vg-size-icon); stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.sec-t .sum { margin-left: auto; color: var(--vg-text-3); text-transform: none; letter-spacing: 0; font-weight: var(--vg-weight-regular); font-size: var(--vg-text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sec-t .chev { margin-left: auto; flex: none; font-size: 0.625rem; color: var(--vg-text-3); transition: transform var(--vg-duration-base) var(--vg-ease-out); }
 .sec-t .sum + .chev { margin-left: 0; }
 .sec-t[aria-expanded=false] .chev { transform: rotate(-90deg); }
-.sec-h .switch { flex: none; padding: 0.2rem 0.3rem; }
+.sec-h .switch { flex: none; padding: var(--vg-space-1); }
 .trow .switch { flex: none; padding-left: 0; }
-.sec-b { padding: 0.1rem 0 0.5rem; }
-#panel h5 { display: flex; align-items: center; gap: 0.5rem; margin: 1.1rem 0 0.4rem; font-size: 0.78rem; color: #b6c3d1; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
-#panel h5::after { content: ""; flex: 1; height: 1px; background: rgba(255,255,255,0.14); }
-#panel h5 + .hint.small { margin-top: -0.1rem; }
+.sec-b { padding: var(--vg-space-1) 0 var(--vg-space-3); }
+#panel h5 { display: flex; align-items: center; gap: var(--vg-space-2); margin: var(--vg-space-4) 0 var(--vg-space-1); font-size: var(--vg-text-xs); line-height: var(--vg-leading-xs); color: var(--vg-text-2); font-weight: var(--vg-weight-semibold); letter-spacing: var(--vg-tracking-caps); text-transform: uppercase; }
+#panel h5::after { content: ""; flex: 1; height: 1px; background: var(--vg-line-default); }
+#panel h5 + .hint.small { margin-top: 0; }
 /* Slider row: the value right after its label, the slider full width underneath, so labels never wrap. */
-.srow { margin: 0.6rem 0; }
-.srow .top { display: flex; align-items: center; gap: 0.25rem; }
-.srow .top > span:first-child { color: #b6c3d1; }
-.srow .val { font: inherit; font-variant-numeric: tabular-nums; min-width: 3.2rem; min-height: 0; padding: 0.1rem 0.35rem; text-align: left; color: inherit;
-  background: none; border: 1px solid transparent; border-radius: 0.3rem; cursor: text; }
-.srow .val:hover, .srow .val:focus-visible { border-color: rgba(255,255,255,0.25); background: rgba(255,255,255,0.06); }
-.srow input.val-in { width: 5.2rem; min-height: 1.8rem; padding: 0.1rem 0.4rem; text-align: right; }
+.srow { margin: var(--vg-space-2) 0; }
+.srow .top { display: flex; align-items: center; gap: var(--vg-space-1); }
+.srow .top > span:first-child { color: var(--vg-text-2); }
+/* The click-to-type value is a 24 px target (WCAG 2.5.8): a 24 px line box and no border, so the row stays on the 4 px
+   grid; the hover edge is drawn inside (box-shadow) and the number box that replaces it is 24 px tall too. */
+.srow .val { font: var(--vg-weight-medium) var(--vg-text-sm) / var(--vg-leading-md) var(--vg-font-data); font-variant-numeric: tabular-nums; letter-spacing: 0; min-width: 3.5rem; min-height: var(--vg-size-chip-h); padding: 0 var(--vg-space-1); text-align: left; color: var(--vg-text-1);
+  background: none; border: 0; border-radius: var(--vg-radius-xs); cursor: text; }
+.srow .val:hover, .srow .val:focus-visible { box-shadow: inset 0 0 0 1px var(--vg-line-default); background: var(--vg-surface-ink-2); }
+.srow .top input.val-in { height: var(--vg-size-chip-h); min-height: 0; padding-block: 0; }
+.srow input.val-in { width: 5.5rem; min-height: var(--vg-size-control-sm); padding: 0 var(--vg-space-2); text-align: right; font-family: var(--vg-font-data); }
 /* A group of options that belong to the switch above it: indented, with a rule down its left edge. */
-#panel .nest { margin: 0.2rem 0 0.6rem 1.1rem; padding-left: 0.8rem; border-left: 2px solid rgba(79,209,255,0.28); }
+#panel .nest { margin: var(--vg-space-1) 0 var(--vg-space-2) var(--vg-space-4); padding-left: var(--vg-space-3); border-left: 2px solid var(--vg-line-default); }
 #panel .nest[hidden] { display: none; }
 .srow.overridden input[type=range] { opacity: 0.45; }
-.srow.overridden .top > span:first-child, .srow.overridden .val { color: #8a9aab; }
-.srow .fill-note { margin: 0.2rem 0 0; }
-.srow input[type=range] { display: block; width: 100%; margin: 0.05rem 0 0; }
-.srow input[type=number] { width: 5.2rem; min-height: 2rem; padding: 0.2rem 0.5rem; text-align: right; }
+.srow.overridden .top > span:first-child, .srow.overridden .val { color: var(--vg-text-3); }
+.srow .fill-note { margin: var(--vg-space-1) 0 0; }
+.srow input[type=range] { display: block; width: 100%; margin: 0; }
+.srow input[type=number] { width: 5.5rem; min-height: var(--vg-size-control-sm); padding: 0 var(--vg-space-2); text-align: right; font-family: var(--vg-font-data); }
 /* Toggle row: the switch, then its label and a short description. */
-.trow { display: flex; align-items: center; gap: 0.6rem; margin: 0.35rem 0; }
-.trow .lab { color: #b6c3d1; min-width: 0; }
-.trow .lab small { display: block; color: #8a9aab; font-size: 0.86rem; line-height: 1.4; }
+.trow { display: flex; align-items: center; gap: var(--vg-space-2); margin: var(--vg-space-1) 0; }
+.trow .lab { color: var(--vg-text-1); min-width: 0; }
+.trow .lab small { display: block; color: var(--vg-text-2); font-size: var(--vg-text-xs); line-height: var(--vg-leading-xs); }
 /* Choice row: a label, a full-width tile group, and the chosen tile's one-line description under it. */
-.crow { margin: 0.6rem 0; }
-.crow > span { display: block; color: #b6c3d1; margin-bottom: 0.3rem; }
+.crow { margin: var(--vg-space-2) 0; }
+.crow > span { display: block; color: var(--vg-text-2); margin-bottom: var(--vg-space-1); }
 .crow .tiles { margin: 0; }
 .tiles.wrap { grid-auto-flow: row; grid-template-columns: repeat(3, 1fr); }
-#panel .hint.small { font-size: 0.86rem; color: #8a9aab; margin: 0.25rem 0 0.4rem; }
+.tiles.stack { grid-auto-flow: row; grid-template-columns: 1fr; }   /* labels too long for a column of three, one per line */
+#panel .hint.small { font-size: var(--vg-text-xs); line-height: var(--vg-leading-xs); color: var(--vg-text-3); margin: var(--vg-space-1) 0 var(--vg-space-2); }
+/* A small hint can carry a status too (the bind row's "Not bound yet"): the status color wins over text-3. */
+#panel .hint.small.warn { color: var(--vg-status-warn); }
+#panel .hint.small.ok { color: var(--vg-status-ok); }
 /* Quiet buttons for resets: there when you need them, not competing with the controls. */
-button.subtle { border-color: transparent; color: #a9b6c4; }
-button.subtle:hover { border-color: rgba(255,255,255,0.3); color: var(--text); background: rgba(255,255,255,0.04); }
-.icon-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.3rem; }
-#panel .icon-row + .icon-row { margin-top: 0.3rem; }
+button.subtle { border-color: transparent; color: var(--vg-text-2); }
+button.subtle:hover { border-color: var(--vg-line-control); color: var(--vg-text-1); background: var(--vg-surface-ink-2); }
+/* Inside a panel section a quiet button (Fit to Content, Reset Layout, Reset Effects, Reset Look, Reset Projector) has
+   no box, so its text starts at the content edge like the labels above it. Its height keeps the 36 px target; hover
+   underlines instead of drawing a box that would no longer fit the text. */
+.sec-b button.subtle { padding-inline: 0; min-width: var(--vg-size-control); }
+.sec-b button.subtle:hover { border-color: transparent; background: none; color: var(--vg-text-1); text-decoration: underline; text-underline-offset: 0.25rem; }
+.icon-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: var(--vg-space-1); }
+#panel .icon-row + .icon-row { margin-top: var(--vg-space-1); }
 .icon-row.four { grid-template-columns: repeat(4, 1fr); }
-.icon-row button { padding: 0.4rem 0; display: flex; align-items: center; justify-content: center; }
-.icon-row svg { width: 1.4rem; height: 1.4rem; stroke: currentColor; fill: none; stroke-width: 1.6; pointer-events: none; }
-.themes { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin: 0.4rem 0; }
-.theme-tile { display: flex; flex-direction: column; gap: 0.45rem; padding: 0.5rem; text-align: left; font-size: 0.86rem; line-height: 1.25; min-height: 0; font-weight: 600; }
-.theme-tile[aria-pressed=true] { border-color: var(--ui-accent); box-shadow: inset 0 0 0 1px var(--ui-accent); }
-.theme-prev { display: flex; align-items: center; gap: 0.45rem; padding: 0.4rem 0.5rem; border: 1px solid; border-radius: 0.35rem; pointer-events: none; }
-.theme-prev .sq { position: relative; flex: none; width: 1.7rem; height: 1.7rem; border: 1px solid; border-radius: 0.15rem; }
-.theme-prev .sq i { position: absolute; left: 60%; top: 28%; width: 0.45rem; height: 0.45rem; border-radius: 50%; }
-.theme-prev .col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.3rem; }
-.theme-prev b { font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; white-space: nowrap; overflow: hidden; }
-.theme-prev .bar { position: relative; height: 0.35rem; border-radius: 0.2rem; overflow: hidden; }
+.icon-row button { padding: var(--vg-space-1) 0; display: flex; align-items: center; justify-content: center; }
+.icon-row svg { width: var(--vg-size-icon); height: var(--vg-size-icon); stroke: currentColor; fill: none; stroke-width: 1.6; pointer-events: none; }
+/* Theme tiles and Look tiles: cards. Two corner ticks mark the chosen one. */
+.themes { display: grid; grid-template-columns: 1fr 1fr; gap: var(--vg-space-2); margin: var(--vg-space-2) 0; }
+.theme-tile { position: relative; display: flex; flex-direction: column; gap: var(--vg-space-2); padding: var(--vg-space-2); text-align: left; font-size: var(--vg-text-xs); line-height: var(--vg-leading-xs); letter-spacing: 0; min-height: 0; font-weight: var(--vg-weight-semibold); border-radius: var(--vg-radius-md); }
+.theme-tile, .look-tile { background: var(--vg-surface-ink-1); border-color: var(--vg-line-default); }
+.theme-tile:hover, .look-tile:hover { background: var(--vg-surface-ink-2); border-color: var(--vg-line-control); }
+.theme-tile[aria-pressed=true], .look-tile[aria-pressed=true] { background: var(--vg-accent-soft); border-color: var(--vg-line-accent); box-shadow: none; }
+.theme-tile[aria-pressed=true]::before, .theme-tile[aria-pressed=true]::after, .look-tile[aria-pressed=true]::before, .look-tile[aria-pressed=true]::after {
+  content: ""; position: absolute; width: 0.75rem; height: 0.75rem; border: 2px solid var(--vg-accent-default); pointer-events: none; }
+.theme-tile[aria-pressed=true]::before, .look-tile[aria-pressed=true]::before { top: -1px; left: -1px; border-right: 0; border-bottom: 0; border-top-left-radius: var(--vg-radius-md); }
+.theme-tile[aria-pressed=true]::after, .look-tile[aria-pressed=true]::after { right: -1px; bottom: -1px; border-left: 0; border-top: 0; border-bottom-right-radius: var(--vg-radius-md); }
+.theme-prev { display: flex; align-items: center; gap: var(--vg-space-2); padding: var(--vg-space-2); border: 1px solid; border-radius: var(--vg-radius-sm); pointer-events: none; }
+.theme-prev .sq { position: relative; flex: none; width: 1.75rem; height: 1.75rem; border: 1px solid; border-radius: 0.125rem; }
+.theme-prev .sq i { position: absolute; left: 60%; top: 28%; width: 0.5rem; height: 0.5rem; border-radius: 50%; }
+.theme-prev .col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--vg-space-1); }
+.theme-prev b { font-size: 0.625rem; letter-spacing: var(--vg-tracking-caps); text-transform: uppercase; white-space: nowrap; overflow: hidden; }
+.theme-prev .bar { position: relative; height: var(--vg-space-1); border-radius: 0.125rem; overflow: hidden; }
 .theme-prev .bar i { position: absolute; left: 50%; top: 0; bottom: 0; width: 32%; }
-.swatch { position: relative; flex: none; width: 2.6rem; height: 1.5rem; border: 2px solid; border-radius: 0.25rem; }
-.swatch b { position: absolute; left: 0.3rem; top: 50%; width: 1.1rem; height: 2px; margin-top: -1px; }
-.swatch i { position: absolute; right: 0.3rem; top: 50%; width: 0.5rem; height: 0.5rem; margin-top: -0.25rem; border-radius: 50%; }
-.swatch.empty { border-style: dashed; border-color: rgba(255,255,255,0.35); }
-.tsel { position: relative; margin: 0.2rem 0 0.4rem; }
-.tsel-btn { width: 100%; display: flex; align-items: center; gap: 0.6rem; text-align: left; padding: 0.4rem 0.6rem; }
+.swatch { position: relative; flex: none; width: 2.5rem; height: 1.5rem; border: 2px solid; border-radius: var(--vg-radius-xs); }
+.swatch b { position: absolute; left: var(--vg-space-1); top: 50%; width: 1rem; height: 2px; margin-top: -1px; }
+.swatch i { position: absolute; right: var(--vg-space-1); top: 50%; width: 0.5rem; height: 0.5rem; margin-top: -0.25rem; border-radius: 50%; }
+.swatch.empty { border-style: dashed; border-color: var(--vg-line-control); }
+.tsel { position: relative; margin: var(--vg-space-1) 0 var(--vg-space-2); }
+.tsel-btn { width: 100%; display: flex; align-items: center; gap: var(--vg-space-2); text-align: left; padding: var(--vg-space-1) var(--vg-space-3); }
 .tsel-btn .tsel-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tsel-btn .chev { transition: transform var(--vg-duration-base) var(--vg-ease-out); }
 .tsel-btn[aria-expanded=true] .chev { transform: rotate(180deg); }
-.tsel-list { position: absolute; left: 0; right: 0; top: calc(100% + 0.25rem); z-index: 5; margin: 0; padding: 0.3rem 0; list-style: none;
-  max-height: 20rem; overflow-y: auto; background: #121a24; border: 1px solid rgba(255,255,255,0.2); border-radius: 0.4rem; box-shadow: 0 0.6rem 1.4rem rgba(0,0,0,0.6); }
-.tsel-list:focus-visible { outline: 0.2rem solid #ffd34d; outline-offset: 0.15rem; }
-.tsel-list li { display: flex; align-items: center; gap: 0.6rem; padding: 0.45rem 0.7rem; cursor: pointer; }
-.tsel-list li.active { background: rgba(79,209,255,0.14); }
-.tsel-list li[aria-selected=true] { color: var(--ui-accent); font-weight: 650; }
+.tsel-list { position: absolute; left: 0; right: 0; top: calc(100% + var(--vg-space-1)); z-index: 5; margin: 0; padding: var(--vg-space-1) 0; list-style: none;
+  max-height: 20rem; overflow-y: auto; background: var(--vg-navy-900); border: 1px solid var(--vg-line-default); border-radius: var(--vg-radius-md); box-shadow: var(--vg-shadow-overlay); }
+.tsel-list:focus-visible { outline: 0.125rem solid var(--vg-focus-ring); outline-offset: 0.125rem; }
+.tsel-list li { display: flex; align-items: center; gap: var(--vg-space-2); min-height: var(--vg-size-control); padding: var(--vg-space-1) var(--vg-space-3); cursor: pointer; }
+.tsel-list li.active { background: var(--vg-surface-ink-2); }
+.tsel-list li[aria-selected=true] { color: var(--vg-text-accent); font-weight: var(--vg-weight-semibold); }
 .tsel-list li[aria-selected=true]::after { content: "✓"; margin-left: auto; }
-.wide-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.3rem; margin-top: 0.3rem; }
+.wide-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--vg-space-1); margin-top: var(--vg-space-1); }
 .wide-row.three { grid-template-columns: repeat(3, 1fr); }
-.step { border: 1px solid rgba(255,255,255,0.15); border-radius: 0.5rem; padding: 0.8rem; margin: 0.6rem 0; color: #a9b6c4; }
-.step.active { border-color: var(--ui-accent); color: var(--text); }
-.step.done { color: var(--text); }
-.step.done::before { content: "✓ "; color: var(--ui-accent); }
-.step .live { height: 0.45rem; background: rgba(255,255,255,0.1); border-radius: 0.3rem; margin-top: 0.6rem; overflow: hidden; }
-.step .live i { display: block; height: 100%; width: 0; background: var(--ui-accent); }
+.step { border: 1px solid var(--vg-line-default); border-radius: var(--vg-radius-md); padding: var(--vg-space-3); margin: var(--vg-space-2) 0; color: var(--vg-text-2); background: var(--vg-surface-ink-1); }
+.step.active { border-color: var(--vg-line-accent); color: var(--vg-text-1); }
+.step.done { color: var(--vg-text-1); }
+.step.done::before { content: "✓ "; color: var(--vg-text-accent); }
+.step .live { height: var(--vg-size-meter-h); background: var(--vg-surface-ink-2); border-radius: var(--vg-radius-xs); margin-top: var(--vg-space-2); overflow: hidden; }
+.step .live i { display: block; height: 100%; width: 0; background: var(--vg-accent-default); }
 #toast {
-  position: fixed; left: 50%; top: 5rem; transform: translateX(-50%); z-index: 40; padding: 0.7rem 1.1rem; font-size: 1rem;
-  opacity: 0; transition: opacity 200ms; pointer-events: none;
+  position: fixed; left: 50%; top: 5rem; transform: translateX(-50%); z-index: 40; padding: var(--vg-space-2) var(--vg-space-4); border-radius: var(--vg-radius-md); background: var(--vg-surface-glass-menu);
+  opacity: 0; transition: opacity var(--vg-duration-base) var(--vg-ease-out); pointer-events: none;
 }
 #toast.show { opacity: 1; }
 /* First-run dialog */
-#welcome { position: fixed; inset: 0; z-index: 50; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.55); }
+#welcome { position: fixed; inset: 0; z-index: 50; display: none; align-items: center; justify-content: center; background: var(--vg-surface-scrim); }
 #welcome.open { display: flex; }
 /* One-time tips: a card beside the side panel pointing at it, never blocking the stage. */
-#coach { position: fixed; right: 24.25rem; top: 5rem; z-index: 45; width: min(22rem, calc(100vw - 26rem)); padding: 1.1rem 1.2rem; display: none; line-height: 1.5; }
-body.panel-hidden #coach { right: 1.5rem; }
+#coach { position: fixed; right: calc(var(--vg-size-panel-w) + 2rem); top: 5rem; z-index: 45; width: min(22rem, calc(100vw - 26rem)); padding: var(--vg-space-4) var(--vg-space-5); display: none; }
+body.panel-hidden #coach { right: var(--vg-space-6); }
 #coach.open { display: block; }
-#coach::after { content: ""; position: absolute; right: -0.45rem; top: 1.6rem; width: 0.8rem; height: 0.8rem; background: #121a24;
-  border-top: 1px solid rgba(255,255,255,0.12); border-right: 1px solid rgba(255,255,255,0.12); transform: rotate(45deg); }
+#coach::after { content: ""; position: absolute; right: -0.4375rem; top: 1.625rem; width: 0.75rem; height: 0.75rem; background: var(--vg-surface-glass);
+  border-top: 1px solid var(--vg-line-default); border-right: 1px solid var(--vg-line-default); transform: rotate(45deg); }
 body.panel-hidden #coach::after { display: none; }
-#coach h2 { margin: 0 0 0.4rem; font-size: 1.15rem; font-weight: 600; }
-#coach p { margin: 0 0 0.5rem; color: #b6c3d1; }
-#coach .foot { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.8rem; }
-#confirm, #obs-dlg { position: fixed; inset: 0; z-index: 60; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); color-scheme: dark; }
+#coach h2 { margin: 0 0 var(--vg-space-1); font-size: var(--vg-text-md); line-height: var(--vg-leading-md); font-weight: var(--vg-weight-semibold); }
+#coach p { margin: 0 0 var(--vg-space-2); color: var(--vg-text-2); }
+#coach .foot { display: flex; justify-content: flex-end; gap: var(--vg-space-2); margin-top: var(--vg-space-3); }
+#confirm, #obs-dlg { position: fixed; inset: 0; z-index: 60; display: none; align-items: center; justify-content: center; background: var(--vg-surface-scrim); color-scheme: dark; }
 #confirm.open, #obs-dlg.open { display: flex; }
-#confirm .dialog, #obs-dlg .dialog { width: min(30rem, calc(100vw - 2rem)); padding: 1.6rem 1.8rem; font-size: 1.07rem; line-height: 1.55; }
-#confirm h2, #obs-dlg h2 { margin: 0 0 0.5rem; font-size: 1.4rem; font-weight: 600; }
-#confirm p, #obs-dlg p { color: #b6c3d1; margin: 0 0 1.3rem; }
-#confirm .foot, #obs-dlg .foot { display: flex; justify-content: flex-end; gap: 0.5rem; flex-wrap: wrap; }
-#confirm button.danger.solid { background: var(--hot); border-color: var(--hot); color: #1a0508; font-weight: 600; }
-#confirm button.danger.solid:hover { filter: brightness(1.1); color: #1a0508; }
-#save-copy { position: fixed; inset: 0; z-index: 60; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); color-scheme: dark; }
+#confirm .dialog, #obs-dlg .dialog { width: min(30rem, calc(100vw - 2rem)); padding: var(--vg-space-6); font-size: var(--vg-text-md); line-height: var(--vg-leading-md); }
+#confirm h2, #obs-dlg h2 { margin: 0 0 var(--vg-space-2); font-size: var(--vg-text-xl); line-height: var(--vg-leading-xl); font-weight: var(--vg-weight-semibold); }
+#confirm p, #obs-dlg p { color: var(--vg-text-2); margin: 0 0 var(--vg-space-5); }
+#confirm .foot, #obs-dlg .foot { display: flex; justify-content: flex-end; gap: var(--vg-space-2); flex-wrap: wrap; }
+#confirm button.danger.solid { background: var(--vg-status-danger); border-color: var(--vg-status-danger); color: var(--vg-text-on-accent); font-weight: var(--vg-weight-semibold); }
+#confirm button.danger.solid:hover { filter: brightness(1.08); color: var(--vg-text-on-accent); }
+#save-copy { position: fixed; inset: 0; z-index: 60; display: none; align-items: center; justify-content: center; background: var(--vg-surface-scrim); color-scheme: dark; }
 #save-copy.open { display: flex; }
-#save-copy .dialog { width: min(36rem, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); overflow: auto; padding: 1.6rem 1.8rem; font-size: 1.07rem; line-height: 1.55; }
-#save-copy h2 { margin: 0 0 0.5rem; font-size: 1.4rem; font-weight: 600; }
-#save-copy ol { color: #b6c3d1; margin: 0 0 0.9rem; padding-left: 1.4rem; }
-#save-copy textarea { width: 100%; height: 9rem; box-sizing: border-box; resize: vertical; font: 0.85rem/1.4 ui-monospace, Consolas, monospace;
-  color: #d7e1ea; background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.16); border-radius: 0.4rem; padding: 0.6rem; }
-#save-copy p { min-height: 1.5em; margin: 0.5rem 0 0.8rem; color: var(--ui-accent); }
-#save-copy .foot { display: flex; justify-content: flex-end; gap: 0.5rem; flex-wrap: wrap; }
-#obs-dlg .fields { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 0.5rem 0.75rem; margin: 0 0 0.8rem; }
+#save-copy .dialog { width: min(36rem, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); overflow: auto; padding: var(--vg-space-6); font-size: var(--vg-text-md); line-height: var(--vg-leading-md); }
+#save-copy h2 { margin: 0 0 var(--vg-space-2); font-size: var(--vg-text-xl); line-height: var(--vg-leading-xl); font-weight: var(--vg-weight-semibold); }
+#save-copy ol { color: var(--vg-text-2); margin: 0 0 var(--vg-space-3); padding-left: var(--vg-space-6); }
+#save-copy textarea { width: 100%; height: 9rem; box-sizing: border-box; resize: vertical; font: var(--vg-weight-regular) var(--vg-text-xs) / var(--vg-leading-xs) var(--vg-font-data);
+  color: var(--vg-text-1); background: var(--vg-navy-950); border: 1px solid var(--vg-line-control); border-radius: var(--vg-radius-sm); padding: var(--vg-space-2) var(--vg-space-3); }
+#save-copy p { min-height: 1.5em; margin: var(--vg-space-2) 0 var(--vg-space-3); color: var(--vg-text-accent); }
+#save-copy .foot { display: flex; justify-content: flex-end; gap: var(--vg-space-2); flex-wrap: wrap; }
+#obs-dlg .fields { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: var(--vg-space-2) var(--vg-space-3); margin: 0 0 var(--vg-space-3); }
 #obs-dlg #obs-source-row { display: contents; }
 #obs-dlg #obs-source-row[hidden] { display: none; }
-#obs-dlg input[type=password] { font: 500 1rem/1.4 var(--font); color: var(--text); background: rgba(255,255,255,0.06); border: 1px solid var(--edge); border-radius: 0.3rem; padding: 0.4rem 0.9rem; min-height: 2.5rem; }
-#obs-dlg .check { display: flex; align-items: center; gap: 0.5rem; }
-#obs-dlg p.small { font-size: 0.9rem; margin: 0.3rem 0 1.1rem; }
-#obs-dlg p.err { color: var(--hot); margin: 0 0 0.9rem; }
-#welcome .dialog { width: min(40rem, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); overflow: auto; padding: 1.8rem 2rem; font-size: 1.07rem; line-height: 1.55; }
-#welcome h2 { margin: 0 0 0.4rem; font-size: 1.8rem; font-weight: 600; }
-#welcome .lead { color: #b6c3d1; margin: 0 0 1rem; }
-#welcome .lead.where { color: var(--ui-accent); font-size: 0.95rem; margin-top: -0.4rem; }
-#welcome .wq { margin: 0.2rem 0 0.5rem; font-size: 1.25rem; font-weight: 600; }
-#welcome .presets { grid-template-columns: repeat(3, 1fr); margin: 0 0 0.8rem; }
-#welcome .wsub { color: #a9b6c4; font-size: 0.95rem; margin: 0 0 1.1rem; }
-#welcome .wsub.tsub { margin: -0.25rem 0 0.5rem; }
-#welcome .foot { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; flex-wrap: wrap; color: #a9b6c4; }
-#welcome .keys { margin-top: 1.2rem; font-size: 0.93rem; color: #b6c3d1; }
-#welcome .keys summary { cursor: pointer; color: #a9b6c4; font-weight: 600; }
-#welcome .keys .hint-k { font-weight: 400; }
-#welcome .keys table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
-#welcome .keys td { padding: 0.25rem 0.5rem 0.25rem 0; vertical-align: top; }
-#welcome .keys td:nth-child(odd) { white-space: nowrap; color: #e6ecf1; }
+#obs-dlg input[type=password] { font: var(--vg-weight-medium) var(--vg-text-sm) / var(--vg-leading-sm) var(--vg-font-ui); color: var(--vg-text-1); background: var(--vg-surface-ink-1); border: 1px solid var(--vg-line-control); border-radius: var(--vg-radius-sm); padding: var(--vg-space-1) var(--vg-space-4); min-height: var(--vg-size-control); }
+#obs-dlg .check { display: flex; align-items: center; gap: var(--vg-space-2); }
+#obs-dlg p.small { font-size: var(--vg-text-sm); line-height: var(--vg-leading-sm); margin: var(--vg-space-1) 0 var(--vg-space-4); }
+#obs-dlg p.err { color: var(--vg-status-danger); margin: 0 0 var(--vg-space-3); }
+/* A dialog in three parts: the head and the foot stay put and only the middle scrolls, so the way out is always on
+   screen, even at 1366 x 768. */
+.dialog.pinned { display: flex; flex-direction: column; overflow: hidden; max-height: calc(100vh - 2rem); box-sizing: border-box; }
+.dialog.pinned > .head, .dialog.pinned > .foot { flex: none; }
+.dialog.pinned > .mid { flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; margin: 0 calc(-1 * var(--vg-space-8)); padding: 0 var(--vg-space-8);
+  scrollbar-color: var(--vg-surface-ink-3) transparent; }
+.dialog.pinned > .mid::-webkit-scrollbar { width: 12px; }
+.dialog.pinned > .mid::-webkit-scrollbar-thumb { background: var(--vg-surface-ink-3); border-radius: var(--vg-radius-pill); border: 2px solid transparent; background-clip: padding-box; }
+.dialog.pinned > .foot { border-top: 1px solid var(--vg-line-default); padding-top: var(--vg-space-4); }
+#welcome .dialog { width: min(56rem, calc(100vw - 2rem)); padding: var(--vg-space-6) var(--vg-space-8); font-size: var(--vg-text-md); line-height: var(--vg-leading-md); }
+#welcome h2 { margin: 0 0 var(--vg-space-1); font-size: var(--vg-text-2xl); line-height: var(--vg-leading-2xl); font-weight: var(--vg-weight-semibold); letter-spacing: -0.005em; }
+#welcome .lead { color: var(--vg-text-2); margin: 0 0 var(--vg-space-3); }
+#welcome .lead.where { color: var(--vg-text-accent); font-size: var(--vg-text-sm); line-height: var(--vg-leading-sm); margin-top: calc(-1 * var(--vg-space-2)); }
+#welcome .wq { margin: 0 0 var(--vg-space-2); font-size: var(--vg-text-lg); line-height: var(--vg-leading-lg); font-weight: var(--vg-weight-semibold); }
+#welcome .presets { grid-template-columns: repeat(3, 1fr); margin: 0 0 var(--vg-space-3); }
+/* A tile's name and its hardware icons share the first line, so the tiles stay short */
+#welcome .presets button { grid-template-columns: 1fr auto; align-items: center; column-gap: var(--vg-space-2); }
+#welcome .presets .icons { grid-column: 2; grid-row: 1; }
+#welcome .presets button small { grid-column: 1 / -1; }
+/* Templates: one row of two short tiles, the heading and its hint on one line above them */
+#welcome .trow { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--vg-space-3); margin: 0 0 var(--vg-space-2); }
+#welcome .trow .wq, #welcome .trow .wsub { margin: 0; }
+#welcome .presets.tpl { grid-template-columns: repeat(2, 1fr); margin-bottom: var(--vg-space-1); }
+#welcome .presets.tpl button { padding: var(--vg-space-2) var(--vg-space-3); }
+#welcome .wsub { color: var(--vg-text-2); font-size: var(--vg-text-sm); line-height: var(--vg-leading-sm); margin: 0 0 var(--vg-space-4); }
+#welcome .foot { display: flex; justify-content: space-between; align-items: center; gap: var(--vg-space-2); flex-wrap: wrap; color: var(--vg-text-2); }
+#welcome .foot .btns { display: flex; gap: var(--vg-space-2); flex-wrap: wrap; }
+/* Help: shortcuts, four short how-tos and Start a New Setup, on the welcome's dialog styles */
+#help { position: fixed; inset: 0; z-index: 50; display: none; align-items: center; justify-content: center; background: var(--vg-surface-scrim); }
+#help.open { display: flex; }
+#help .dialog { width: min(48rem, calc(100vw - 2rem)); padding: var(--vg-space-6) var(--vg-space-8); font-size: var(--vg-text-md); line-height: var(--vg-leading-md); }
+#help h2 { margin: 0 0 var(--vg-space-2); font-size: var(--vg-text-2xl); line-height: var(--vg-leading-2xl); font-weight: var(--vg-weight-semibold); letter-spacing: -0.005em; }
+#help h3 { margin: var(--vg-space-2) 0 var(--vg-space-2); font-size: var(--vg-text-lg); line-height: var(--vg-leading-lg); font-weight: var(--vg-weight-semibold); }
+#help h4 { margin: 0 0 var(--vg-space-1); font-size: var(--vg-text-md); line-height: var(--vg-leading-md); font-weight: var(--vg-weight-semibold); }
+#help p { margin: 0 0 var(--vg-space-2); color: var(--vg-text-2); font-size: var(--vg-text-sm); line-height: var(--vg-leading-sm); }
+#help .keys { display: grid; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); gap: var(--vg-space-1) var(--vg-space-6); margin: 0 0 var(--vg-space-4); font-size: var(--vg-text-sm); line-height: var(--vg-leading-sm); }
+#help .keys > div { display: grid; grid-template-columns: 9rem 1fr; gap: var(--vg-space-2); }
+#help .keys dt { color: var(--vg-text-1); }
+#help .keys dd { margin: 0; color: var(--vg-text-2); }
+#help-title:focus { outline: none; }   /* focus starts on the title so a screen reader reads from the top; it is not a control */
+#help .howto { display: grid; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); gap: var(--vg-space-3); margin: 0 0 var(--vg-space-4); }
+#help .howto section { padding: var(--vg-space-3) var(--vg-space-4); border: 1px solid var(--vg-line-default); border-radius: var(--vg-radius-md); background: var(--vg-surface-ink-1); }
+#help .howto a { color: var(--vg-text-accent); font-size: var(--vg-text-sm); line-height: var(--vg-leading-sm); text-underline-offset: 2px; }
+#help .foot { display: flex; justify-content: space-between; align-items: center; gap: var(--vg-space-2); flex-wrap: wrap; color: var(--vg-text-2); }
 #empty-edit { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; z-index: 9; pointer-events: none; }
 body.editing:not(.has-widgets) #empty-edit { display: flex; }
-body:has(#welcome.open) #empty-edit, body:has(#wizard.open) #empty-edit { display: none; }
-#empty-edit .card { pointer-events: auto; text-align: center; padding: 1.6rem 2rem; max-width: min(28rem, calc(100vw - 26rem)); line-height: 1.5; }
-#empty-edit h2 { margin: 0 0 0.4rem; font-size: 1.3rem; font-weight: 600; }
-#empty-edit p { margin: 0 0 1rem; color: #b6c3d1; }
-#empty-edit .foot { display: flex; justify-content: center; gap: 0.5rem; flex-wrap: wrap; }
+body:has(#welcome.open) #empty-edit, body:has(#help.open) #empty-edit, body:has(#wizard.open) #empty-edit { display: none; }
+#empty-edit .card { pointer-events: auto; text-align: center; padding: var(--vg-space-6) var(--vg-space-8); max-width: min(28rem, calc(100vw - 26rem)); font-size: var(--vg-text-md); line-height: var(--vg-leading-md); }
+#empty-edit h2 { margin: 0 0 var(--vg-space-1); font-size: var(--vg-text-lg); line-height: var(--vg-leading-lg); font-weight: var(--vg-weight-semibold); }
+#empty-edit p { margin: 0 0 var(--vg-space-4); color: var(--vg-text-2); }
+#empty-edit .foot { display: flex; justify-content: center; gap: var(--vg-space-2); flex-wrap: wrap; }
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
-kbd { font: 600 0.9em var(--mono); padding: 0.1em 0.45em; border: 1px solid rgba(255,255,255,0.35); border-bottom-width: 2px; border-radius: 0.3em; background: rgba(255,255,255,0.08); color: #fff; }
+kbd { font: var(--vg-weight-medium) 0.85em / 1 var(--vg-font-data); padding: 0.125em 0.4em; border: 1px solid var(--vg-line-control); border-bottom-width: 2px; border-radius: 0.25em; background: var(--vg-surface-ink-2); color: var(--vg-text-1); }
 /* Setup wizard: walks through each device in the middle of the screen */
-#wizard { position: fixed; inset: 0; z-index: 50; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.4); }
+#wizard { position: fixed; inset: 0; z-index: 50; display: none; align-items: center; justify-content: center; background: var(--vg-surface-scrim); }
 #wizard.open { display: flex; }
-#wizard .dialog { position: relative; width: min(38rem, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); overflow: auto; padding: 1.8rem 2rem; font-size: 1.07rem; line-height: 1.55; }
-#wizard .close { position: absolute; top: 0.9rem; right: 0.9rem; min-height: 0; padding: 0.3rem 0.6rem; color: #b6c3d1; }
-#wizard .kicker { display: flex; align-items: center; gap: 0.7rem; color: var(--ui-accent); font-size: 0.85rem; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 700; }
+#wizard .dialog { position: relative; width: min(38rem, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); overflow: auto; padding: var(--vg-space-6) var(--vg-space-8); font-size: var(--vg-text-md); line-height: var(--vg-leading-md); }
+#wizard .close { position: absolute; top: var(--vg-space-3); right: var(--vg-space-3); min-height: var(--vg-size-control-sm); padding: 0 var(--vg-space-2); color: var(--vg-text-2); }
+/* The kicker is the eyebrow: accent tick, caps label. */
+#wizard .kicker { display: flex; align-items: center; gap: var(--vg-space-2); color: var(--vg-text-accent); font-size: var(--vg-text-xs); line-height: var(--vg-leading-xs); letter-spacing: var(--vg-tracking-caps); text-transform: uppercase; font-weight: var(--vg-weight-semibold); }
+#wizard .kicker::before { content: ""; flex: none; width: 0.75rem; height: 0.125rem; border-radius: 1px; background: var(--vg-accent-default); }
 /* Step tracker: earlier steps are buttons you can jump back to. */
-#wizard .wsteps { display: flex; flex-wrap: wrap; gap: 0.35rem; list-style: none; padding: 0; margin: 0 0 0.7rem; font-size: 0.85rem; }
-#wizard .wsteps > li > * { display: inline-flex; align-items: center; gap: 0.35rem; min-height: 0; padding: 0.25rem 0.7rem; border-radius: 1rem; font: inherit;
-  border: 1px solid rgba(255,255,255,0.18); color: #8a98a8; font-weight: 600; letter-spacing: 0.02em; }
-#wizard .wsteps button { color: var(--ui-accent); border-color: rgba(79,209,255,0.45); }
+#wizard .wsteps { display: flex; flex-wrap: wrap; gap: var(--vg-space-1); list-style: none; padding: 0; margin: 0 0 var(--vg-space-3); font-size: var(--vg-text-xs); }
+#wizard .wsteps > li > * { display: inline-flex; align-items: center; gap: var(--vg-space-1); min-height: var(--vg-size-chip-h); padding: 0 var(--vg-space-2); border-radius: var(--vg-radius-pill); font: inherit;
+  border: 1px solid var(--vg-line-default); color: var(--vg-text-3); font-weight: var(--vg-weight-semibold); letter-spacing: var(--vg-tracking-wide); }
+#wizard .wsteps button { color: var(--vg-text-accent); border-color: var(--vg-line-accent); }
 #wiz-title:focus { outline: none; }   /* focused by script only (tabindex -1), so Space and Enter can be bound */
-#wizard .wsteps button:hover { background: rgba(79,209,255,0.12); }
-#wizard .wsteps [aria-current] { background: var(--ui-accent); border-color: var(--ui-accent); color: #00131c; }
-#wizard h2 { margin: 0.4rem 0 0.3rem; font-size: 1.7rem; font-weight: 650; line-height: 1.25; }
-#wizard .lead { color: #b6c3d1; margin: 0 0 1rem; }
-#wizard .warn { color: #ffb547; margin: 0.6rem 0; }
-#wizard .types { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.7rem; margin: 1rem 0 0.4rem; }
-#wizard .types button { display: flex; flex-direction: column; align-items: center; gap: 0.35rem; padding: 1rem 0.5rem; font-weight: 650; font-size: 1.05rem; }
-#wizard .types svg, #fab-menu svg { width: 2.4rem; height: 2.4rem; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
-#wizard .types small { color: #a9b6c4; font-weight: 400; font-size: 0.85rem; }
-#wizard .live { height: 0.7rem; margin: 0.9rem 0 0.3rem; background: rgba(255,255,255,0.1); border-radius: 0.4rem; overflow: hidden; }
-#wizard .live i { display: block; height: 100%; width: 0; background: var(--ui-accent); }
-#wizard .name-in { width: 100%; font-size: 1.2rem; margin: 0.4rem 0 0.2rem; }
-#wizard .added { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.8rem 0; padding: 0; list-style: none; }
-#wizard .added li { padding: 0.25rem 0.7rem; border-radius: 1rem; background: rgba(79,209,255,0.14); color: var(--text); font-size: 0.93rem; }
-#wizard .added li::before { content: "✓ "; color: var(--ui-accent); }
-#wizard .actions { display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end; margin-top: 1.3rem; }
-#wizard .tip { color: #a9b6c4; font-size: 0.93rem; margin-top: 1rem; }
+#wizard .wsteps button:hover { background: var(--vg-accent-soft); }
+#wizard .wsteps [aria-current] { background: var(--vg-accent-default); border-color: var(--vg-accent-default); color: var(--vg-text-on-accent); }
+#wizard h2 { margin: var(--vg-space-1) 0 var(--vg-space-1); font-size: var(--vg-text-2xl); line-height: var(--vg-leading-2xl); font-weight: var(--vg-weight-semibold); letter-spacing: -0.005em; }
+#wizard .lead { color: var(--vg-text-2); margin: 0 0 var(--vg-space-4); }
+#wizard .warn { color: var(--vg-status-warn); margin: var(--vg-space-2) 0; }
+#wizard .types { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--vg-space-3); margin: var(--vg-space-4) 0 var(--vg-space-1); }
+#wizard .types button { display: flex; flex-direction: column; align-items: center; gap: var(--vg-space-1); padding: var(--vg-space-4) var(--vg-space-2); font-weight: var(--vg-weight-semibold); font-size: var(--vg-text-md); letter-spacing: 0;
+  background: var(--vg-surface-ink-1); border-color: var(--vg-line-default); border-radius: var(--vg-radius-md); }
+#wizard .types button:hover { background: var(--vg-surface-ink-2); border-color: var(--vg-line-accent); }
+#wizard .types svg, #fab-menu svg { width: 2rem; height: 2rem; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+#wizard .types small { color: var(--vg-text-2); font-weight: var(--vg-weight-regular); font-size: var(--vg-text-xs); line-height: var(--vg-leading-xs); }
+#wizard .live { height: var(--vg-size-meter-h); margin: var(--vg-space-3) 0 var(--vg-space-1); background: var(--vg-surface-ink-2); border-radius: var(--vg-radius-xs); overflow: hidden; }
+#wizard .live i { display: block; height: 100%; width: 0; background: var(--vg-accent-default); }
+/* Bind and Rebind: beside the widget being bound, not on top of it (placeWiz sets the side) */
+#wizard.open.placed { display: block; }
+#wizard.placed .dialog { position: absolute; }
+#wizard .readout { margin: var(--vg-space-1) 0 0; text-align: left; min-height: var(--vg-leading-sm); color: var(--vg-text-1); font: var(--vg-weight-medium) var(--vg-text-sm) / var(--vg-leading-sm) var(--vg-font-data); white-space: pre; font-variant-numeric: tabular-nums; }
+#wizard .name-in { width: 100%; font-size: var(--vg-text-md); margin: var(--vg-space-1) 0; }
+#wizard .added { display: flex; flex-wrap: wrap; gap: var(--vg-space-1); margin: var(--vg-space-3) 0; padding: 0; list-style: none; }
+#wizard .added li { display: inline-flex; align-items: center; min-height: var(--vg-size-chip-h); padding: 0 var(--vg-space-2); border-radius: var(--vg-radius-pill); border: 1px solid var(--vg-line-default); background: var(--vg-accent-soft); color: var(--vg-text-1); font-size: var(--vg-text-xs); }
+#wizard .added li::before { content: "✓ "; color: var(--vg-text-accent); white-space: pre; }
+#wizard .actions { display: flex; gap: var(--vg-space-2); flex-wrap: wrap; justify-content: flex-end; margin-top: var(--vg-space-5); }
+#wizard .tip { color: var(--vg-text-2); font-size: var(--vg-text-sm); line-height: var(--vg-leading-sm); margin-top: var(--vg-space-4); }
 #wiz-hint:empty { display: none; }
 /* Round + button with a radial menu, bottom right of the editing area */
-#fab-wrap { position: fixed; right: 24.25rem; bottom: 1.5rem; width: 4.5rem; height: 4.5rem; z-index: 25; }
-body.panel-hidden #fab-wrap { right: 1.5rem; }
-#fab { position: relative; z-index: 2; width: 4.5rem; height: 4.5rem; border-radius: 50%; padding: 0; display: grid; place-items: center;
-  box-shadow: 0 0.4rem 0.9rem rgba(0,0,0,0.55); transition: transform 180ms, background 120ms; }
-#fab svg { width: 2rem; height: 2rem; stroke: currentColor; stroke-width: 2.4; fill: none; stroke-linecap: round; pointer-events: none; }
+#fab-wrap { position: fixed; right: calc(var(--vg-size-panel-w) + 2rem); bottom: var(--vg-space-6); width: var(--vg-size-fab); height: var(--vg-size-fab); z-index: 25; }
+body.panel-hidden #fab-wrap { right: var(--vg-space-6); }
+#fab { position: relative; z-index: 2; width: var(--vg-size-fab); height: var(--vg-size-fab); border-radius: 50%; padding: 0; display: grid; place-items: center;
+  box-shadow: var(--vg-shadow-overlay); transition: transform var(--vg-duration-base) var(--vg-ease-out), background var(--vg-duration-fast) var(--vg-ease-out); }
+#fab svg { width: 1.75rem; height: 1.75rem; stroke: currentColor; stroke-width: 2.4; fill: none; stroke-linecap: round; pointer-events: none; }
 #fab[aria-expanded=true] { transform: rotate(45deg); }
 #fab-menu { position: absolute; inset: 0; }
-#fab-menu button { position: absolute; left: 0.25rem; top: 0.25rem; width: 4rem; height: 4rem; min-height: 0; border-radius: 50%; padding: 0;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.05rem;
-  background: #121a24; border-color: rgba(255,255,255,0.3); font-size: 0.75rem; font-weight: 650; letter-spacing: 0.02em;
-  box-shadow: 0 0.3rem 0.7rem rgba(0,0,0,0.5); opacity: 0; pointer-events: none; transform: scale(0.4);
-  transition: transform 220ms cubic-bezier(0.2, 0.8, 0.3, 1.15), opacity 150ms; }
-#fab-menu button svg { width: 1.6rem; height: 1.6rem; }
+/* The menu: a column of 48px bubbles above the +, each name in a 12px pill to its left, outside the circle. */
+#fab-menu button { position: absolute; left: 0; top: 0; width: 3rem; height: 3rem; min-height: 0; border-radius: 50%; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--vg-navy-900); border-color: var(--vg-line-control); font-size: var(--vg-text-xs); line-height: var(--vg-leading-xs); font-weight: var(--vg-weight-semibold); letter-spacing: 0;
+  box-shadow: var(--vg-shadow-raised); opacity: 0; pointer-events: none; transform: scale(0.4);
+  transition: transform var(--vg-duration-enter) cubic-bezier(0.2, 0.8, 0.3, 1.15), opacity var(--vg-duration-fast); }
+#fab-menu button svg { width: 1.5rem; height: 1.5rem; }
+#fab-menu button span { position: absolute; right: calc(100% + var(--vg-space-2)); top: 50%; transform: translateY(-50%); display: inline-flex; align-items: center;
+  height: 1.5rem; padding: 0 var(--vg-space-2); border-radius: var(--vg-radius-pill); white-space: nowrap; color: var(--vg-text-1);
+  background: var(--vg-surface-glass-menu); border: 1px solid var(--vg-line-default); box-shadow: var(--vg-shadow-raised); pointer-events: none; }
+#fab-menu button:hover span, #fab-menu button:focus-visible span { color: var(--vg-text-accent); border-color: var(--vg-line-accent); }
 #fab-menu.open button { opacity: 1; pointer-events: auto; transform: translate(var(--x), var(--y)) scale(1); transition-delay: var(--d); }
-#fab-menu button:hover, #fab-menu button:focus-visible { background: #1b2a3a; border-color: var(--ui-accent); color: var(--ui-accent); }
-/* Undo / Redo: small secondary buttons above the +, out of the way while its menu is open */
-#undo-row { position: absolute; left: 50%; bottom: calc(100% + 0.75rem); transform: translateX(-50%); display: flex; gap: 0.5rem; transition: opacity 120ms; }
-#fab-menu.open ~ #undo-row { opacity: 0; pointer-events: none; }
-.fab-mini { position: relative; width: 2.75rem; height: 2.75rem; min-height: 0; border-radius: 50%; padding: 0; display: grid; place-items: center;
-  background: #16202b; border: 1px solid #2c3b4b; color: #c9d4df; box-shadow: 0 0.25rem 0.6rem rgba(0,0,0,0.5); }
-.fab-mini:hover:not(:disabled), .fab-mini:focus-visible { background: #1b2a3a; border-color: var(--ui-accent); color: var(--ui-accent); }
-.fab-mini:disabled { opacity: 0.4; cursor: default; }
-.fab-mini svg { width: 1.25rem; height: 1.25rem; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
-/* Tooltips: the + shows its tip to the left, the small buttons above. */
+#fab-menu button:hover, #fab-menu button:focus-visible { background: var(--vg-navy-700); border-color: var(--vg-line-accent); color: var(--vg-text-accent); }
+/* The + steps out of the way: placeFab() lifts it above any widget under its dock, and while a widget still sits under
+   it (dragged there, or no room above) it fades and lets the pointer through to the widget. Focus brings it back. */
+#fab-wrap { transition: bottom var(--vg-duration-base) var(--vg-ease-out), opacity var(--vg-duration-fast); }
+#fab-wrap.yield:not(:focus-within) { opacity: 0.2; pointer-events: none; }
+#fab-wrap.yield:not(:focus-within) * { pointer-events: none; }
+/* Tooltip: the + shows its tip to the left. */
 #fab-wrap [data-tip]::after { content: attr(data-tip); position: absolute; z-index: 3; white-space: nowrap; pointer-events: none; opacity: 0;
-  background: #0b1118; border: 1px solid #2c3b4b; color: #e6edf3; font-size: 0.85rem; font-weight: 500; letter-spacing: 0.02em;
-  padding: 0.3rem 0.55rem; border-radius: 0.35rem; box-shadow: 0 0.25rem 0.6rem rgba(0,0,0,0.5); transition: opacity 120ms; }
+  background: var(--vg-navy-900); border: 1px solid var(--vg-line-default); color: var(--vg-text-1); font-size: var(--vg-text-xs); line-height: var(--vg-leading-xs); font-weight: var(--vg-weight-medium); letter-spacing: var(--vg-tracking-wide);
+  padding: var(--vg-space-1) var(--vg-space-2); border-radius: var(--vg-radius-xs); box-shadow: var(--vg-shadow-raised); transition: opacity var(--vg-duration-fast); }
 #fab-wrap [data-tip]:hover::after, #fab-wrap [data-tip]:focus-visible::after { opacity: 1; transition-delay: 250ms; }
-#fab[data-tip]::after { right: calc(100% + 0.75rem); top: 50%; transform: translateY(-50%); }
+#fab[data-tip]::after { right: calc(100% + var(--vg-space-3)); top: 50%; transform: translateY(-50%); }
 #fab[aria-expanded=true]::after { display: none; }
-.fab-mini[data-tip]::after { left: 50%; bottom: calc(100% + 0.5rem); transform: translateX(-50%); }
-@media (prefers-reduced-motion: reduce) { #fab, #fab-menu button, #undo-row { transition: none; } }
+@media (prefers-reduced-motion: reduce) { #fab, #fab-menu button, #fab-wrap { transition: none; } }
 /* Prominent way back into edit mode when the overlay is empty */
 #enter-edit { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; z-index: 10; pointer-events: none; }
 body:not(.editing):not(.has-widgets) #enter-edit { display: flex; }
-#enter-edit .card { pointer-events: auto; text-align: center; padding: 1.8rem 2.2rem; font-size: 1.15rem; max-width: calc(100vw - 2rem); }
-#enter-edit .card p { margin: 0.8rem 0 0; color: #b6c3d1; }
-#enter-edit button { font-size: 1.25rem; padding: 0.7rem 1.6rem; }
+#enter-edit .card { pointer-events: auto; text-align: center; padding: var(--vg-space-6) var(--vg-space-8); font-size: var(--vg-text-md); line-height: var(--vg-leading-md); max-width: calc(100vw - 2rem); }
+#enter-edit .card p { margin: var(--vg-space-3) 0 0; color: var(--vg-text-2); }
+#enter-edit button { font-size: var(--vg-text-md); padding: var(--vg-space-2) var(--vg-space-6); min-height: var(--vg-size-control-lg); }
+/* Browser preview chip (never in OBS): a HUD chip over the preview. */
+#preview-chip { padding: var(--vg-space-2) var(--vg-space-4); border-radius: var(--vg-radius-md); background: var(--vg-surface-glass-hud); color: var(--vg-text-2); }
+#preview-chip .warn { color: var(--vg-status-warn); }
+/* Top left, where presets and templates place nothing, and after a few seconds (showPreviewChip) only a small pill:
+   the preview should show the overlay, not cover it. Hover or focus opens it again; its words stay readable to a
+   screen reader either way. */
+#preview-chip .pill { display: none; }
+#preview-chip.min:not(:hover):not(:focus-within) { padding: var(--vg-space-1) var(--vg-space-3); border-radius: var(--vg-radius-pill); }
+#preview-chip.min:not(:hover):not(:focus-within) .pill { display: inline; animation: chip-in var(--vg-duration-base) var(--vg-ease-out); }
+#preview-chip.min:not(:hover):not(:focus-within) > :not(.pill) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@keyframes chip-in { from { opacity: 0; } }
+/* Reduce Transparency: the tokens make the fills opaque; this drops the blur as well. */
+html[data-vg-transparency="reduced"] .paper { -webkit-backdrop-filter: none; backdrop-filter: none; }
+@media (prefers-reduced-transparency: reduce) { html:not([data-vg-transparency="full"]) .paper { -webkit-backdrop-filter: none; backdrop-filter: none; } }
 </style>
 </head>
 <body>
@@ -669,39 +861,75 @@ body:not(.editing):not(.has-widgets) #enter-edit { display: flex; }
 
 <div id="empty-edit"><div class="card paper" role="region" aria-label="Empty overlay">
   <h2>Nothing on the overlay yet</h2>
-  <p>Pick a setup to add the widgets for your hardware, or add devices one at a time.</p>
-  <div class="foot"><button class="primary" id="empty-presets">Pick a Setup</button><button id="empty-device">+ Device</button></div>
+  <p>Pick a setup to add the widgets for your hardware, or add them one at a time.</p>
+  <div class="foot"><button class="primary" id="empty-presets">Pick a Setup</button><button id="empty-device">+ Add</button></div>
 </div></div>
 
-<div id="preview-chip" class="paper" role="note"><span>Browser preview. In OBS this background is transparent.</span><span class="warn" id="offscreen-note" hidden></span><button class="text" id="preview-edit">Open Editor (E)</button></div>
+<div id="preview-chip" class="paper" role="note"><span class="pill" aria-hidden="true">Preview</span><span>Browser preview. In OBS this background is transparent.</span><span class="warn" id="offscreen-note" hidden></span><button class="text" id="preview-edit">Open Editor (E)</button></div>
 
 <div id="welcome" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
-  <div class="dialog paper">
-    <h2 id="welcome-title">Welcome to Joystick Overlay Inputs</h2>
-    <p class="lead">Show your sticks, throttle and pedals on stream, then watch your replays to see what your hands and feet were doing.</p>
-    <p class="lead where" id="welcome-where" hidden>You're previewing in a browser. When the layout is ready, add <code>JOI.html</code> to OBS as a Browser source; it is transparent there.</p>
-    <h3 class="wq">What do you fly with?</h3>
-    <div class="presets" id="welcome-presets" role="group" aria-label="Starter setups"></div>
-    <p class="wsub">Pick one and its widgets appear at the bottom of the screen. Then move each stick, throttle or pedal once when asked, drag the widgets where you want them, and press <kbd>E</kbd> to leave edit mode.</p>
-    <h3 class="wq" id="welcome-templates-title">Templates</h3>
-    <p class="wsub tsub" id="welcome-templates-hint"></p>
-    <div class="presets" id="welcome-templates" role="group" aria-labelledby="welcome-templates-title"></div>
+  <div class="dialog paper pinned">
+    <div class="head">
+      <h2 id="welcome-title">Welcome to Joystick Overlay Inputs</h2>
+      <p class="lead">Show your sticks, throttle and pedals on stream, then watch your replays to see what your hands and feet were doing.</p>
+      <p class="lead where" id="welcome-where" hidden>You're previewing in a browser. When the layout is ready, add <code>JOI.html</code> to OBS as a Browser source; it is transparent there.</p>
+    </div>
+    <div class="mid" id="welcome-mid">
+      <h3 class="wq">What do you fly with?</h3>
+      <div class="presets" id="welcome-presets" role="group" aria-label="Starter setups"></div>
+      <p class="wsub">Pick one and its widgets appear at the bottom of the screen. Then move each stick, throttle or pedal once when asked, drag the widgets where you want them, and press <kbd>E</kbd> to leave edit mode.</p>
+      <div class="trow"><h3 class="wq" id="welcome-templates-title">Templates</h3><p class="wsub tsub" id="welcome-templates-hint"></p></div>
+      <div class="presets tpl" id="welcome-templates" role="group" aria-labelledby="welcome-templates-title"></div>
+    </div>
     <div class="foot">
       <span>Already have a setup? <button class="text" data-welcome="import">Import a Profile</button></span>
-      <span style="display:flex;gap:0.5rem;flex-wrap:wrap"><button data-welcome="close">Explore on My Own</button><button data-welcome="device">Add Devices One by One</button></span>
+      <span class="btns"><button data-welcome="close">Explore on My Own</button><button data-welcome="device">Add Devices One by One</button></span>
     </div>
-    <details class="keys" id="welcome-keys">
-      <summary>Keyboard shortcuts <span class="hint-k">(press <kbd>?</kbd> in the editor)</span></summary>
-      <table>
-        <tr><td><kbd>E</kbd></td><td>Open or close the editor</td><td><kbd>A</kbd></td><td>Add a device, button or label</td></tr>
-        <tr><td><kbd>P</kbd></td><td>Hide or show the side panel</td><td><kbd>H</kbd> / <kbd>R</kbd></td><td>Show / reset the session heatmap</td></tr>
-        <tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Y</kbd></td><td>Undo / redo</td><td><kbd>Ctrl</kbd>+<kbd>A</kbd> / <kbd>D</kbd></td><td>Select all / duplicate</td></tr>
-        <tr><td>Arrows</td><td>Nudge 1 px (Shift: 10 px)</td><td><kbd>Delete</kbd></td><td>Remove the selection</td></tr>
-        <tr><td><kbd>Shift</kbd> / <kbd>Ctrl</kbd> while resizing</td><td>Keep proportions / from the center</td><td><kbd>Alt</kbd> while dragging</td><td>No snapping</td></tr>
-        <tr><td><kbd>Esc</kbd></td><td>Clear the selection, then leave the editor</td><td><kbd>?</kbd></td><td>This list</td></tr>
-        <tr><td><kbd>C</kbd></td><td>Capture the game view from OBS</td><td><kbd>L</kbd></td><td>Show the game live behind the editor</td></tr>
-      </table>
-    </details>
+  </div>
+</div>
+<div id="help" role="dialog" aria-modal="true" aria-labelledby="help-title">
+  <div class="dialog paper pinned">
+    <div class="head"><h2 id="help-title" tabindex="-1">Help</h2></div>
+    <div class="mid" id="help-mid">
+      <h3 id="help-keys-title">Keyboard Shortcuts</h3>
+      <p class="sub">Single keys work when no button or field has focus: click an empty part of the screen first.</p>
+      <dl class="keys" aria-labelledby="help-keys-title">
+        <div><dt><kbd>E</kbd></dt><dd>Open or close the editor</dd></div>
+        <div><dt><kbd>A</kbd></dt><dd>Open the round + menu to add a widget</dd></div>
+        <div><dt><kbd>P</kbd></dt><dd>Hide or show the side panel</dd></div>
+        <div><dt><kbd>H</kbd> / <kbd>R</kbd></dt><dd>Show / reset the session heatmap</dd></div>
+        <div><dt><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Y</kbd></dt><dd>Undo / redo</dd></div>
+        <div><dt><kbd>Ctrl</kbd>+<kbd>A</kbd> / <kbd>D</kbd></dt><dd>Select all / duplicate</dd></div>
+        <div><dt><kbd>Ctrl</kbd>+<kbd>G</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd></dt><dd>Group the selection / ungroup</dd></div>
+        <div><dt>Arrows</dt><dd>Nudge 1 px (Shift: 10 px)</dd></div>
+        <div><dt><kbd>Delete</kbd></dt><dd>Remove the selection</dd></div>
+        <div><dt><kbd>Shift</kbd> / <kbd>Ctrl</kbd> while resizing</dt><dd>Keep proportions / from the center</dd></div>
+        <div><dt><kbd>Alt</kbd> while dragging</dt><dd>No snapping</dd></div>
+        <div><dt><kbd>Esc</kbd></dt><dd>Clear the selection, then leave the editor</dd></div>
+        <div><dt><kbd>?</kbd></dt><dd>Open this Help</dd></div>
+        <div><dt><kbd>C</kbd></dt><dd>Capture the game view from OBS</dd></div>
+        <div><dt><kbd>L</kbd></dt><dd>Show the game live behind the editor</dd></div>
+      </dl>
+      <h3>How To</h3>
+      <div class="howto">
+        <section aria-labelledby="help-bind"><h4 id="help-bind">Bind or Rebind a Widget</h4>
+          <p>Select the widget and press Bind or Rebind under its name, then move the stick or pedal, or press the button, when asked. Bind Inputs on the Setup panel walks through every widget that isn't bound yet.</p>
+          <a href="https://github.com/Adobe-Wan/Joystick-Overlay-Inputs-JOI#a-device-isnt-showing-up" target="_blank" rel="noopener noreferrer">More in the README: A device isn't showing up</a></section>
+        <section aria-labelledby="help-arrange"><h4 id="help-arrange">Arrange and Align</h4>
+          <p>Drag a widget to move it: smart guides snap it to the screen center, the edges and other widgets, and Alt drags without snapping. Drag a box or Shift+click to select several, then use the align icons at the top of the panel.</p>
+          <a href="https://github.com/Adobe-Wan/Joystick-Overlay-Inputs-JOI#positioning" target="_blank" rel="noopener noreferrer">More in the README: Positioning</a></section>
+        <section aria-labelledby="help-backup"><h4 id="help-backup">Back Up and Share a Profile</h4>
+          <p>In Profiles &amp; Share, press Download profile.js and save it in the folder that holds JOI.html, so your layouts survive OBS clearing its cache. To share one profile, send its Download .json file; the other pilot adds it with Import a Profile.</p>
+          <a href="https://github.com/Adobe-Wan/Joystick-Overlay-Inputs-JOI#profiles-and-presets" target="_blank" rel="noopener noreferrer">More in the README: Profiles and presets</a></section>
+        <section aria-labelledby="help-obs"><h4 id="help-obs">Add to OBS and Capture the Game View</h4>
+          <p>In OBS, add a Browser source, check Local file, pick JOI.html and set it to your canvas size. Right-click the source and choose Interact to edit. Capture Game View on the Setup panel puts a screenshot of your game behind the editor, so you can place widgets around the HUD.</p>
+          <a href="https://github.com/Adobe-Wan/Joystick-Overlay-Inputs-JOI#set-up-in-obs" target="_blank" rel="noopener noreferrer">More in the README: Set up in OBS</a></section>
+      </div>
+    </div>
+    <div class="foot">
+      <span>Flying something new? <button data-help="setup" title="Pick your hardware and get a new profile with its widgets. Your profiles stay as they are.">Start a New Setup</button></span>
+      <button class="primary" data-help="close">Close</button>
+    </div>
   </div>
 </div>
 <div id="coach" class="paper" role="dialog" aria-labelledby="coach-title">
@@ -746,22 +974,20 @@ body:not(.editing):not(.has-widgets) #enter-edit { display: flex; }
 <div id="ui">
   <div id="toolbar" class="paper">
     <label class="switch" title="Leave edit mode (E)"><input type="checkbox" role="switch" id="edit-switch" checked><span class="track"><span class="thumb"></span></span>Edit Mode</label>
+    <button id="undo-btn" class="icon" aria-label="Undo" aria-keyshortcuts="Control+Z" title="Undo (Ctrl+Z)" disabled><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
+    <button id="redo-btn" class="icon" aria-label="Redo" aria-keyshortcuts="Control+Y" title="Redo (Ctrl+Y)" disabled><svg viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></button>
     <span class="divider"></span>
     <button class="primary" data-act="add-device" title="Add a stick, pedals, button, throttle, axis or label">+ Add</button>
     <button data-act="review" id="heat-btn" title="Session heatmap and what it says about your flying">Review</button>
     <button data-act="settings">Settings</button>
     <button data-act="profiles" title="Switch, add and back up profiles, and share one with another pilot">Profiles &amp; Share</button>
-    <button data-act="help" title="Starter setups and keyboard shortcuts (?)">Help</button>
+    <button data-act="help" title="Keyboard shortcuts and how-tos (?)" aria-keyshortcuts="?">Help</button>
     <button data-act="panel" id="panel-btn" title="Show / hide the side panel (P)" aria-keyshortcuts="P">Hide Panel</button>
   </div>
   <div id="panel" class="paper" role="complementary" aria-label="Editor panel"></div>
   <div id="fab-wrap">
     <div id="fab-menu" role="menu" aria-label="Add to Overlay" inert></div>
     <button id="fab" class="primary" aria-haspopup="menu" aria-expanded="false" aria-controls="fab-menu" aria-label="Add to Overlay" aria-keyshortcuts="A" data-tip="Add (A)"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
-    <div id="undo-row">
-      <button id="undo-btn" class="fab-mini" aria-label="Undo" aria-keyshortcuts="Control+Z" data-tip="Undo (Ctrl+Z)" disabled><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
-      <button id="redo-btn" class="fab-mini" aria-label="Redo" aria-keyshortcuts="Control+Y" data-tip="Redo (Ctrl+Y)" disabled><svg viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></button>
-    </div>
   </div>
   <input type="file" id="file-in" accept=".json,.js,application/json" hidden>
   <input type="file" id="ref-in" accept="image/png,image/jpeg,image/webp" hidden>
@@ -800,11 +1026,11 @@ try {
 } catch (e) {}
 const SNAP_PX = 6;                            // smart-guide snap distance, screen pixels
 const DESIGN_W = 1920, DESIGN_H = 1080;       // the canvas layouts are designed on
-const BASE_FONT_PX = 14;                      // the editor's rem at 100% (html font-size in the CSS)
+const BASE_FONT_PX = 16;                      // the editor's rem at 100% (html font-size in the CSS): Verseglass tokens are px ÷ 16
 const PLACE_GAP = 16, CASCADE = 24;           // px between placed widgets; offset for a copy or a widget on another's spot
 const DEFAULT_SETTINGS = { scaleMode: "auto", scale: 1, uiScale: "auto", background: "transparent", bgColor: "#00ff00",
   accent: "#4fd1ff", text: "#ffffff", panel: "#121212", panelAlpha: 100, border: "", theme: "default", spaceGap: "",
-  gridSnap: true, gridSize: 16, smartGuides: true, centerLines: true, margin: 24, fps: 60 };
+  gridSnap: true, gridSize: 16, smartGuides: true, centerLines: true, margin: 24, fps: 60, reduceTransparency: false };
 
 let profile = null;     // { savedAt, settings, widgets: [] }
 let editing = false;
@@ -995,7 +1221,7 @@ function newProfile() { return { ver: PROFILE_VER, savedAt: 0, settings: { ...DE
 const LAYOUTS_MAX = 50, LAYOUT_NAME_MAX = 40, FIRST_LAYOUT_NAME = "My Profile";
 function newLibrary(name = FIRST_LAYOUT_NAME) { const id = uid(); return { active: id, list: [{ id, name }] }; }
 // Editor preferences and screen sizing belong to the computer, not to a ship: switching profiles keeps them.
-const SHARED_SETTINGS = ["scaleMode", "scale", "uiScale", "background", "bgColor", "gridSnap", "gridSize", "smartGuides", "centerLines", "fps"];
+const SHARED_SETTINGS = ["scaleMode", "scale", "uiScale", "background", "bgColor", "gridSnap", "gridSize", "smartGuides", "centerLines", "fps", "reduceTransparency"];
 // Every profile is untrusted input: an imported file, a profile.js, or local storage (which every file:// page in the
 // browser shares). normalize() rebuilds it from known fields only, each checked and clamped, so nothing else in the
 // app has to defend against a missing object, a NaN, a CSS url() posing as a color or an id like "__proto__".
@@ -1089,7 +1315,8 @@ const WIDGET_CHECK = {
   accent: optHex, text: optHex, bg: optHex, border: optHex, bgAlpha: numRange(0, 100), theme: idText,
   axes: AXIS_MAP, inv: BOOL_MAP,
   persp: v => isObj(v) ? pickFields(v, PERSP_CHECK) : undefined, proj: v => isObj(v) ? pickFields(v, PROJ_CHECK) : undefined, holo: v => isObj(v) ? pickFields(v, HOLO_CHECK) : undefined,
-  fx: v => isObj(v) ? pickFields(v, FX_CHECK) : undefined
+  fx: v => isObj(v) ? pickFields(v, FX_CHECK) : undefined,
+  group: v => typeof v === "string" && ID_RE.test(v) ? v : undefined   // widgets that move as one (groupSelected)
 };
 const DEF = DEFAULT_SETTINGS;
 const SETTINGS_CHECK = {
@@ -1100,6 +1327,7 @@ const SETTINGS_CHECK = {
   border: v => normHex(v) || "", theme: v => idText(v) ?? DEF.theme, spaceGap: v => v === "" ? "" : intRange(0, 4000)(v) ?? "",
   gridSnap: v => boolOr(v, DEF.gridSnap), gridSize: v => intRange(4, 128)(v) ?? DEF.gridSize, smartGuides: v => boolOr(v, DEF.smartGuides),
   centerLines: v => boolOr(v, DEF.centerLines), margin: v => inRange(v, 0, 200) ?? DEF.margin, fps: v => oneOf(+v, [30, 60]) ?? DEF.fps,
+  reduceTransparency: v => boolOr(v, DEF.reduceTransparency),
   gridCols: intRange(0, 6), layoutW: numRange(1, 20000), layoutH: numRange(1, 20000)
 };
 function normalizeWidget(src) {
@@ -1136,6 +1364,12 @@ function keepV2Sizes(w) {
   const old = { ...base, ...((w.type === "throttle" || w.type === "axis") && w.orient === "h" ? { bw: 20, bh: 152 } : {}) };
   w.dims = { ...old, ...(w.dims || {}) };
 }
+// A group is the widgets that share one w.group id. A group needs two: an id left on a single widget (its others
+// removed, or a file that names it once) is dropped.
+function pruneGroups(ws) {
+  const n = {}; for (const w of ws) if (w.group) n[w.group] = (n[w.group] || 0) + 1;
+  for (const w of ws) if (w.group && n[w.group] < 2) delete w.group;
+}
 function normalize(p) {
   const n = newProfile();
   if (!isObj(p)) return n;
@@ -1151,6 +1385,7 @@ function normalizeLayout(p, ver) {
   const ids = new Set();
   n.widgets = (isObj(p) && Array.isArray(p.widgets) ? p.widgets : []).map(normalizeWidget).filter(Boolean);
   for (const w of n.widgets) { while (ids.has(w.id)) w.id = uid(); ids.add(w.id); }   // two widgets can't share one runtime entry
+  pruneGroups(n.widgets);
   // Migrate the former 62% default background, too faint over Star Citizen's HUD, to 88%.
   if (n.settings.panelAlpha === 62) { n.settings.panelAlpha = 88; n.settings.panel = "#05080c"; n.settings.text = "#f2f7fb"; }
   for (const w of n.widgets) {
@@ -1208,7 +1443,7 @@ let firstRun = false;
 let saveTimer = null;
 function save() {
   profile.savedAt = Date.now(); stampLayout();
-  recordHistory(); persist();
+  recordHistory(); persist(); queueFab();
 }
 function persist() {
   clearTimeout(saveTimer);
@@ -1279,6 +1514,7 @@ function download(name, text, type) {
   const url = URL.createObjectURL(new Blob([text], { type })), a = el("a", { href: url, download: name });
   document.body.append(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10000);   // after the download has had time to start
+  toast(name === "profile.js" ? "Downloaded profile.js. Move it into the folder that holds JOI.html." : `Downloaded ${name} to your browser's downloads.`, 4000);
 }
 function copyDialog(name, text) {
   const d = $("#save-copy"), area = $("#save-copy-text"), status = $("#save-copy-status"), back = document.activeElement;
@@ -1497,8 +1733,8 @@ const isUnbound = w => w.type !== "label" && !w.match && !w.key && !w.mouse;
 const STICK_NAMES = {
   xy: { x: "X", y: "Y", name: "X and Y" },
   flight: { x: "YAW", y: "PIT", name: "Yaw and Pitch", hint: "The stick that aims the ship: left and right is yaw, forward and back is pitch." },
-  strafe: { x: "L/R", y: "U/D", name: "Strafe: Left / Right and Up / Down", hint: "The stick that slides the ship sideways and up or down." },
-  strafefb: { x: "L/R", y: "F/B", name: "Strafe: Left / Right and Forward / Back", hint: "Sideways and forward or back, for a throttle's thumbstick." }
+  strafe: { x: "L/R", y: "U/D", name: "Strafe and Up / Down", hint: "Left and right slides the ship sideways; forward and back moves it up or down." },
+  strafefb: { x: "L/R", y: "F/B", name: "Strafe and Forward / Back", hint: "Left and right slides the ship sideways; forward and back moves it forward or back, as a throttle's thumbstick does." }
 };
 const PEDAL_NAMES = { yaw: { r: "YAW", word: "Yaw", hint: "Pedals usually yaw the ship in Star Citizen." }, roll: { r: "ROLL", word: "Roll" }, rudder: { r: "RUD", word: "Rudder", hint: "Flight-sim wording." } };
 const stickNames = w => STICK_NAMES[w.axisNames] || STICK_NAMES.xy;
@@ -1558,7 +1794,7 @@ function layOutPresetGroups(pr) {
     x += o.w + PLACE_GAP;
   }
 }
-// Bind Inputs: Detect Device for each widget still waiting for an input, one after another. Closing the dialog stops;
+// Bind Inputs: Bind for each widget still waiting for an input, one after another. Closing the dialog stops;
 // Skip leaves that one for later.
 let bindQueue = [], bindTotal = 0;
 function startBinding() {
@@ -1592,18 +1828,38 @@ const TYPES = {
   axis: { name: "Single Axis", steps: [
     { key: "a", ask: "Move the axis to its MAXIMUM", dir: +1 } ] }
 };
+// A single axis that a preset or template made says which control and which way, in the widget's own words: the
+// way named is the one that reads positive (up on a bar, right on a dial, forward on Rev / Fwd's bar), so a guess
+// can't invert it. Any other axis keeps the generic step.
+const AXIS_ASKS = { "up / down": "Push the control you use for Up / Down all the way up",
+  roll: "Move the control you use for Roll fully right", "rev / fwd": "Push the control you use for Rev / Fwd fully forward" };
+function stepAsk(s) {
+  const w = wiz.type === "axis" && wiz.remap && profile.widgets.find(o => o.id === wiz.remap);
+  return (w && AXIS_ASKS[String(w.label || "").trim().toLowerCase()]) || s.ask.charAt(0) + s.ask.slice(1).toLowerCase();
+}
 
 // ---------- wizard ----------
 let wiz = null;
 
 let wizAdded = [];   // names added since the wizard opened, for the "Added so far" summary
-function startDeviceWizard() { closeFab(); closeWelcome(); wiz = { kind: "device", stage: "type" }; renderWiz(); }
-function startButtonWizard() { closeFab(); closeWelcome(); wiz = { kind: "button", stage: "press" }; renderWiz(); }
+// Closing the wizard hands focus back to the control that opened it (the round + for its menu), or to the stage
+// with nothing focused when that control is gone or there was none (Bind Inputs after a preset), so P, A, E and H
+// work straight away.
+let wizBack = null;
+function noteWizOpener() {
+  if (wiz) return;
+  const a = document.activeElement;
+  wizBack = a && a.closest && a.closest("#fab-menu") ? $("#fab") : a;
+}
+function startDeviceWizard() { noteWizOpener(); closeFab(); closeWelcome(); wiz = { kind: "device", stage: "type" }; renderWiz(); }
+function startButtonWizard() { noteWizOpener(); closeFab(); closeWelcome(); wiz = { kind: "button", stage: "press" }; renderWiz(); }
 function closeWizard() {
-  const finished = wiz && wiz.kind === "done";
+  const was = !!wiz, finished = wiz && wiz.kind === "done";
   const stopped = bindQueue.length > 0;
   wiz = null; wizAdded = []; bindQueue = []; renderWiz();
   if (stopped) setSelection([]);   // back to Setup, which has Bind Inputs on it
+  if (was && editing) refocus(wizBack);
+  if (was) wizBack = null;
   if (finished) maybeTip("groups");
 }
 // ---------- one-time tips ----------
@@ -1621,19 +1877,20 @@ function closeTip(id) {
   tipsSeen[id] = true; try { localStorage.setItem(TIPS_KEY, JSON.stringify(tipsSeen)); } catch (e) {}
 }
 function wizChooseType(t) {
-  closeFab(); closeWelcome();
+  noteWizOpener(); closeFab(); closeWelcome();
   if (t === "button") return startButtonWizard();
   if (t === "label") { closeWizard(); return addLabel(); }
   wiz = { kind: "device", type: t, name: TYPES[t].name, stage: "steps", step: 0, axes: {}, inv: {} };
   renderWiz();
 }
-// Detect Device: rerun the move/press steps for an existing widget and rebind it in place,
-// keeping its name, position, size and colors.
+// Bind or Rebind (the button under the widget's name): rerun the move/press steps for an existing widget and bind it
+// in place, keeping its name, position, size and colors. verb is the button's word, which the dialog repeats.
 function startRemap(w) {
-  closeFab(); closeWelcome(); wizAdded = [];
+  noteWizOpener(); closeFab(); closeWelcome(); wizAdded = [];
+  const verb = isUnbound(w) ? "Bind" : "Rebind";
   wiz = w.type === "button"
-    ? { kind: "button", stage: "press", remap: w.id, label: w.label }
-    : { kind: "device", type: w.type, name: w.label, label: w.label, stage: "steps", step: 0, axes: {}, inv: {}, remap: w.id };
+    ? { kind: "button", stage: "press", remap: w.id, label: w.label, verb }
+    : { kind: "device", type: w.type, name: w.label, label: w.label, stage: "steps", step: 0, axes: {}, inv: {}, remap: w.id, verb };
   renderWiz();
 }
 function finishRemap() {
@@ -1678,6 +1935,46 @@ function withAnalogButtons(pad, ps) {
   ps.analog.forEach((_, i) => { v[BTN_AXIS + i] = axisValue(pad, BTN_AXIS + i); });
   return v;
 }
+// Bind and Rebind: one line in the dialog that reads like the widget, so the pilot sees the move register even with
+// the widget out of sight. A captured axis shows its live value (signed, as the widget will); the axis being asked
+// for shows how far the strongest move has gone; the steps still to come show a dash.
+function readoutNames(w) {
+  if (w.type === "stick") { const n = stickNames(w); return { x: n.x, y: n.y }; }
+  if (w.type === "pedals") return { r: pedalNames(w).r, bl: "L TOE", br: "R TOE" };
+  if (w.type === "throttle") return { t: "THR" };
+  return { a: (w.label || "Axis").toUpperCase() };
+}
+function wizReadout(pads, lead) {
+  const out = $("#wiz-read"); if (!out) return;
+  const w = profile.widgets.find(o => o.id === wiz.remap); if (!w) return;
+  const names = readoutNames(w), d = wiz.dev && pads.find(o => sameDev(o, wiz.dev)), pct = v => Math.round(clamp(v, -1, 1) * 100) + "%";
+  const text = TYPES[wiz.type].steps.map((st, i) => {
+    let v = "\u2013";
+    if (i < wiz.step && wiz.axes[st.key] != null && d) { const x = axisValue(d.pad, wiz.axes[st.key]); if (x != null) v = pct(wiz.inv[st.key] ? -x : x); }
+    else if (i === wiz.step) v = pct(lead);
+    return names[st.key] + " " + v.padStart(5);
+  }).join("   ");
+  if (out.textContent !== text) out.textContent = text;
+}
+// While Bind or Rebind runs for a widget, the dialog moves to the side of the widget with the most room, so the
+// widget stays in view; anchored on the side that faces the widget, so a hint that grows the dialog grows away from it.
+function placeWiz() {
+  const host = $("#wizard"), d = $("#wiz-body");
+  const w = wiz && wiz.remap && profile.widgets.find(o => o.id === wiz.remap), root = w && runtime[w.id] && runtime[w.id].root;
+  const r = root && root.isConnected && root.getBoundingClientRect();
+  Object.assign(d.style, { left: "", top: "", right: "", bottom: "" });
+  host.classList.toggle("placed", !!(r && r.width));
+  if (!host.classList.contains("placed")) return;
+  const vw = innerWidth, vh = innerHeight, m = 16, gap = 24, dw = d.offsetWidth, dh = d.offsetHeight, g4 = v => Math.round(v / 4) * 4;
+  const room = { top: r.top - gap - m - dh, bottom: vh - r.bottom - gap - m - dh, left: r.left - gap - m - dw, right: vw - r.right - gap - m - dw };
+  const side = Object.keys(room).reduce((a, k) => room[k] > room[a] ? k : a, "top");
+  const cx = g4(clamp(r.left + r.width / 2 - dw / 2, m, Math.max(m, vw - dw - m))), cy = g4(clamp(r.top + r.height / 2 - dh / 2, m, Math.max(m, vh - dh - m)));
+  if (side === "top") Object.assign(d.style, { left: cx + "px", bottom: g4(clamp(vh - r.top + gap, m, vh - dh - m)) + "px" });
+  else if (side === "bottom") Object.assign(d.style, { left: cx + "px", top: g4(clamp(r.bottom + gap, m, vh - dh - m)) + "px" });
+  else if (side === "left") Object.assign(d.style, { right: g4(clamp(vw - r.left + gap, m, vw - dw - m)) + "px", top: cy + "px" });
+  else Object.assign(d.style, { left: g4(clamp(r.right + gap, m, vw - dw - m)) + "px", top: cy + "px" });
+}
+window.addEventListener("resize", () => { if (wiz) requestAnimationFrame(placeWiz); });
 function wizHint(text) {
   const h = $("#wiz-hint"); if (h && h.textContent !== text) h.textContent = text;
 }
@@ -1727,6 +2024,7 @@ function wizardTick(pads) {
   }
   const live = $("#wiz-live");
   if (live) { const pc = Math.round(clamp(lead / 0.8, 0, 1) * 100); live.style.width = pc + "%"; live.parentNode.setAttribute("aria-valuenow", pc); }
+  wizReadout(pads, lead);
   if (!det.pick) {
     if (!det.armedAt) {
       if (wiz.dev && !pads.some(d => sameDev(d, wiz.dev))) wizHint("The device disconnected. Plug it back in to continue.");
@@ -1942,7 +2240,8 @@ function mixHex(a, b, t) {
 // 2.5D look: perspective + rotations + skew in a single transform string. The browser
 // composites it on the GPU, so it costs nothing per frame once applied.
 const PERSP_DEFAULT = { rx: 0, ry: 0, rz: 0, sx: 0, sy: 0, d: 900 };
-// Cockpit looks: where the widget sits (perspective) plus how it is lit (projection). Flat is the default.
+// Cockpit looks: where the widget sits (perspective) plus how it is lit (projection). Straight On is the default; it
+// is not called Flat, which is the Style choice (Flat or Projector) above the tiles.
 // proj: glow 0-100 (highlight-colored halo on the frame and text), scan (scanlines). alpha: the background opacity
 // the look sets (0-100, so the scene shows through a hologram). Angles follow Star Citizen cockpits: side
 // screens have their outer edge nearer the camera, consoles lie back toward the dash.
@@ -1950,7 +2249,7 @@ const PROJ_DEFAULT = { glow: 0, scan: false };
 // The panel shows the tiles in three groups (group) with a short label under each tile (tile); the full name is the
 // tooltip and the accessible name.
 const LOOK_PRESETS = [
-  { name: "Flat", tile: "Flat", group: "Screens", hint: "Straight on, no effects. The default.", persp: {} },
+  { name: "Straight On", tile: "Straight On", group: "Screens", hint: "Straight on, no effects. The default.", persp: {} },
   { name: "Left Screen", tile: "Left", group: "Screens", hint: "An angled MFD to the left of the pilot.", persp: { rx: 4, ry: 30 }, proj: { glow: 20 } },
   { name: "Right Screen", tile: "Right", group: "Screens", hint: "An angled MFD to the right of the pilot.", persp: { rx: 4, ry: -30 }, proj: { glow: 20 } },
   { name: "Dash Console", tile: "Dash", group: "Screens", hint: "Lies back on the console below the canopy.", persp: { rx: 40, d: 800 }, proj: { glow: 20 } },
@@ -2566,7 +2865,7 @@ function rebuildAll() {
   updateOffscreenNote();
   hasInputs = profile.widgets.some(w => w.type !== "label");
   hasMouse = profile.widgets.some(w => w.mouse);
-  wake(true);
+  wake(true); queueFab();
 }
 // ---------- moving a layout between screen shapes ----------
 // Positions are saved together with the canvas they were arranged on (settings.layoutW/H). When the
@@ -2642,6 +2941,13 @@ function applySettings() {
   document.body.classList.toggle("bg-solid", s.background === "solid");
   document.body.classList.toggle("has-widgets", profile.widgets.length > 0);
   document.body.classList.toggle("show-center", !!s.centerLines);
+  // Verseglass: Reduce Transparency turns the editor's glass opaque (the OS setting does the same through CSS), and the
+  // editor's accent follows the ship maker when every widget wears the same manufacturer Color Theme.
+  const root = document.documentElement;
+  if (s.reduceTransparency) root.dataset.vgTransparency = "reduced"; else delete root.dataset.vgTransparency;
+  const themes = profile.widgets.filter(w => w.type !== "label").map(w => w.theme);
+  const maker = themes.length && themes.every(t => t === themes[0]) && MFG_THEMES.some(t => t.id === themes[0]) ? themes[0] : "";
+  if (maker) root.dataset.vgTheme = maker; else delete root.dataset.vgTheme;
   const stage = $("#stage");
   document.documentElement.style.fontSize = (BASE_FONT_PX * uiScale()).toFixed(2) + "px";
   stage.style.transform = `scale(${overlayScale()})`; stage.style.width = C.w + "px"; stage.style.height = C.h + "px";
@@ -3134,10 +3440,6 @@ function setSelection(ids, mode) {
   panelMode = mode || (selected.size > 1 ? "multi" : selected.size === 1 ? "widget" : "home");
   syncSelectionClasses(); renderPanel();
 }
-function toggleSelected(id) {
-  if (selected.has(id)) selected.delete(id); else selected.add(id);
-  setSelection([...selected]);
-}
 // The corner handles follow the single selected widget's flat box; hidden otherwise.
 function placeResize(size) {
   const r = $("#resize"), ws = selectedWidgets(), w = ws.length === 1 ? ws[0] : null;
@@ -3153,6 +3455,25 @@ function syncSelectionClasses() {
   document.querySelectorAll(".holo-rig").forEach(e => e.classList.toggle("selected", selected.has(e.dataset.for)));   // outlines the base while editing
 }
 const selectedWidgets = () => profile.widgets.filter(w => selected.has(w.id));
+// Groups: a click selects every widget in the widget's group; a second click on it picks just that one (as Figma
+// enters a group), so it can still be moved and styled on its own.
+const groupMates = id => { const w = profile.widgets.find(o => o.id === id); return w && w.group ? profile.widgets.filter(o => o.group === w.group).map(o => o.id) : [id]; };
+const withGroups = ids => [...new Set(ids.flatMap(groupMates))];
+const wholeGroup = ws => ws.length > 1 && !!ws[0].group && ws.every(w => w.group === ws[0].group) && groupMates(ws[0].id).length === ws.length;
+function groupSelected() {
+  const ws = selectedWidgets();
+  if (ws.length < 2) { toast("Select two or more widgets to group them."); return; }
+  const g = uid(); for (const w of ws) w.group = g;
+  pruneGroups(profile.widgets); saveStep(); setSelection(ws.map(w => w.id));
+  toast(`Grouped ${ws.length} widgets. Ctrl+Shift+G ungroups them.`);
+}
+function ungroupSelected() {
+  const gs = new Set(selectedWidgets().map(w => w.group).filter(Boolean));
+  if (!gs.size) { toast("Nothing selected is in a group."); return; }
+  const ws = profile.widgets.filter(w => gs.has(w.group)); for (const w of ws) delete w.group;
+  saveStep(); setSelection([...selected]);
+  toast(`Ungrouped ${ws.length} widgets`);
+}
 
 // ---------- geometry, snapping, alignment ----------
 function boxOf(w) {
@@ -3314,7 +3635,7 @@ function placeOnScreen(where) {
 let drag = null, marquee = null, sizing = null, baseDrag = null;
 document.addEventListener("pointerdown", e => {
   if (!editing || e.button !== 0) return;
-  if (e.target.closest("#ui, #welcome, #wizard, #confirm, #save-copy, #enter-edit, #empty-edit, #coach")) return;
+  if (e.target.closest("#ui, #welcome, #help, #wizard, #confirm, #save-copy, #enter-edit, #empty-edit, #coach")) return;
   // A projector base: drag it where you like. It moves with its widget's offset (holo.base.dx / dy), so presets,
   // undo and Project from One Base keep working. With several projector widgets selected, they all follow.
   // A base sitting under one of the selected widget's edge handles still wins the click (the strips are invisible).
@@ -3346,13 +3667,23 @@ document.addEventListener("pointerdown", e => {
   const wEl = e.target.closest(".widget");
   if (wEl) {
     const id = wEl.dataset.id;
-    if (e.shiftKey || e.ctrlKey || e.metaKey) { toggleSelected(id); if (!selected.has(id)) return; }
-    else if (!selected.has(id)) setSelection([id]);
+    const mates = groupMates(id);
+    let enter = null;
+    if (e.shiftKey || e.ctrlKey || e.metaKey) {   // a group goes in or out of the selection as one
+      const add = !mates.every(m => selected.has(m));
+      for (const m of mates) if (add) selected.add(m); else selected.delete(m);
+      setSelection([...selected]); if (!add) return;
+    } else if (!selected.has(id)) {
+      // Inside a group already (one of its widgets picked alone), a click on another of its widgets stays inside.
+      const inside = selected.size === 1 && mates.length > 1 && mates.includes([...selected][0]);
+      setSelection(inside ? [id] : mates);
+    } else if (mates.length > 1 && selected.size === mates.length && mates.every(m => selected.has(m))) enter = id;   // on release, unless it moved
     const ws = selectedWidgets();
     // Sizes can't change during a move: measure everything once here, so pointermove never forces a layout.
     const ids = new Set(ws.map(w => w.id)), bs = ws.map(boxOf);
     drag = { start: ws.map(w => ({ w, x: w.x, y: w.y })), box: unionBox(ws, bs), ext: unionBox(ws, ws.map(footprintOf)), ids, size: bs.length === 1 ? bs[0] : null,
-      others: profile.widgets.filter(o => !ids.has(o.id)).map(boxOf), sx: e.clientX, sy: e.clientY, sc: overlayScale(), moved: false };
+      others: profile.widgets.filter(o => !ids.has(o.id)).map(boxOf), sx: e.clientX, sy: e.clientY, sc: overlayScale(), moved: false,
+      fab: $("#fab-wrap").getBoundingClientRect(), enter };
     wEl.setPointerCapture(e.pointerId);
     return;
   }
@@ -3423,6 +3754,9 @@ document.addEventListener("pointermove", e => {
     const r = snapMove(drag.box, rdx, rdy, drag.ids, e.altKey, drag.others, drag.ext);
     for (const s of drag.start) { s.w.x = Math.round(s.x + r.dx); s.w.y = Math.round(s.y + r.dy); positionWidget(s.w, drag.size); }
     drawGuides(r.guides);
+    // Dragged under the +: it yields until the drop, then placeFab finds it a spot.
+    const b = drag.box, k = drag.sc, at = { left: (b.x + r.dx) * k, right: (b.x + r.dx + b.w) * k, top: (b.y + r.dy) * k, bottom: (b.y + r.dy + b.h) * k };
+    $("#fab-wrap").classList.toggle("yield", rectsMeet(at, drag.fab));
     return;
   }
   if (marquee) {
@@ -3439,7 +3773,7 @@ document.addEventListener("pointerup", () => {
     refreshWidget(w); syncSelectionClasses(); save(); renderPanel(); return;
   }
   if (baseDrag) { const z = baseDrag; baseDrag = null; drawGuides([]); if (z.moved) { save(); placeResize(); renderPanel(); } return; }
-  if (drag) { if (drag.moved) { save(); renderPanel(); } drag = null; drawGuides([]); return; }
+  if (drag) { const z = drag; drag = null; drawGuides([]); if (z.moved) { save(); renderPanel(); } else if (z.enter) setSelection([z.enter]); return; }
   if (marquee) {
     const r = marquee.rect;
     $("#marquee").style.display = "none";
@@ -3449,13 +3783,17 @@ document.addEventListener("pointerup", () => {
       const b = e.getBoundingClientRect();
       if (b.right > r.x && b.left < r.x + r.w && b.bottom > r.y && b.top < r.y + r.h) hit.add(e.dataset.id);
     });
-    marquee = null; setSelection([...hit]);
+    marquee = null; setSelection(withGroups([...hit]));
   }
 });
 
 // ---------- keys ----------
 document.addEventListener("keydown", e => {
-  if (e.target.matches("input, select, textarea") || $("#welcome").classList.contains("open") || wiz) return;
+  if (e.target.matches("input, select, textarea")) return;
+  // A dialog that is open but does not hold focus (its focus is deferred a tick; the scrim was clicked) still closes
+  // on Escape; with focus inside, the dialog's own handler takes the key first.
+  const dialogOpen = $("#welcome").classList.contains("open") || $("#help").classList.contains("open") || !!wiz;
+  if (dialogOpen) { if (e.key === "Escape") { if (wiz) closeWizard(); else if ($("#help").classList.contains("open")) closeHelp(); else closeWelcome(); } return; }
   if (e.target.closest("#fab-menu, .tsel")) return;   // the + menu and theme dropdown handle their own keys
   const k = e.key.toLowerCase(), mod = e.ctrlKey || e.metaKey;
   // Single-key shortcuts act only with nothing focused (WCAG 2.1.4): on a focused button, E or Escape belongs to it.
@@ -3468,10 +3806,11 @@ document.addEventListener("keydown", e => {
   else if (onCanvas && !mod && !e.altKey && k === "p") togglePanel();
   else if (onCanvas && !mod && !e.altKey && k === "c") captureGameView();
   else if (onCanvas && !mod && !e.altKey && k === "l") toggleLive();
-  else if (onCanvas && !mod && e.key === "?") { e.preventDefault(); openWelcome(true); }
+  else if (onCanvas && !mod && e.key === "?") { e.preventDefault(); openHelp(); }
   else if ((e.key === "Delete" || e.key === "Backspace") && selected.size) deleteSelected();
   else if (e.key === "Escape") { if (selected.size) setSelection([]); else if (onCanvas) setEditing(false); }
   else if (k === "a" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); setSelection(profile.widgets.map(w => w.id)); }
+  else if (k === "g" && mod) { e.preventDefault(); if (e.shiftKey) ungroupSelected(); else groupSelected(); }
   else if (k === "d" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); if (selected.size) duplicateSelected(); }
   else if ((k === "z" && e.shiftKey || k === "y") && (e.ctrlKey || e.metaKey)) { e.preventDefault(); redo(); }
   else if (k === "z" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); undo(); }
@@ -3483,15 +3822,28 @@ document.addEventListener("keydown", e => {
     moveWidgets(selectedWidgets(), dx, dy); save(); renderPanel();
   }
 });
-document.addEventListener("dblclick", e => { if (!editing && !e.target.closest("#ui, #welcome, #wizard, #save-copy, #enter-edit, #empty-edit, #coach")) setEditing(true); });
+document.addEventListener("dblclick", e => { if (!editing && !e.target.closest("#ui, #welcome, #help, #wizard, #save-copy, #enter-edit, #empty-edit, #coach")) setEditing(true); });
 
 // ---------- edit mode ----------
+// The browser preview chip opens in full each time the editor closes, then folds to a pill (unless it is warning that
+// widgets are outside the window).
+const PREVIEW_CHIP_MS = 6000;
+let chipTimer = 0;
+function showPreviewChip() {
+  const c = $("#preview-chip"); c.classList.remove("min"); clearTimeout(chipTimer);
+  chipTimer = setTimeout(() => { if ($("#offscreen-note").hidden) c.classList.add("min"); }, PREVIEW_CHIP_MS);
+}
+// Leaving the editor, Tab starts from the top of the page again: the browser keeps its focus starting point at the
+// last focused element even once that element is hidden, so the first Tab could land nowhere instead of on the chip.
+function resetTabStart() {
+  const b = document.body; b.tabIndex = -1; b.focus({ preventScroll: true }); b.removeAttribute("tabindex");
+}
 function setEditing(on) {
   const leaving = editing && !on;
   editing = on;
   document.body.classList.toggle("editing", on);
   $("#edit-switch").checked = on;
-  if (!on) { closeWelcome(); closeFab(); if (wiz) closeWizard(); if (live) stopLive(false); }
+  if (!on) { closeWelcome(); closeHelp(); closeFab(); if (wiz) closeWizard(); if (live) stopLive(false); showPreviewChip(); resetTabStart(); }
   // First time out of the editor with a layout and no profile.js next to the page: say once how to keep it.
   if (leaving && profile.widgets.length && !tipsSeen.backup && !window.JOI_PROFILE && !window.STAYONTARGET_PROFILE && !window.JOYVIZ_PROFILE) {
     tipsSeen.backup = true; try { localStorage.setItem(TIPS_KEY, JSON.stringify(tipsSeen)); } catch (e) {}
@@ -3499,7 +3851,7 @@ function setEditing(on) {
   }
   applyReference(); drawGrid();
   setSelection([]); placeResize();
-  wake();
+  wake(); queueFab();
 }
 function addLabel() {
   const s = profile.settings;
@@ -3529,13 +3881,16 @@ function resetHeat() {
   wake(true); toast("Heatmap reset");
 }
 function deleteSelected() {
-  profile.widgets = profile.widgets.filter(w => !selected.has(w.id));
+  const gone = selectedWidgets(); if (!gone.length) return;
+  profile.widgets = profile.widgets.filter(w => !selected.has(w.id)); pruneGroups(profile.widgets);
   for (const id of selected) delete runtime[id];
   selected.clear(); save(); rebuildAll(); setSelection([]);
+  toast(gone.length === 1 ? `Removed ${gone[0].label || "the widget"}. Ctrl+Z brings it back.` : `Removed ${gone.length} widgets. Ctrl+Z brings them back.`);
 }
 function duplicateSelected() {
-  const copies = selectedWidgets().map(w => ({ ...JSON.parse(JSON.stringify(w)), id: uid(), x: w.x + CASCADE, y: w.y + CASCADE }));
-  profile.widgets.push(...copies); save(); rebuildAll(); setSelection(copies.map(c => c.id));
+  const regroup = {};   // copies of a group's widgets form a new group of their own
+  const copies = selectedWidgets().map(w => ({ ...JSON.parse(JSON.stringify(w)), id: uid(), x: w.x + CASCADE, y: w.y + CASCADE, ...(w.group ? { group: regroup[w.group] ||= uid() } : {}) }));
+  profile.widgets.push(...copies); pruneGroups(profile.widgets); save(); rebuildAll(); setSelection(copies.map(c => c.id));
 }
 
 // Reference screenshot behind the editor, so widgets can be lined up against the game HUD.
@@ -4003,18 +4358,23 @@ $("#edit-switch").addEventListener("change", e => setEditing(e.target.checked));
 $("#enter-edit-btn").addEventListener("click", () => setEditing(true));
 
 // ---------- first-run / getting-started dialog ----------
-// Closing hands focus back to what opened the dialog, or to Getting Started when it opened on its own (first run,
-// Reset All). A step that opens the wizard moves focus on again from there.
+// Closing hands focus back to what opened the dialog. When it opened on its own (first run, Reset All), focus goes
+// to the stage, with nothing focused, so the single-key shortcuts work straight away. A step that opens the wizard
+// moves focus on again from there.
 let welcomeBack = null;
-function openWelcome(keys) {
+function openWelcome() {
   welcomeBack = document.activeElement;
   $("#welcome-where").hidden = !document.body.classList.contains("preview");   // in OBS the page is already where it belongs
   const tiles = $("#welcome-presets"); tiles.innerHTML = ""; presetTiles(tiles, "data-welcome-preset");
   const tpl = $("#welcome-templates"); tpl.innerHTML = ""; presetTiles(tpl, "data-welcome-preset", true);
   $("#welcome-templates-hint").textContent = TEMPLATES_HINT;
-  $("#welcome-keys").open = !!keys;
-  $("#welcome").classList.add("open");
-  setTimeout(() => (keys ? $("#welcome-keys summary") : $("#welcome-presets button")).focus(), 0);
+  $("#welcome").classList.add("open"); $("#welcome-mid").scrollTop = 0;
+  setTimeout(() => $("#welcome-presets button").focus(), 0);
+}
+// Focus back to where it was before a dialog opened, or to the stage when that is gone or was nothing.
+function refocus(back) {
+  if (back && back !== document.body && back.isConnected && !back.closest("[inert]")) back.focus();
+  else if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
 }
 // Preset tiles, on the welcome and in Profiles & Share: the hardware as icons, the acronym spelled out, what it adds.
 // templates: true lists the templates instead, with the same tile.
@@ -4030,10 +4390,33 @@ function presetTiles(box, attr, templates = false) {
 function closeWelcome() {
   const w = $("#welcome"); if (!w.classList.contains("open")) return;
   w.classList.remove("open");
-  const back = welcomeBack && welcomeBack !== document.body && welcomeBack.isConnected ? welcomeBack : $("#toolbar [data-act=help]");
-  welcomeBack = null;
-  if (editing) back.focus();
+  const back = welcomeBack; welcomeBack = null;
+  if (editing) refocus(back);
 }
+// Help: the shortcuts, a few how-tos with links to the README, and Start a New Setup, which opens the welcome.
+let helpBack = null;
+function openHelp() {
+  closeFab();
+  if (!$("#help").classList.contains("open")) helpBack = document.activeElement;
+  $("#help").classList.add("open"); $("#help-mid").scrollTop = 0;
+  setTimeout(() => $("#help-title").focus(), 0);
+}
+function closeHelp(back = true) {
+  const d = $("#help"); if (!d.classList.contains("open")) return;
+  d.classList.remove("open");
+  const to = helpBack; helpBack = null;
+  if (back && editing) refocus(to);
+  return to;
+}
+$("#help").addEventListener("click", e => {
+  const act = e.target.closest("[data-help]")?.dataset.help;
+  if (e.target.id === "help" || act === "close") closeHelp();
+  else if (act === "setup") { const back = closeHelp(false); openWelcome(); welcomeBack = back; }
+});
+$("#help").addEventListener("keydown", e => {
+  if (e.key === "Escape") { e.stopPropagation(); closeHelp(); }
+  trapTab(e, $("#help"), "button, a[href]");
+});
 
 // Keeps Tab inside a modal dialog: past the last control it wraps to the first, and back.
 function trapTab(e, box, sel = "button") {
@@ -4077,7 +4460,7 @@ async function resetAll() {
 }
 $("#welcome").addEventListener("click", e => {
   const pick = e.target.closest("[data-welcome-preset]");
-  if (pick) { closeWelcome(); return addPreset(pick.dataset.welcomePreset); }
+  if (pick) { welcomeBack = null; closeWelcome(); return addPreset(pick.dataset.welcomePreset); }   // new widgets: focus to the stage
   const act = e.target.closest("[data-welcome]")?.dataset.welcome;
   if (e.target.id === "welcome") return closeWelcome();
   if (!act) return;
@@ -4087,7 +4470,7 @@ $("#welcome").addEventListener("click", e => {
 });
 $("#welcome").addEventListener("keydown", e => {
   if (e.key === "Escape") { e.stopPropagation(); closeWelcome(); }
-  trapTab(e, $("#welcome"), "button, summary");
+  trapTab(e, $("#welcome"), "button");
 });
 $("#empty-presets").addEventListener("click", () => openWelcome());
 $("#empty-device").addEventListener("click", startDeviceWizard);
@@ -4095,6 +4478,7 @@ $("#empty-device").addEventListener("click", startDeviceWizard);
 function togglePanel() {
   const hidden = document.body.classList.toggle("panel-hidden");
   $("#panel-btn").textContent = hidden ? "Show Panel" : "Hide Panel";
+  queueFab();
 }
 $("#toolbar").addEventListener("click", e => {
   const act = e.target.dataset && e.target.dataset.act; if (!act) return;
@@ -4103,7 +4487,7 @@ $("#toolbar").addEventListener("click", e => {
   else if (act === "settings") setSelection([], "settings");
   else if (act === "profiles") setSelection([], "profiles");
   else if (act === "panel") togglePanel();
-  else if (act === "help") openWelcome();
+  else if (act === "help") openHelp();
 });
 $("#file-in").addEventListener("change", async e => {
   const f = e.target.files[0]; if (!f) return;
@@ -4262,8 +4646,8 @@ function secOpen(key, def) {
   if (!secState) { try { secState = JSON.parse(localStorage.getItem(SEC_KEY) || "{}") || {}; } catch (e) { secState = {}; } }
   return key in secState ? !!secState[key] : def;
 }
-// Three levels of grouping, each with its own shape, so the panel reads at a glance: a family (a colored label with a
-// rule, between groups of sections), a section (a card with a colored edge and an icon, as these headers), and
+// Three levels of grouping, each with its own shape, so the panel reads at a glance: a family (an eyebrow label with a
+// rule, between groups of sections), a section (a card with a keel and an icon, as these headers), and
 // a sub-group inside it (a small heading with a rule, h5, or an indented group, .nest).
 const FAMILIES = { pos: "Position", widget: "Widget", style: "Style", input: "Input" };
 const SEC_ICONS = {
@@ -4337,11 +4721,12 @@ function toggleRow(p, label, obj, key, after, hint) {
   p.append(t); return t;
 }
 // A small choice as a full-width tile group, with the chosen tile's description under it.
-function choiceRow(p, label, obj, key, options, after, { wrap, aria } = {}) {
+function choiceRow(p, label, obj, key, options, after, { wrap, stack, aria } = {}) {
   const hint = el("div", { class: "hint small" });
   const paint = () => { const o = options.find(o => String(o[0]) === String(obj[key])); hint.textContent = (o && o[2]) || ""; hint.hidden = !hint.textContent; };
   const g = tilesIn(obj, key, options, () => { paint(); after && after(); }, aria || label);
   if (wrap) g.classList.add("wrap");
+  if (stack) g.classList.add("stack");
   paint();
   p.append(el("div", { class: "crow" }, el("span", {}, label), g, hint));
   return g;
@@ -4514,7 +4899,7 @@ function axisNameRows(ws, upd) {
   if (!kind) return nest;
   const def = kind === "stick" ? "xy" : "yaw", table = kind === "stick" ? STICK_NAMES : PEDAL_NAMES;
   const names = { get v() { return table[ws[0].axisNames] ? ws[0].axisNames : def; }, set v(x) { for (const w of ws) { if (x === def) delete w.axisNames; else w.axisNames = x; } } };
-  choiceRow(nest, "Call them", names, "v", Object.entries(table).map(([k, t]) => [k, t.name || t.word, t.hint]), upd, { wrap: true, aria: "Axis names" });
+  choiceRow(nest, "Call them", names, "v", Object.entries(table).map(([k, t]) => [k, t.name || t.word, t.hint]), upd, { wrap: true, stack: kind === "stick", aria: "Axis names" });
   return nest;
 }
 const FONT_PARTS = ["title", "values", "labels"], FONT_PART_NAMES = { title: "Name", values: "Values", labels: "Axis labels" };
@@ -4611,7 +4996,7 @@ function renderProfilesPanel(p) {
     el("button", { onclick: () => exportLayout(cur.id), title: "Download this profile as a .json file to share or keep" }, "Download .json"),
     Object.assign(el("button", { class: "danger", onclick: () => deleteLayout(cur.id), title: lib.list.length < 2 ? "Your only profile can't be deleted" : "Delete this profile" }, "Delete"), { disabled: lib.list.length < 2 })));
   p.append(el("div", { class: "hint small" }, "To share it, send the .json to another pilot. They open the editor and choose Import a Profile, which adds it next to their own profiles. "
-    + "With the same hardware it works right away; otherwise they press Detect Device on each widget."));
+    + "With the same hardware it works right away; otherwise they select each widget and press Rebind."));
   p.append(el("h5", {}, "Back Up Every Profile"));
   p.append(el("div", { class: "hint small" }, "For a personal backup that survives OBS clearing its cache, download profile.js and put it in the same folder as JOI.html. "
     + "It holds every profile. It's for your own computer only: don't share it."));
@@ -4635,8 +5020,7 @@ function renderHome(p) {
   if (unbound) p.append(el("div", { class: "hint warn" }, `${widgetsAre(unbound)} not bound to an input yet.`),
     el("div", { class: "actions" }, el("button", { class: "primary", onclick: startBinding }, "Bind Inputs")));
   p.append(el("div", { class: "actions" },
-    el("button", { class: unbound ? "" : "primary", onclick: startDeviceWizard }, "+ Device"),
-    el("button", { onclick: startButtonWizard }, "+ Button/Key")));
+    el("button", { class: unbound ? "" : "primary", onclick: startDeviceWizard, title: "Add a stick, pedals, button or key, throttle, single axis or label" }, "+ Add")));
   p.append(el("div", { class: "actions" },
     el("button", { onclick: () => openWelcome(), title: "Add the widgets for a common HOTAS, HOSAS or keyboard setup" }, "Pick a Setup"),
     el("button", { onclick: () => $("#file-in").click() }, "Import a Profile")));
@@ -4674,8 +5058,17 @@ function renderHome(p) {
     refImage ? el("button", { onclick: clearReference }, "No Screenshot") : null));
   if (profile.widgets.length) {
     p.append(el("h4", {}, "On Screen"));
-    for (const w of profile.widgets) p.append(el("div", { class: "row" },
-      el("button", { "aria-label": "Edit " + (w.label || w.type), onclick: () => setSelection([w.id]) }, "Edit"), el("span", {}, w.label || w.type)));
+    // A group is one row, its widgets indented under it. Edit on the group row selects them all; on a widget, just it.
+    const row = (name, ids, cls = "row") => el("div", { class: cls }, el("button", { "aria-label": "Edit " + name, onclick: () => setSelection(ids) }, "Edit"), el("span", {}, name));
+    const shown = new Set();
+    for (const w of profile.widgets) {
+      if (!w.group) { p.append(row(w.label || w.type, [w.id])); continue; }
+      if (shown.has(w.group)) continue;
+      shown.add(w.group);
+      const ms = profile.widgets.filter(o => o.group === w.group), name = `Group of ${ms.length}`;
+      p.append(el("div", { class: "on-group", role: "group", "aria-label": name }, row(name, ms.map(o => o.id), "row group-row"),
+        ...ms.map(o => row(o.label || o.type, [o.id], "row member"))));
+    }
   }
   p.append(el("div", { class: "hint small" }, "Text too small? ", el("button", { class: "text", onclick: () => setSelection([], "settings") }, "Change the editor text size in Settings")));
   p.append(el("div", { class: "actions" }, el("button", { class: "danger subtle", onclick: resetAll, title: "Remove every widget and setting" }, "Reset All")));
@@ -4683,28 +5076,27 @@ function renderHome(p) {
 
 // ---------- setup wizard dialog ----------
 const ADD_ITEMS = [
-  { key: "stick", name: "Stick", short: "Stick", hint: "X and Y", icon: '<circle cx="12" cy="6" r="3"/><path d="M12 9v8M6 20h12M9 17h6"/>' },
-  { key: "pedals", name: "Pedals", short: "Pedals", hint: "Yaw, plus toe pedals if you have them", icon: '<path d="M4 20l2-13h4l-1 13zM15 20l-1-13h4l2 13z"/>' },
-  { key: "button", name: "Button/Key", short: "Button/Key", hint: "Any button, trigger or keyboard key", icon: '<circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="3"/>' },
-  { key: "throttle", name: "Throttle", short: "Throttle", hint: "One forward axis", icon: '<rect x="8.5" y="3" width="7" height="5" rx="1.5"/><path d="M12 8v9M6 20h12M9 17h6"/>' },
-  { key: "axis", name: "Single Axis", short: "Axis", hint: "Slider, dial or twist", icon: '<path d="M4 12h16M7 9l-3 3 3 3M17 9l3 3-3 3"/>' },
-  { key: "label", name: "Label", short: "Label", hint: "Text on screen", icon: '<path d="M5 6h14M12 6v13M9 19h6"/>' }
+  { key: "stick", name: "Stick", hint: "X and Y", icon: '<circle cx="12" cy="6" r="3"/><path d="M12 9v8M6 20h12M9 17h6"/>' },
+  { key: "pedals", name: "Pedals", hint: "Yaw, plus toe pedals if you have them", icon: '<path d="M4 20l2-13h4l-1 13zM15 20l-1-13h4l2 13z"/>' },
+  { key: "button", name: "Button/Key", hint: "Any button, trigger or keyboard key", icon: '<circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="3"/>' },
+  { key: "throttle", name: "Throttle", hint: "One forward axis", icon: '<rect x="8.5" y="3" width="7" height="5" rx="1.5"/><path d="M12 8v9M6 20h12M9 17h6"/>' },
+  { key: "axis", name: "Single Axis", hint: "Slider, dial or twist", icon: '<path d="M4 12h16M7 9l-3 3 3 3M17 9l3 3-3 3"/>' },
+  { key: "label", name: "Label", hint: "Text on screen", icon: '<path d="M5 6h14M12 6v13M9 19h6"/>' }
 ];
 // A device's name, numbered among identical ones: "VPC Stick #2".
 const deviceLabel = (id, nth) => prettyName(id) + (nth ? " #" + (nth + 1) : "");
 const devName = d => deviceLabel(d.id, d.nth);
 function renderWiz() {
   const host = $("#wizard"), b = $("#wiz-body");
-  const was = host.classList.contains("open");
   host.classList.toggle("open", !!wiz);
   b.innerHTML = "";
   if (wiz) wake();   // the steps poll the devices every frame
-  if (!wiz) { if (was && editing) $("#fab").focus(); return; }
+  if (!wiz) { host.classList.remove("placed"); return; }   // closeWizard puts focus back
   if (wiz.remap && wiz.stage === "name") return finishRemap();   // re-detecting keeps the widget's name
   const total = 3;
   const queued = !!wiz.remap && bindQueue[0] === wiz.remap;
   const st = (k, suffix) => queued ? [0, `Bind Inputs · ${bindTotal - bindQueue.length + 1} of ${bindTotal} · ${wiz.label || suffix}`]
-    : wiz.remap ? [0, "Detect Device" + (suffix ? " · " + suffix : "")] : [k, `Step ${k} of ${total}` + (suffix ? " · " + suffix : "")];
+    : wiz.remap ? [0, (wiz.verb || "Rebind") + (suffix ? " · " + suffix : "")] : [k, `Step ${k} of ${total}` + (suffix ? " · " + suffix : "")];
   const skip = () => queued ? el("button", { onclick: skipBinding }, "Skip for Now") : null;
   const head = (step, kicker, title, lead) => {
     const k = el("div", { class: "kicker" });
@@ -4736,8 +5128,7 @@ function renderWiz() {
       "It's at the bottom middle of the screen. Drag it anywhere later; a reference screenshot (on the Setup panel) shows the in-game HUD to place it around.");
     if (wizAdded.length > 1) { const ul = el("ul", { class: "added", "aria-label": "Added so far" }); for (const n of wizAdded) ul.append(el("li", {}, n)); b.append(ul); }
     actions(el("button", { onclick: closeWizard }, "Done"),
-      el("button", { onclick: startButtonWizard }, "Add a Button/Key"),
-      el("button", { class: "primary", "data-autofocus": "", onclick: startDeviceWizard }, "Add Another Device"));
+      el("button", { class: "primary", "data-autofocus": "", onclick: startDeviceWizard }, "Add Another"));
   } else if (wiz.kind === "button" && wiz.stage === "press") {
     head(...st(2, "Button/Key"), queued ? `Press the Button or Key for ${wiz.label || "This Widget"}` : "Press the Button or Key You Want to Show", "Any button on any device (hold it for a moment), or any key on your keyboard.");
     Object.assign(b.querySelector("#wiz-title"), { tabIndex: -1 }).dataset.autofocus = "";
@@ -4755,9 +5146,10 @@ function renderWiz() {
     actions(el("button", { onclick: () => { closeWizard(); $("#file-in").click(); } }, "Import a Profile Instead"));
   } else if (wiz.stage === "steps") {
     const steps = TYPES[wiz.type].steps, cur = steps[wiz.step];
-    head(...st(2, TYPES[wiz.type].name), cur.ask.charAt(0) + cur.ask.slice(1).toLowerCase() + (cur.optional ? " (if you have it)" : ""),
+    head(...st(2, TYPES[wiz.type].name), stepAsk(cur) + (cur.optional ? " (if you have it)" : ""),
       (wiz.step === 0 ? "Start with everything at rest, then move it all the way and let go." : "Move it all the way and let go."));
     b.append(el("div", { class: "live", role: "progressbar", "aria-label": "Movement detected", "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": "0" }, el("i", { id: "wiz-live" })));
+    if (wiz.remap) b.append(el("p", { class: "readout", id: "wiz-read", "aria-label": "What the widget reads now" }));
     if (steps.length > 1) steps.forEach((s, i) => b.append(el("div", { class: i < wiz.step ? "step done" : i === wiz.step ? "step active" : "step" }, s.ask.charAt(0) + s.ask.slice(1).toLowerCase())));
     if (wiz.dev) b.append(el("p", { class: "tip" }, "Device: " + devName(wiz.dev)));
     b.append(el("p", { class: "tip", id: "wiz-hint", "aria-live": "polite" }), noPad());
@@ -4766,14 +5158,18 @@ function renderWiz() {
   } else {
     const devText = wiz.key ? `the ${keyLabel(wiz.key)} key on your keyboard`
       : wiz.kind === "button" ? `${devName(wiz.dev)}, ${wiz.hat ? "hat " + HAT_DIRS[wiz.hat.dir].toLowerCase() : "button " + (wiz.button + 1)}` : devName(wiz.dev);
-    head(...st(3), "Name It", `Detected ${devText}. The name shows on the widget, for example ${wiz.key ? '"W" or "Boost"' : '"Left Stick"'}.`);
+    head(...st(3), "Name It", `Detected ${devText}. The name shows on the widget, for example ${wiz.key ? '"W" or "Boost"' : '"Pitch / Yaw" or "Strafe"'}.`);
     const name = textIn(wiz, "name"); name.classList.add("name-in"); name.setAttribute("aria-label", "Widget name"); name.dataset.autofocus = "";
     name.addEventListener("keydown", e => { if (e.key === "Enter") wizFinish(); });
     b.append(name);
     actions(el("button", { onclick: wiz.kind === "button" ? startButtonWizard : () => wizChooseType(wiz.type) }, "Start Over"),
       el("button", { class: "primary", onclick: wizFinish }, "Add to Overlay"));
   }
+  placeWiz();
+  // Deferred so the dialog is laid out first; skipped if the wizard closed in between (a quick Escape on a slow
+  // machine), so it never takes focus back from the control closeWizard just returned it to.
   setTimeout(() => {
+    if (!wiz || !b.isConnected || !$("#wizard").classList.contains("open")) return;
     const f = b.querySelector("[data-autofocus]") || b.querySelector(".types button, .actions button.primary, .actions button");
     if (f) { f.focus(); if (f.select) f.select(); }
   }, 0);
@@ -4785,15 +5181,14 @@ $("#wizard").addEventListener("keydown", e => {
 $("#wizard").addEventListener("pointerdown", e => { if (e.target.id === "wizard" && wiz && wiz.kind === "done") closeWizard(); });
 
 // ---------- round + button with a radial menu ----------
-// Two quarter rings fanning up and left from the button: devices close in, extras further out.
-const FAB_LAYOUT = { stick: [7, 180], pedals: [7, 225], button: [7, 270], throttle: [12.5, 195], axis: [12.5, 225], label: [12.5, 255] };
+// The wizard's type list, in its order and with its names: a column of bubbles rising from the button, each with its
+// name in a pill beside it, so a long name never has to fit inside a circle.
 (function buildFab() {
   const m = $("#fab-menu");
   ADD_ITEMS.forEach((it, i) => {
-    const [r, deg] = FAB_LAYOUT[it.key], a = deg * Math.PI / 180;
-    const btn = el("button", { role: "menuitem", tabindex: "-1", title: it.name, "aria-label": "Add " + it.name,
-      style: `--x:${(r * Math.cos(a)).toFixed(2)}rem;--y:${(r * Math.sin(a)).toFixed(2)}rem;--d:${i * 25}ms`,
-      html: `<svg viewBox="0 0 24 24">${it.icon}</svg><span>${it.short}</span>` });
+    const btn = el("button", { role: "menuitem", tabindex: "-1", "aria-label": "Add " + it.name,
+      style: `--x:0.25rem;--y:${-(ADD_ITEMS.length - i) * 3.5}rem;--d:${(ADD_ITEMS.length - 1 - i) * 25}ms`,
+      html: `<svg viewBox="0 0 24 24">${it.icon}</svg><span aria-hidden="true">${it.name}</span>` });
     btn.addEventListener("click", () => wizChooseType(it.key));
     m.append(btn);
   });
@@ -4802,7 +5197,7 @@ function openFab() {
   if (!editing) return;
   const m = $("#fab-menu"); m.inert = false;   // closed, its items are out of the tab order and the accessibility tree
   m.classList.add("open"); $("#fab").setAttribute("aria-expanded", "true");
-  setTimeout(() => $("#fab-menu button").focus(), 0);
+  setTimeout(() => { if (m.classList.contains("open")) $("#fab-menu button").focus(); }, 0);
 }
 function closeFab(refocus) {
   if (!$("#fab-menu").classList.contains("open")) return;
@@ -4810,6 +5205,36 @@ function closeFab(refocus) {
   if (refocus) $("#fab").focus();
 }
 $("#fab").addEventListener("click", () => $("#fab-menu").classList.contains("open") ? closeFab() : openFab());
+// The + docks bottom right against the panel, where presets and new widgets line up too. When a widget sits under the
+// dock, the + lifts to the lowest free spot above it in the same column (the closed menu fans up and left from there).
+// With no free spot below the toolbar, it stays docked and yields instead: faded, with clicks going through to the
+// widget, while the pointer is over a widget it covers. A (or Tab) still reaches it, and focus shows it in full.
+const FAB_GAP = 8;
+let fabRaf = 0, fabCovered = [];
+function queueFab() { if (!fabRaf) fabRaf = requestAnimationFrame(() => { fabRaf = 0; placeFab(); }); }
+const rectsMeet = (a, b, g = 0) => a.left < b.right + g && b.left < a.right + g && a.top < b.bottom + g && b.top < a.bottom + g;
+const stageRects = () => [...document.querySelectorAll("#stage .widget, #stage .holo-base")].map(e => e.getBoundingClientRect()).filter(r => r.width && r.height);
+function placeFab() {
+  const wrap = $("#fab-wrap");
+  if (!editing) { fabCovered = []; wrap.classList.remove("yield"); return; }
+  const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16, dock = 1.5 * rem;   // --vg-space-6
+  const r = wrap.getBoundingClientRect(), size = r.height, H = window.innerHeight, top = $("#toolbar").getBoundingClientRect().bottom + FAB_GAP;
+  const at = b => ({ left: r.left, right: r.right, top: H - b - size, bottom: H - b });
+  const column = stageRects().filter(o => o.left < r.right + FAB_GAP && r.left < o.right + FAB_GAP);
+  const tries = [dock, ...column.map(o => Math.ceil((H - o.top + FAB_GAP) / 4) * 4)].sort((a, b) => a - b);
+  let b = tries.find(t => at(t).top >= top && !column.some(o => rectsMeet(at(t), o, FAB_GAP))) ?? dock;
+  if (at(b).top < top) b = dock;
+  wrap.style.bottom = b === dock ? "" : b + "px";
+  const box = at(b);
+  fabCovered = column.filter(o => rectsMeet(box, o));
+  if (!fabCovered.length) wrap.classList.remove("yield");
+}
+// Covered: fade while the pointer is over a widget under the +, and come back when it leaves.
+document.addEventListener("pointermove", e => {
+  if (!fabCovered.length || drag) return;
+  const p = { left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY };
+  $("#fab-wrap").classList.toggle("yield", fabCovered.some(o => rectsMeet(p, o, 0.5)));
+});
 $("#undo-btn").addEventListener("click", undo);
 $("#coach").addEventListener("click", e => {
   const b = e.target.closest("[data-coach]"); if (!b) return;
@@ -4822,8 +5247,8 @@ $("#fab-wrap").addEventListener("keydown", e => {
   if (e.key === "Escape" && $("#fab-menu").classList.contains("open")) { e.preventDefault(); e.stopPropagation(); closeFab(true); return; }
   const items = [...$("#fab-menu").querySelectorAll("button")], i = items.indexOf(document.activeElement);
   if (i < 0) return;
-  if (e.key === "ArrowUp" || e.key === "ArrowRight") { e.preventDefault(); items[(i + 1) % items.length].focus(); }
-  if (e.key === "ArrowDown" || e.key === "ArrowLeft") { e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
+  if (e.key === "ArrowDown" || e.key === "ArrowRight") { e.preventDefault(); items[(i + 1) % items.length].focus(); }
+  if (e.key === "ArrowUp" || e.key === "ArrowLeft") { e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
   if (e.key === "Tab") closeFab();
 });
 document.addEventListener("pointerdown", e => { if (!e.target.closest("#fab-wrap")) closeFab(); }, true);
@@ -5136,10 +5561,10 @@ function perspectiveSection(p, ws) {
   slider("Background opacity", bgp, "v", 0, 100, "%", () => { updProj(); syncOpacity(); }, "Lower it to let the scene show through.");
   toggleRow(p, "Scanlines", pproxy, "scan", updProj);
   p.append(el("div", { class: "hint small" }, "Snapping and alignment use the widget's flat footprint."));
-  p.append(el("div", { class: "actions" }, el("button", { class: "subtle", onclick: () => {
+  p.append(el("div", { class: "actions" }, el("button", { class: "subtle", title: "Back to Flat and Straight On. Background opacity stays as it is.", onclick: () => {
     for (const w of ws) { w.persp = { ...PERSP_DEFAULT }; delete w.proj; delete w.holo; delete w.face; }
     save(); updProj(); renderPanel();
-  } }, "Reset to Flat")));
+  } }, "Reset Look")));
 }
 // Width and Height in px: the widget's box as it sits on screen (its flat footprint). Typing a value fixes it;
 // smaller than the content just fits the content. With several selected, Match makes them all as wide and/or as
@@ -5264,7 +5689,10 @@ function renderWidgetPanel(p) {
   const names = { stick: "Stick", throttle: "Throttle", pedals: "Pedals", axis: "Single Axis", button: "Button/Key", label: "Label" };
   const upd = () => { refreshWidget(w); syncSelectionClasses(); };
   const seen = w.match && padFor(w, connectedPads());
-  panelHead(p, w.mouse ? "Mouse" : names[w.type] || w.type, "", el("div", {}, el("div", { class: "fields" }, fld("Name", textIn(w, "label", upd), null, true)), bindRow(w, seen)));
+  const mates = groupMates(w.id);
+  const inGroup = mates.length > 1 ? el("div", { class: "bind-row" }, el("span", { class: "hint small" }, `In a group of ${mates.length}`),
+    el("button", { onclick: () => setSelection(mates), title: "Select every widget in this group" }, "Select Group")) : null;
+  panelHead(p, w.mouse ? "Mouse" : names[w.type] || w.type, "", el("div", {}, el("div", { class: "fields" }, fld("Name", textIn(w, "label", upd), null, true)), bindRow(w, seen), inGroup));
   positionSection(p, [w]);
   arrangeSection(p);
   layoutSection(p, [w]);
@@ -5277,7 +5705,7 @@ function renderWidgetPanel(p) {
   if (w.key) {
     const d = section(p, "Key", { key: "device", fam: "input", icon: "device", summary: keyLabel(w.key) });
     d.append(el("div", { class: "hint small" }, `Lights while ${keyLabel(w.key)} is held. In OBS, keys reach the overlay only while its Interact window has focus.`));
-    d.append(el("div", { class: "actions" }, el("button", { onclick: () => startRemap(w), title: "Press a key or a device button to rebind it" }, "Detect Again")));
+    d.append(el("div", { class: "hint small" }, "To use another key or a device button, press Rebind under the name."));
   } else if (w.mouse) {
     const d = section(p, "Input", { key: "device", fam: "input", icon: "device", summary: "Mouse" });
     d.append(el("div", { class: "hint small" }, "Shows which way and how fast the mouse moves. In OBS, the mouse reaches the overlay only while its Interact window has focus."));
@@ -5285,9 +5713,10 @@ function renderWidgetPanel(p) {
   } else if (w.type !== "label") {
     const name = w.match ? deviceLabel(w.match, w.nth) : "";
     const d = section(p, "Device", { key: "device", fam: "input", icon: "device", summary: name ? name + (seen ? "" : " (not connected)") : "None yet" });
+    // The bind button lives under the widget's name (bindRow); this section only says where to find it.
     d.append(el("div", { class: "hint small" }, !name ? "No device yet." : seen ? "Connected." : "Not connected. Move it or press a button to wake it."));
-    d.append(el("div", { class: "actions" }, el("button", { onclick: () => startRemap(w), title: w.type === "button" ? "Press a button or key to remap it" : "Move the device again to remap it" }, "Detect Device"),
-      w.match && twinsOf(w, connectedPads()) > 1 ? el("button", { onclick: () => swapTwins(w.match) }, "Swap with Identical Device") : null));
+    d.append(el("div", { class: "hint small" }, !name ? "To connect one, press Bind under the name." : w.type === "button" ? "To use another button or key, press Rebind under the name." : "To use another device, press Rebind under the name."));
+    if (w.match && twinsOf(w, connectedPads()) > 1) d.append(el("div", { class: "actions" }, el("button", { onclick: () => swapTwins(w.match) }, "Swap with Identical Device")));
     if (w.match && w.type !== "button" && TYPES[w.type]) {
       for (const s of TYPES[w.type].steps) if (w.axes[s.key] != null) {
         const lbl = { x: "Invert X", y: "Invert Y", t: "Invert throttle", r: "Invert pedals", bl: "Invert left toe pedal", br: "Invert right toe pedal", a: "Invert axis" }[s.key];
@@ -5310,8 +5739,12 @@ function bindRow(w, seen) {
   return el("div", { class: "bind-row" }, el("span", { class: "hint small" + cls }, text), el("button", { onclick: () => startRemap(w), title }, btn));
 }
 function renderMultiPanel(p) {
-  const ws = selectedWidgets();
-  panelHead(p, ws.length + " widgets selected", "Changes apply to all selected widgets. Shift+click a widget to add or remove it.");
+  const ws = selectedWidgets(), whole = wholeGroup(ws), grouped = ws.some(w => w.group);
+  const groupBtn = el("button", { onclick: groupSelected, title: "Keep these widgets together when you move them (Ctrl+G)", "aria-keyshortcuts": "Control+G" }, "Group");
+  const ungroupBtn = el("button", { onclick: ungroupSelected, title: "Let these widgets move on their own again (Ctrl+Shift+G)", "aria-keyshortcuts": "Control+Shift+G" }, "Ungroup");
+  panelHead(p, whole ? `Group of ${ws.length}` : ws.length + " widgets selected",
+    whole ? "Drag any of them to move the group. Click one again to edit just that widget." : "Changes apply to all selected widgets. Shift+click a widget to add or remove it.",
+    el("div", { class: "actions" }, whole ? null : groupBtn, grouped ? ungroupBtn : null));
   positionSection(p, ws);
   arrangeSection(p);
   layoutSection(p, ws);
@@ -5338,6 +5771,14 @@ function renderDevicesPanel(p) {
 }
 // Rebuilds the list only when what it says changes (a device comes or goes, a widget finds its device); otherwise
 // each tick just moves the activity meters and the pressed highlight.
+// How far a device has moved from where its axes sat when its row appeared, 0 to 1. Measured from rest, not from 0,
+// because many devices rest away from the middle: a hat idles at about 1.29 and toe brakes at -1, which would peg the
+// meter at full before anything moved. A hat (resting outside -1..1) counts as moved once it reports a direction.
+function devActivity(axes, rest) {
+  let m = 0;
+  axes.forEach((a, i) => { const r = rest[i] ?? a; m = Math.max(m, Math.abs(r) > 1 ? (Math.abs(a) <= 1 ? 1 : 0) : Math.abs(a - r)); });
+  return Math.min(1, m);
+}
 function fillDevices(body) {
   const pads = connectedPads(), raw = navigator.getGamepads ? [...navigator.getGamepads()] : [];
   const slots = Math.max(raw.length, pads.length);
@@ -5346,7 +5787,7 @@ function fillDevices(body) {
   const key = slots + "|" + pads.map(d => d.pad.index + d.id + d.nth + "," + d.pad.axes.length + "," + d.pad.buttons.length).join("|") + "|" + missing.map(w => w.id).join();
   if (body._key === key) {
     pads.forEach((d, i) => {
-      const r = body._rows[i], act = Math.round(Math.max(0, ...d.pad.axes.map(a => Math.abs(a))) * 100) + "%";
+      const r = body._rows[i], act = Math.round(devActivity(d.pad.axes, r.rest) * 100) + "%";
       r.row.classList.toggle("hot", d.pad.buttons.some(b => b.pressed));
       if (r.meter.style.width !== act) r.meter.style.width = act;
     });
@@ -5363,14 +5804,14 @@ function fillDevices(body) {
   frag.append(el("h4", {}, `Seen by the browser (${pads.length}${slots ? " of " + slots + " slots" : ""})`));
   if (!pads.length) frag.append(el("div", { class: "hint warn" }, "Nothing yet. Browsers hide devices until you press a button or move an axis fully after the page opens."));
   for (const d of pads) {
-    const act = Math.max(0, ...d.pad.axes.map(a => Math.abs(a))), pressed = d.pad.buttons.some(b => b.pressed);
-    const meter = el("span", { class: "dev-meter", "aria-hidden": "true" }, el("i", { style: `width:${Math.round(act * 100)}%` }));
+    const rest = d.pad.axes.slice(), pressed = d.pad.buttons.some(b => b.pressed);
+    const meter = el("span", { class: "dev-meter", "aria-hidden": "true" }, el("i", { style: "width:0%" }));
     const by = used(d);
     const row = el("div", { class: "dev-row" + (pressed ? " hot" : "") },
       el("b", {}, prettyName(d.id) + (pads.filter(x => x.key === d.key).length > 1 ? ` #${d.nth + 1}` : "")),
       el("small", {}, `Slot ${d.pad.index + 1} · ${d.pad.axes.length} axes · ${d.pad.buttons.length} buttons` + (by.length ? " · used by " + by.join(", ") : " · not used yet")),
       meter);
-    frag.append(row); body._rows.push({ row, meter: meter.firstChild });
+    frag.append(row); body._rows.push({ row, meter: meter.firstChild, rest });
   }
   if (missing.length) {
     frag.append(el("h4", {}, "Waiting for"));
@@ -5398,10 +5839,13 @@ function renderSettingsPanel(p) {
   toggleRow(size, "Fit overlay to screen size", { get v() { return s.scaleMode === "auto"; }, set v(x) { s.scaleMode = x ? "auto" : "manual"; } }, "v", () => { rebuildAll(); setSelection([], "settings"); },
     "A layout made at 1080p keeps the same proportions at 1440p or 4K.");
   if (s.scaleMode !== "auto") size.append(el("div", { class: "fields" }, fld("Overlay scale", numIn(s, "scale", 0.3, 4, 0.05, rebuildAll), "×", true)));
-  choiceRow(size, "Editor text size", s, "uiScale", [["auto", "Auto", "Grows with the screen, so 4K stays readable."], [1, "100%"], [1.25, "125%"], [1.5, "150%"], [2, "200%"], [2.5, "250%"]], applySettings, { wrap: true });
+  // Display: how the editor itself reads (its own key, open by default, so Size's remembered state carries over).
+  const display = section(p, "Display", { key: "s-display" });
+  choiceRow(display, "Editor text size", s, "uiScale", [["auto", "Auto", "Grows with the screen, so 4K stays readable."], [1, "100%"], [1.25, "125%"], [1.5, "150%"], [2, "200%"], [2.5, "250%"]], applySettings, { wrap: true });
+  toggleRow(display, "Reduce transparency", s, "reduceTransparency", applySettings, "Solid panels instead of frosted glass: easier to read over a busy game view, and less work for OBS.");
   const perfSec = section(p, "Performance", { key: "s-perf" });
   choiceRow(perfSec, "Draw rate", s, "fps", [[60, "60 FPS", "The smoothest motion. Best for most setups."], [30, "30 FPS", "Half the work for OBS. Motion looks a little less smooth, but a press still shows right away. Pick it if the overlay stutters, lags or falls out of sync with your game."]], applySettings, { aria: "Draw rate" });
-  perfSec.append(el("div", { class: "hint small" }, "How many times a second the overlay redraws while you move your controls. When you let go it stops redrawing, unless the Projector look is set to Subtle or Full."));
+  perfSec.append(el("div", { class: "hint small" }, "How many times a second the overlay redraws while you move your controls. When you let go it stops redrawing, unless a widget's Projector Motion is set to Subtle or Full."));
   themeSection(p, profile.widgets.filter(w => w.type !== "label"), true);
   const bg = section(p, "Page Background", { key: "s-bg" });
   toggleRow(bg, "Solid page background", { get v() { return s.background === "solid"; }, set v(x) { s.background = x ? "solid" : "transparent"; } }, "v", applySettings,
@@ -5458,7 +5902,8 @@ function renderReviewPanel(p) {
     for (const w of ws) {
       const st = reviewStats(w), pc = v => Math.round(v * 100) + "%";
       const row = el("div", { class: "row" }, el("b", {}, w.label || w.type));
-      if (!st || st.total < 0.5) row.append(el("small", {}, "No movement yet."));
+      if (isUnbound(w)) row.append(el("small", {}, "Not bound to an input yet, so nothing to count. Bind Inputs on the Setup panel connects it."));
+      else if (!st || st.total < 0.5) row.append(el("small", {}, "No movement yet."));
       else row.append(el("div", { class: "meter", role: "img", "aria-label": `${pc(st.full)} at full deflection, ${pc(st.rest)} at rest` },
           el("i", { class: "full", style: `width:${st.full * 100}%` }), el("i", { class: "rest", style: `width:${st.rest * 100}%` })),
         el("small", {}, `${pc(st.full)} at full deflection · ${pc(st.rest)} at rest`));
@@ -5475,6 +5920,7 @@ function renderReviewPanel(p) {
 const IN_OBS = !!window.obsstudio || new URLSearchParams(location.search).has("transparent");
 document.body.classList.toggle("preview", !IN_OBS);
 $("#preview-edit").addEventListener("click", () => setEditing(true));
+showPreviewChip();
 try { loadProfile(); rebuildAll(); } catch (err) { setAsideSavedProfile(err); }
 resetHistory();
 if (new URLSearchParams(location.search).has("edit")) setEditing(true);

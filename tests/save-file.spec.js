@@ -20,6 +20,8 @@ test.describe("outside OBS", () => {
     const text = require("fs").readFileSync(await dl.path(), "utf8");
     expect(layoutOf(fromScript(text))).toEqual(layoutOf(await app.profile()));
     await expect(page.locator("#save-copy")).not.toHaveClass(/open/);
+    // The browser saves it without a word, so JOI says where it went and where it belongs.
+    await expect(page.locator("#toast")).toHaveText("Downloaded profile.js. Move it into the folder that holds JOI.html.");
   });
 
   test("both Download .json buttons download the profile on screen", async ({ app, page }) => {
@@ -28,6 +30,7 @@ test.describe("outside OBS", () => {
       await open(page);
       const [dl] = await Promise.all([page.waitForEvent("download"), page.click("#panel button:has-text('Download .json')")]);
       expect(dl.suggestedFilename()).toMatch(/^joi-.+\.json$/);
+      await expect(page.locator("#toast")).toHaveText(`Downloaded ${dl.suggestedFilename()} to your browser's downloads.`);
       const text = require("fs").readFileSync(await dl.path(), "utf8");
       expect(layoutOf(JSON.parse(text))).toEqual(layoutOf(await app.profile()));
     }

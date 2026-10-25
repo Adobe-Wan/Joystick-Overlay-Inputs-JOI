@@ -48,7 +48,7 @@ test.describe("welcome", () => {
     await page.evaluate(() => openWelcome());
     expect(await page.evaluate(() => document.getElementById("welcome-where").hidden)).toBe(true);
   });
-  test("? opens the shortcut list; the empty editor shows a card that leads to the setups", async ({ app, page }) => {
+  test("? opens Help with the shortcut list; the empty editor shows a card that leads to the setups", async ({ app, page }) => {
     await app.open({ profile: base([]), query: "?edit" });
     await expect(page.locator("#empty-edit")).toBeVisible();
     await page.click("#empty-presets");
@@ -56,8 +56,8 @@ test.describe("welcome", () => {
     await expect(page.locator("#empty-edit")).toBeHidden();
     await page.evaluate(() => { closeWelcome(); document.activeElement.blur(); });   // single-key shortcuts act with nothing focused
     await page.keyboard.press("?");
-    await expect(page.locator("#welcome")).toHaveClass(/open/);
-    expect(await page.evaluate(() => document.getElementById("welcome-keys").open)).toBe(true);
+    await expect(page.locator("#help")).toHaveClass(/open/);
+    await expect(page.locator("#help .keys")).toBeVisible();
   });
 });
 
@@ -121,10 +121,10 @@ test.describe("review", () => {
     await expect(page.locator('#panel button:has-text("Hide Heatmap")')).toBeVisible();
     expect(await page.evaluate(() => [...document.querySelectorAll("#panel .sec-t .name")].map(e => e.textContent))).not.toContain("Session Heatmap");
   });
-  test("the toolbar is Edit Mode, Add, Review, Settings, Profiles & Share, Help and the panel toggle", async ({ app, page }) => {
+  test("the toolbar is Edit Mode, Undo, Redo, Add, Review, Settings, Profiles & Share, Help and the panel toggle", async ({ app, page }) => {
     await open(app, base([stick()]));
     await page.evaluate(() => setEditing(true));
-    expect(await page.evaluate(() => [...document.querySelectorAll("#toolbar button")].map(b => b.textContent))).toEqual(["+ Add", "Review", "Settings", "Profiles & Share", "Help", "Hide Panel"]);
+    expect(await page.evaluate(() => [...document.querySelectorAll("#toolbar button")].map(b => b.textContent || b.getAttribute("aria-label")))).toEqual(["Undo", "Redo", "+ Add", "Review", "Settings", "Profiles & Share", "Help", "Hide Panel"]);
     await page.click("#toolbar [data-act=panel]");
     expect(await page.evaluate(() => [document.body.classList.contains("panel-hidden"), document.getElementById("panel-btn").textContent])).toEqual([true, "Show Panel"]);
     await page.click("#toolbar [data-act=add-device]");
@@ -136,7 +136,7 @@ test.describe("setup tab", () => {
   test("buttons come before the explanation, the device line is neutral until a device is seen, then lists it", async ({ app, page }) => {
     await app.open({ profile: base([stick()]), devices: [], query: "?edit" });
     const txt = await panelText(page);
-    expect(txt.indexOf("+ Device")).toBeLessThan(txt.indexOf("Add each device once"));
+    expect(txt.indexOf("+ Add")).toBeLessThan(txt.indexOf("Add each device once"));
     expect(txt).toContain("Wiggle a stick or press a button");
     expect(await page.evaluate(() => [...document.querySelectorAll("#panel .hint.warn")].map(e => e.textContent))).toEqual([]);   // nothing is wrong yet, so nothing is orange
     expect(txt.indexOf("Reset All")).toBeGreaterThan(txt.indexOf("Check Devices"));
