@@ -3789,7 +3789,11 @@ document.addEventListener("pointerup", () => {
 
 // ---------- keys ----------
 document.addEventListener("keydown", e => {
-  if (e.target.matches("input, select, textarea") || $("#welcome").classList.contains("open") || $("#help").classList.contains("open") || wiz) return;
+  if (e.target.matches("input, select, textarea")) return;
+  // A dialog that is open but does not hold focus (its focus is deferred a tick; the scrim was clicked) still closes
+  // on Escape; with focus inside, the dialog's own handler takes the key first.
+  const dialogOpen = $("#welcome").classList.contains("open") || $("#help").classList.contains("open") || !!wiz;
+  if (dialogOpen) { if (e.key === "Escape") { if (wiz) closeWizard(); else if ($("#help").classList.contains("open")) closeHelp(); else closeWelcome(); } return; }
   if (e.target.closest("#fab-menu, .tsel")) return;   // the + menu and theme dropdown handle their own keys
   const k = e.key.toLowerCase(), mod = e.ctrlKey || e.metaKey;
   // Single-key shortcuts act only with nothing focused (WCAG 2.1.4): on a focused button, E or Escape belongs to it.
@@ -5162,7 +5166,10 @@ function renderWiz() {
       el("button", { class: "primary", onclick: wizFinish }, "Add to Overlay"));
   }
   placeWiz();
+  // Deferred so the dialog is laid out first; skipped if the wizard closed in between (a quick Escape on a slow
+  // machine), so it never takes focus back from the control closeWizard just returned it to.
   setTimeout(() => {
+    if (!wiz || !b.isConnected || !$("#wizard").classList.contains("open")) return;
     const f = b.querySelector("[data-autofocus]") || b.querySelector(".types button, .actions button.primary, .actions button");
     if (f) { f.focus(); if (f.select) f.select(); }
   }, 0);
@@ -5190,7 +5197,7 @@ function openFab() {
   if (!editing) return;
   const m = $("#fab-menu"); m.inert = false;   // closed, its items are out of the tab order and the accessibility tree
   m.classList.add("open"); $("#fab").setAttribute("aria-expanded", "true");
-  setTimeout(() => $("#fab-menu button").focus(), 0);
+  setTimeout(() => { if (m.classList.contains("open")) $("#fab-menu button").focus(); }, 0);
 }
 function closeFab(refocus) {
   if (!$("#fab-menu").classList.contains("open")) return;
