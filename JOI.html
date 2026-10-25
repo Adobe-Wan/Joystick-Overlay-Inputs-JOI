@@ -115,7 +115,7 @@ body.editing { background-color: #11161d; background-size: cover; background-pos
 body.bg-solid:not(.editing) { background: var(--bgcolor, #00ff00); }
 /* Opened in a normal browser (not OBS): dark preview instead of a blank white page. */
 body.preview:not(.editing):not(.bg-solid) { background: #0b1016; }
-#preview-chip { position: fixed; left: 1rem; bottom: 1rem; z-index: 10; display: none; align-items: center; gap: 0.6rem; padding: 0.5rem 0.9rem; font: 500 0.93rem/1.4 var(--font); color: #b6c3d1; max-width: calc(100vw - 2rem); flex-wrap: wrap; }
+#preview-chip { position: fixed; left: 1rem; top: 1rem; z-index: 10; display: none; align-items: center; gap: 0.6rem; padding: 0.5rem 0.9rem; font: 500 0.93rem/1.4 var(--font); color: #b6c3d1; max-width: calc(100vw - 2rem); flex-wrap: wrap; }
 body.preview:not(.editing).has-widgets #preview-chip { display: flex; }
 #preview-chip .warn { color: #ffb547; }
 #stage { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
@@ -794,6 +794,14 @@ body:not(.editing):not(.has-widgets) #enter-edit { display: flex; }
 /* Browser preview chip (never in OBS): a HUD chip over the preview. */
 #preview-chip { padding: var(--vg-space-2) var(--vg-space-4); border-radius: var(--vg-radius-md); background: var(--vg-surface-glass-hud); color: var(--vg-text-2); }
 #preview-chip .warn { color: var(--vg-status-warn); }
+/* Top left, where presets and templates place nothing, and after a few seconds (showPreviewChip) only a small pill:
+   the preview should show the overlay, not cover it. Hover or focus opens it again; its words stay readable to a
+   screen reader either way. */
+#preview-chip .pill { display: none; }
+#preview-chip.min:not(:hover):not(:focus-within) { padding: var(--vg-space-1) var(--vg-space-3); border-radius: var(--vg-radius-pill); }
+#preview-chip.min:not(:hover):not(:focus-within) .pill { display: inline; animation: chip-in var(--vg-duration-base) var(--vg-ease-out); }
+#preview-chip.min:not(:hover):not(:focus-within) > :not(.pill) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@keyframes chip-in { from { opacity: 0; } }
 /* Reduce Transparency: the tokens make the fills opaque; this drops the blur as well. */
 html[data-vg-transparency="reduced"] .paper { -webkit-backdrop-filter: none; backdrop-filter: none; }
 @media (prefers-reduced-transparency: reduce) { html:not([data-vg-transparency="full"]) .paper { -webkit-backdrop-filter: none; backdrop-filter: none; } }
@@ -818,7 +826,7 @@ html[data-vg-transparency="reduced"] .paper { -webkit-backdrop-filter: none; bac
   <div class="foot"><button class="primary" id="empty-presets">Pick a Setup</button><button id="empty-device">+ Device</button></div>
 </div></div>
 
-<div id="preview-chip" class="paper" role="note"><span>Browser preview. In OBS this background is transparent.</span><span class="warn" id="offscreen-note" hidden></span><button class="text" id="preview-edit">Open Editor (E)</button></div>
+<div id="preview-chip" class="paper" role="note"><span class="pill" aria-hidden="true">Preview</span><span>Browser preview. In OBS this background is transparent.</span><span class="warn" id="offscreen-note" hidden></span><button class="text" id="preview-edit">Open Editor (E)</button></div>
 
 <div id="welcome" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
   <div class="dialog paper">
@@ -3642,12 +3650,20 @@ document.addEventListener("keydown", e => {
 document.addEventListener("dblclick", e => { if (!editing && !e.target.closest("#ui, #welcome, #wizard, #save-copy, #enter-edit, #empty-edit, #coach")) setEditing(true); });
 
 // ---------- edit mode ----------
+// The browser preview chip opens in full each time the editor closes, then folds to a pill (unless it is warning that
+// widgets are outside the window).
+const PREVIEW_CHIP_MS = 6000;
+let chipTimer = 0;
+function showPreviewChip() {
+  const c = $("#preview-chip"); c.classList.remove("min"); clearTimeout(chipTimer);
+  chipTimer = setTimeout(() => { if ($("#offscreen-note").hidden) c.classList.add("min"); }, PREVIEW_CHIP_MS);
+}
 function setEditing(on) {
   const leaving = editing && !on;
   editing = on;
   document.body.classList.toggle("editing", on);
   $("#edit-switch").checked = on;
-  if (!on) { closeWelcome(); closeFab(); if (wiz) closeWizard(); if (live) stopLive(false); }
+  if (!on) { closeWelcome(); closeFab(); if (wiz) closeWizard(); if (live) stopLive(false); showPreviewChip(); }
   // First time out of the editor with a layout and no profile.js next to the page: say once how to keep it.
   if (leaving && profile.widgets.length && !tipsSeen.backup && !window.JOI_PROFILE && !window.STAYONTARGET_PROFILE && !window.JOYVIZ_PROFILE) {
     tipsSeen.backup = true; try { localStorage.setItem(TIPS_KEY, JSON.stringify(tipsSeen)); } catch (e) {}
@@ -5647,6 +5663,7 @@ function renderReviewPanel(p) {
 const IN_OBS = !!window.obsstudio || new URLSearchParams(location.search).has("transparent");
 document.body.classList.toggle("preview", !IN_OBS);
 $("#preview-edit").addEventListener("click", () => setEditing(true));
+showPreviewChip();
 try { loadProfile(); rebuildAll(); } catch (err) { setAsideSavedProfile(err); }
 resetHistory();
 if (new URLSearchParams(location.search).has("edit")) setEditing(true);
