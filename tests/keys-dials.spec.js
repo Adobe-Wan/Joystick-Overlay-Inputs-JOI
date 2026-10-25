@@ -124,7 +124,7 @@ test.describe("keyboard keys", () => {
     expect(await page.evaluate(() => selected.size)).toBe(4);
   });
 
-  test("Detect Again moves a key widget to a device button, and back to a key", async ({ app, page }) => {
+  test("Rebind moves a key widget to a device button, and back to a key", async ({ app, page }) => {
     const xbox = DEV.xbox();
     await app.open({ devices: [xbox], profile, query: "?edit" });
     await page.evaluate(() => startRemap(profile.widgets[0]));

@@ -82,3 +82,39 @@ test("Cockpit Look: Flat is only the Style, the default screen look is Straight 
   await expect(page.locator('#sec-look .look-tile[aria-label="Straight On"]')).toHaveAttribute("aria-pressed", "true");
   expect(app.consoleErrors).toEqual([]);
 });
+
+// R08: one verb. Bind when there is no input, Rebind when there is; the Device and Key sections point at it instead
+// of repeating it under another name, and the dialog it opens says the same word.
+test("binding has one name: Bind or Rebind under the name, no Detect Device or Detect Again anywhere", async ({ app, page }) => {
+  const key = { id: "k1", type: "button", x: 900, y: 300, label: "W", key: "KeyW", shape: "keycap" };
+  await app.open({ profile: base([stick({ match: undefined, axes: {} }), stick({ id: "s2", x: 700 }), key]), devices: [h.DEV.virpil()], query: "?transparent" });
+  const noDetect = async () => {
+    await openAll(page);
+    await expect(page.locator("#panel button", { hasText: /Detect/ })).toHaveCount(0);
+    expect(await page.locator("#panel").innerText()).not.toMatch(/Detect (Device|Again)/);
+  };
+  await edit(page, ["s1"]);
+  await expect(page.locator("#panel .bind-row button")).toHaveText("Bind");
+  await noDetect();
+  await expect(page.locator("#sec-device")).toContainText("press Bind under the name");
+  await expect(page.locator("#sec-device button")).toHaveCount(0);
+  await page.locator("#panel .bind-row button").click();
+  await expect(page.locator("#wizard")).toContainText("Bind");
+  expect(await page.locator("#wizard").innerText()).not.toMatch(/Detect Device|Rebind/);
+  await page.evaluate(() => closeWizard());
+  await edit(page, ["s2"]);
+  await expect(page.locator("#panel .bind-row button")).toHaveText("Rebind");
+  await noDetect();
+  await expect(page.locator("#sec-device")).toContainText("press Rebind under the name");
+  await page.locator("#panel .bind-row button").click();
+  await expect(page.locator("#wizard")).toContainText("Rebind");
+  await page.evaluate(() => closeWizard());
+  await edit(page, ["k1"]);
+  await expect(page.locator("#panel .bind-row button")).toHaveText("Rebind");
+  await noDetect();
+  await expect(page.locator("#sec-device")).toContainText("press Rebind under the name");
+  // The queue keeps its own name.
+  await edit(page, [], "home");
+  await expect(page.locator("#panel button", { hasText: "Bind Inputs" })).toHaveCount(1);
+  expect(app.consoleErrors).toEqual([]);
+});

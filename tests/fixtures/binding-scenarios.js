@@ -201,7 +201,7 @@ module.exports = [
     open: { devices: [DEV.virpil(), DEV.virpil()], profile: twinProfile(), query: "?edit" },
     run: async page => { await page.evaluate(() => swapTwins(profile.widgets[0].match)); return h.resolve(page); },
     expect: r => r[0].slot === 1 && r[1].slot === 0 ? true : JSON.stringify(r) },
-  { name: "remap-to-twin", about: "Detect Device on Left Stick, user moves the slot-1 twin",
+  { name: "remap-to-twin", about: "Rebind on Left Stick, user moves the slot-1 twin",
     open: { devices: [DEV.virpil(), DEV.virpil()], profile: twinProfile(), query: "?edit" },
     run: async page => { await page.evaluate(() => startRemap(profile.widgets[0])); await h.play(page, stickXY(1)); return h.widgets(page); },
     expect: w => w[0].nth === 1 && w[0].axes.x === 0 && w[0].axes.y === 1 ? true : JSON.stringify(w[0]) },

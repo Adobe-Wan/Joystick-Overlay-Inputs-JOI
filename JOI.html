@@ -1696,7 +1696,7 @@ function layOutPresetGroups(pr) {
     x += o.w + PLACE_GAP;
   }
 }
-// Bind Inputs: Detect Device for each widget still waiting for an input, one after another. Closing the dialog stops;
+// Bind Inputs: Bind for each widget still waiting for an input, one after another. Closing the dialog stops;
 // Skip leaves that one for later.
 let bindQueue = [], bindTotal = 0;
 function startBinding() {
@@ -1765,13 +1765,14 @@ function wizChooseType(t) {
   wiz = { kind: "device", type: t, name: TYPES[t].name, stage: "steps", step: 0, axes: {}, inv: {} };
   renderWiz();
 }
-// Detect Device: rerun the move/press steps for an existing widget and rebind it in place,
-// keeping its name, position, size and colors.
+// Bind or Rebind (the button under the widget's name): rerun the move/press steps for an existing widget and bind it
+// in place, keeping its name, position, size and colors. verb is the button's word, which the dialog repeats.
 function startRemap(w) {
   closeFab(); closeWelcome(); wizAdded = [];
+  const verb = isUnbound(w) ? "Bind" : "Rebind";
   wiz = w.type === "button"
-    ? { kind: "button", stage: "press", remap: w.id, label: w.label }
-    : { kind: "device", type: w.type, name: w.label, label: w.label, stage: "steps", step: 0, axes: {}, inv: {}, remap: w.id };
+    ? { kind: "button", stage: "press", remap: w.id, label: w.label, verb }
+    : { kind: "device", type: w.type, name: w.label, label: w.label, stage: "steps", step: 0, axes: {}, inv: {}, remap: w.id, verb };
   renderWiz();
 }
 function finishRemap() {
@@ -4760,7 +4761,7 @@ function renderProfilesPanel(p) {
     el("button", { onclick: () => exportLayout(cur.id), title: "Download this profile as a .json file to share or keep" }, "Download .json"),
     Object.assign(el("button", { class: "danger", onclick: () => deleteLayout(cur.id), title: lib.list.length < 2 ? "Your only profile can't be deleted" : "Delete this profile" }, "Delete"), { disabled: lib.list.length < 2 })));
   p.append(el("div", { class: "hint small" }, "To share it, send the .json to another pilot. They open the editor and choose Import a Profile, which adds it next to their own profiles. "
-    + "With the same hardware it works right away; otherwise they press Detect Device on each widget."));
+    + "With the same hardware it works right away; otherwise they select each widget and press Rebind."));
   p.append(el("h5", {}, "Back Up Every Profile"));
   p.append(el("div", { class: "hint small" }, "For a personal backup that survives OBS clearing its cache, download profile.js and put it in the same folder as JOI.html. "
     + "It holds every profile. It's for your own computer only: don't share it."));
@@ -4853,7 +4854,7 @@ function renderWiz() {
   const total = 3;
   const queued = !!wiz.remap && bindQueue[0] === wiz.remap;
   const st = (k, suffix) => queued ? [0, `Bind Inputs · ${bindTotal - bindQueue.length + 1} of ${bindTotal} · ${wiz.label || suffix}`]
-    : wiz.remap ? [0, "Detect Device" + (suffix ? " · " + suffix : "")] : [k, `Step ${k} of ${total}` + (suffix ? " · " + suffix : "")];
+    : wiz.remap ? [0, (wiz.verb || "Rebind") + (suffix ? " · " + suffix : "")] : [k, `Step ${k} of ${total}` + (suffix ? " · " + suffix : "")];
   const skip = () => queued ? el("button", { onclick: skipBinding }, "Skip for Now") : null;
   const head = (step, kicker, title, lead) => {
     const k = el("div", { class: "kicker" });
@@ -5426,7 +5427,7 @@ function renderWidgetPanel(p) {
   if (w.key) {
     const d = section(p, "Key", { key: "device", fam: "input", icon: "device", summary: keyLabel(w.key) });
     d.append(el("div", { class: "hint small" }, `Lights while ${keyLabel(w.key)} is held. In OBS, keys reach the overlay only while its Interact window has focus.`));
-    d.append(el("div", { class: "actions" }, el("button", { onclick: () => startRemap(w), title: "Press a key or a device button to rebind it" }, "Detect Again")));
+    d.append(el("div", { class: "hint small" }, "To use another key or a device button, press Rebind under the name."));
   } else if (w.mouse) {
     const d = section(p, "Input", { key: "device", fam: "input", icon: "device", summary: "Mouse" });
     d.append(el("div", { class: "hint small" }, "Shows which way and how fast the mouse moves. In OBS, the mouse reaches the overlay only while its Interact window has focus."));
@@ -5434,9 +5435,10 @@ function renderWidgetPanel(p) {
   } else if (w.type !== "label") {
     const name = w.match ? deviceLabel(w.match, w.nth) : "";
     const d = section(p, "Device", { key: "device", fam: "input", icon: "device", summary: name ? name + (seen ? "" : " (not connected)") : "None yet" });
+    // The bind button lives under the widget's name (bindRow); this section only says where to find it.
     d.append(el("div", { class: "hint small" }, !name ? "No device yet." : seen ? "Connected." : "Not connected. Move it or press a button to wake it."));
-    d.append(el("div", { class: "actions" }, el("button", { onclick: () => startRemap(w), title: w.type === "button" ? "Press a button or key to remap it" : "Move the device again to remap it" }, "Detect Device"),
-      w.match && twinsOf(w, connectedPads()) > 1 ? el("button", { onclick: () => swapTwins(w.match) }, "Swap with Identical Device") : null));
+    d.append(el("div", { class: "hint small" }, !name ? "To connect one, press Bind under the name." : w.type === "button" ? "To use another button or key, press Rebind under the name." : "To use another device, press Rebind under the name."));
+    if (w.match && twinsOf(w, connectedPads()) > 1) d.append(el("div", { class: "actions" }, el("button", { onclick: () => swapTwins(w.match) }, "Swap with Identical Device")));
     if (w.match && w.type !== "button" && TYPES[w.type]) {
       for (const s of TYPES[w.type].steps) if (w.axes[s.key] != null) {
         const lbl = { x: "Invert X", y: "Invert Y", t: "Invert throttle", r: "Invert pedals", bl: "Invert left toe pedal", br: "Invert right toe pedal", a: "Invert axis" }[s.key];
