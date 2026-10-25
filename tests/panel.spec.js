@@ -249,10 +249,10 @@ test.describe("fonts", () => {
 
 test.describe("Aegis projector", () => {
   const light = (page, theme) => page.evaluate(t => { const w = profile.widgets[0]; applyThemeTo(MFG_THEMES.find(o => o.id === t), [w], false); return holoColorsOf(w); }, theme);
-  test("uses the radar's azure, not the MFD's teal", async ({ app, page }) => {
+  test("uses the radar's saturated azure, not the MFD's pale blue", async ({ app, page }) => {
     await open(app, base([stick()]));
     const c = await light(page, "aegis");
-    expect(c).toMatchObject({ rays: "#3da5ee", glow: "#1f97f2", core: "#95cdf9" });
+    expect(c).toMatchObject({ rays: "#3db7ee", glow: "#1fb4f2", core: "#95e6f9" });
   });
   test("other makers still derive their light from their accent", async ({ app, page }) => {
     await open(app, base([stick()]));

@@ -163,9 +163,9 @@ The mouse **Pitch / Yaw** widget is a stick that shows which way and how fast th
 ## Color themes
 Match your widgets to your ship's MFDs. Select widgets and look under **Color Theme** in the side panel, or use the same controls in **Settings** to color every widget (new widgets then use it too).
 - **Default** (neutral white on a fully opaque charcoal background, what new widgets start with) and **AVS** (Avenger Squadron: white, blue and black) are tiles at the top.
-- **Ship manufacturer** is a dropdown with a color swatch on every row: Aegis Dynamics, Anvil Aerospace, AopoA, ARGO Astronautics, Banu Souli, Crusader Industries, Drake Interplanetary, Esperia, GATAC Manufacture, Greycat Industrial, Kruger Intergalactic, Mirai, MISC, Origin Jumpworks and Roberts Space Industries. Use the arrow keys or type a letter to jump.
+- **Ship manufacturer** is a dropdown with a color swatch on every row: Aegis Dynamics, Anvil Aerospace, AopoA, ARGO Astronautics, Banu Souli, Consolidated Outland, Crusader Industries, Drake Interplanetary, Esperia, GATAC Manufacture, Greycat Industrial, Grey's Market, Kruger Intergalactic, Mirai, MISC, Origin Jumpworks and Roberts Space Industries. Use the arrow keys or type a letter to jump.
 
-Most themes are sampled from that manufacturer's in-game power management screen: the stick dot, bars and pressed buttons use the color of a filled power pip, the widget outline uses an empty pip's outline, and the background matches the screen. Crusader, Banu and AopoA are fan picks for now. You can still fine-tune Highlight, Text, Border and Background by hand underneath.
+Every theme is measured from that manufacturer's in-game power management screen (full-size frames and in-game screenshots, no color correction): the stick dot, bars and pressed buttons use the screen's key color, the widget outline uses its outline color, the text matches its labels and the background matches the screen. You can still fine-tune Highlight, Text, Border and Background by hand underneath.
 
 ![The color picker](docs/color-picker.png)
 
