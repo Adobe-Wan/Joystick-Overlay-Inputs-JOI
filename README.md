@@ -42,7 +42,7 @@ Opened in a normal browser instead of OBS, the welcome says so and reminds you t
 Outside OBS the page shows a dark preview background with a note that it's transparent in OBS. In OBS it stays fully transparent. If another streaming app shows the dark background, add `?transparent` to the end of the file URL. Add `?edit` to open straight into the editor.
 
 ## 4K and other resolutions
-Layouts are designed on a 1920×1080 canvas and **fit to the screen size** automatically, so a layout made at 1080p looks the same at 1440p or 4K, and the whole layout always fits in a shorter browser window or on an ultrawide. The editor's text scales up too. If a widget ever ends up outside the window, the editor home panel offers **Bring Into View**. Both can be changed in **Settings → Size** (*Fit overlay to screen size*, *Editor text size*).
+Layouts are designed on a 1920×1080 canvas and **fit to the screen size** automatically, so a layout made at 1080p looks the same at 1440p or 4K, and the whole layout always fits in a shorter browser window or on an ultrawide. The editor's text scales up too. If a widget ever ends up outside the window, the editor home panel offers **Bring Into View**. Both can be changed in **Settings**: *Fit overlay to screen size* under **Size**, *Editor text size* under **Display**.
 
 **Moving a layout between screens.** Each profile remembers the screen shape it was arranged on. Open it on a different shape (a 4K browser tab with toolbars, a 1080p OBS source, an ultrawide) and each group of widgets keeps its place: things along the bottom middle stay at the bottom middle, and a widget near an edge or corner keeps its distance from it. Nothing is overwritten until you edit, so going back to the original screen puts everything back where it was. Profiles from v1.1 and earlier record their screen the next time you change something or download profile.js.
 
@@ -175,7 +175,7 @@ Click a color to open the picker: drag in the square for saturation and brightne
 ## Editor look
 The editor (side panel, toolbar, dialogs) is drawn with **Verseglass**, a small design system for Star Citizen adjacent overlays: dark navy frosted glass, one blue accent, text that meets WCAG AA on the glass, and every size on a 4 px grid. It uses IBM Plex Sans and IBM Plex Mono when they are installed on your PC, and Segoe UI and Cascadia Mono otherwise; the file never downloads a font. Only the editor is dressed this way: the widgets on stream keep their own Color Theme, fonts and sizes, so nothing in OBS changes.
 
-- **Reduce transparency** (Settings, under Size) swaps the glass for solid panels: easier to read over a busy game view, and less work for OBS. Windows' own "Transparency effects" setting does the same where the browser passes it on.
+- **Reduce transparency** (Settings, under Display) swaps the glass for solid panels: easier to read over a busy game view, and less work for OBS. Windows' own "Transparency effects" setting does the same where the browser passes it on.
 - When every widget wears the same **Ship manufacturer** theme, the editor's accent takes that maker's color too.
 - The editor's rem is 16 px at Editor text size 100%, so a 1440p or 4K screen still gets the same proportions.
 

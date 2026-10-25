@@ -118,3 +118,25 @@ test("binding has one name: Bind or Rebind under the name, no Detect Device or D
   await expect(page.locator("#panel button", { hasText: "Bind Inputs" })).toHaveCount(1);
   expect(app.consoleErrors).toEqual([]);
 });
+
+// R09: a readability switch is not a size: Display holds Editor text size and Reduce transparency.
+test("Settings has a Display section with Editor text size and Reduce transparency, and Size keeps only size", async ({ app, page }) => {
+  await app.open({ profile: base([stick()]), devices: [h.DEV.virpil()], query: "?transparent" });
+  await edit(page, [], "settings");
+  const secs = await page.evaluate(() => [...document.querySelectorAll("#panel .sec")].map(s => ({ name: s.querySelector(".sec-t .name").textContent, open: !s.querySelector(".sec-b").hidden, text: s.querySelector(".sec-b").textContent })));
+  const names = secs.map(s => s.name);
+  expect(names.indexOf("Display")).toBe(names.indexOf("Size") + 1);
+  const size = secs.find(s => s.name === "Size"), display = secs.find(s => s.name === "Display");
+  expect(display.open).toBe(true);
+  expect(display.text).toContain("Editor text size"); expect(display.text).toContain("Reduce transparency");
+  expect(size.text).toContain("Fit overlay to screen size");
+  expect(size.text).not.toContain("Editor text size"); expect(size.text).not.toContain("Reduce transparency");
+  // The switch still works from its new place, and Display remembers being closed.
+  await page.locator("#sec-s-display").getByRole("switch", { name: "Reduce transparency" }).click({ force: true });
+  expect((await app.profile()).settings.reduceTransparency).toBe(true);
+  await page.locator('#panel .sec-t[aria-controls="sec-s-display"]').click();
+  await app.reload("?edit");
+  await edit(page, [], "settings");
+  await expect(page.locator("#sec-s-display")).toBeHidden();
+  await expect(page.locator("#sec-s-size")).toBeVisible();
+});
