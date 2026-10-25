@@ -46,16 +46,22 @@ const test = base.test.extend({
         const seed = { ...storage };
         if (profile != null) seed[STORE_KEY] = typeof profile === "string" ? profile : JSON.stringify(profile);
         if (tips) seed["joi.tips"] = JSON.stringify({ groups: true });
-        await page.addInitScript(([devs, cfg, seed]) => {
+        // The "seeded" mark lives in both storages: sessionStorage normally, and localStorage as a backstop, because
+        // on a file:// page Chromium now and then hands a reload a fresh sessionStorage, and re-seeding would throw
+        // away what the app had saved (a reload test then sees the seed, not the save). The app never clears the
+        // localStorage mark on its own; Reset All removes only its own keys.
+        const token = String(Date.now()) + Math.random().toString(36).slice(2);
+        await page.addInitScript(([devs, cfg, seed, token]) => {
           window.__fakeGP.config(cfg);
           for (const d of devs) window.__fakeGP.plug(d);
           try {
-            if (!sessionStorage.getItem("__seeded")) {
+            if (sessionStorage.getItem("__seeded") !== token && localStorage.getItem("__seeded") !== token) {
               for (const k in seed) localStorage.setItem(k, seed[k]);
-              sessionStorage.setItem("__seeded", "1");
+              sessionStorage.setItem("__seeded", token);
+              localStorage.setItem("__seeded", token);
             }
           } catch (e) { /* storage disabled */ }
-        }, [devices, { gestureGate, maxSlots }, seed]);
+        }, [devices, { gestureGate, maxSlots }, seed, token]);
         await page.goto(APP_URL + query);
         await page.waitForLoadState("load");
         await frames(page, 2);
