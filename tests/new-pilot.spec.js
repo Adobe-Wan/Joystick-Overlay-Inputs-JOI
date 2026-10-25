@@ -136,7 +136,7 @@ test.describe("setup tab", () => {
   test("buttons come before the explanation, the device line is neutral until a device is seen, then lists it", async ({ app, page }) => {
     await app.open({ profile: base([stick()]), devices: [], query: "?edit" });
     const txt = await panelText(page);
-    expect(txt.indexOf("+ Device")).toBeLessThan(txt.indexOf("Add each device once"));
+    expect(txt.indexOf("+ Add")).toBeLessThan(txt.indexOf("Add each device once"));
     expect(txt).toContain("Wiggle a stick or press a button");
     expect(await page.evaluate(() => [...document.querySelectorAll("#panel .hint.warn")].map(e => e.textContent))).toEqual([]);   // nothing is wrong yet, so nothing is orange
     expect(txt.indexOf("Reset All")).toBeGreaterThan(txt.indexOf("Check Devices"));

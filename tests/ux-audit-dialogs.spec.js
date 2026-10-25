@@ -222,3 +222,43 @@ test.describe("R12 the bind dialog keeps clear of the widget it binds", () => {
     await expect(page.locator("#wiz-read")).toHaveCount(0);
   });
 });
+
+test.describe("R13 and R17 one Add, one list of types", () => {
+  test("the round + menu lists the wizard's types, in its order and with its names; the panel has one Add", async ({ app, page }) => {
+    await app.open({ profile: base([stick()]), devices: [h.DEV.virpil()], query: "?edit" });
+    const menu = await page.evaluate(() => [...document.querySelectorAll("#fab-menu button")].map(b => b.querySelector("span").textContent));
+    const adds = page.locator("#panel button", { hasText: /^\+ (Add|Device|Button\/Key)$/ });
+    await expect(adds).toHaveCount(1);
+    await expect(adds).toHaveText("+ Add");
+    await adds.click();
+    await expect(page.locator("#wiz-title")).toHaveText("What Are You Adding?");
+    const tiles = await page.evaluate(() => [...document.querySelectorAll("#wiz-body .types button")].map(b => b.childNodes[1].textContent));
+    expect(tiles).toEqual(["Stick", "Pedals", "Button/Key", "Throttle", "Single Axis", "Label"]);
+    expect(menu).toEqual(tiles);
+    expect(await page.evaluate(() => [...document.querySelectorAll("#fab-menu button")].map(b => b.getAttribute("aria-label")))).toEqual(tiles.map(t => "Add " + t));
+    // The toolbar's + Add opens the same step.
+    await page.keyboard.press("Escape");
+    await page.click("#toolbar [data-act=add-device]");
+    await expect(page.locator("#wiz-title")).toHaveText("What Are You Adding?");
+  });
+  test("each + menu label is 12 px or larger, fits its pill and sits outside its bubble, clear of the others", async ({ app, page }) => {
+    await app.open({ profile: base([stick()]), devices: [h.DEV.virpil()], query: "?edit" });
+    await blur(page);
+    await page.keyboard.press("a");
+    await expect(page.locator("#fab-menu")).toHaveClass(/open/);
+    await page.waitForTimeout(400);   // the bubbles fan out
+    const items = await page.evaluate(() => [...document.querySelectorAll("#fab-menu button")].map(b => {
+      const s = b.querySelector("span"), R = e => { const r = e.getBoundingClientRect(); return { l: r.left, t: r.top, r: r.right, b: r.bottom }; };
+      return { t: s.textContent, size: parseFloat(getComputedStyle(s).fontSize), sw: s.scrollWidth, cw: s.clientWidth, h: s.getBoundingClientRect().height, pill: R(s), bubble: R(b) };
+    }));
+    const apart = (a, b) => a.r <= b.l || b.r <= a.l || a.b <= b.t || b.b <= a.t;
+    for (const o of items) {
+      expect(o.size, o.t).toBeGreaterThanOrEqual(12);
+      expect(o.sw, o.t + " fits its pill").toBeLessThanOrEqual(o.cw);
+      expect(o.h % 4, o.t + " on the 4 px grid").toBe(0);
+      expect(apart(o.pill, o.bubble), o.t + " outside its bubble").toBe(true);
+      for (const p of items) if (p !== o) { expect(apart(o.pill, p.pill), o.t + " / " + p.t).toBe(true); expect(apart(o.pill, p.bubble), o.t + " / " + p.t).toBe(true); }
+      expect(o.pill.l, o.t + " on screen").toBeGreaterThanOrEqual(0); expect(o.pill.t).toBeGreaterThanOrEqual(0);
+    }
+  });
+});

@@ -85,9 +85,9 @@ test.describe("keyboard keys", () => {
     await page.keyboard.up("w");
   });
 
-  test("+ Button/Key binds a pressed key by its code, names it from the keyboard and makes it a keycap", async ({ app, page }) => {
+  test("Add, then Button/Key, binds a pressed key by its code, names it from the keyboard and makes it a keycap", async ({ app, page }) => {
     await app.open({ profile: { savedAt: Date.now(), settings: {}, widgets: [] }, query: "?edit" });
-    await page.click('#panel button:has-text("+ Button/Key")');
+    await page.click('#panel button:has-text("+ Add")'); await page.click('#wiz-body .types button:has-text("Button/Key")');
     await expect(page.locator("#wiz-title")).toHaveText("Press the Button or Key You Want to Show");
     await page.keyboard.press("q");
     await expect(page.locator("#wiz-body .name-in")).toHaveValue("Q");
@@ -99,7 +99,7 @@ test.describe("keyboard keys", () => {
 
   test("Space binds when the step has just opened, and a tabbed-to button still presses with Enter", async ({ app, page }) => {
     await app.open({ profile: { savedAt: Date.now(), settings: {}, widgets: [] }, query: "?edit" });
-    await page.click('#panel button:has-text("+ Button/Key")');
+    await page.click('#panel button:has-text("+ Add")'); await page.click('#wiz-body .types button:has-text("Button/Key")');
     await app.frames(2);
     await page.keyboard.press("Space");
     await expect(page.locator("#wiz-body .name-in")).toHaveValue("Space");
@@ -112,7 +112,7 @@ test.describe("keyboard keys", () => {
 
   test("Add W, A, S and D Keys lays out four keycaps like a keyboard and selects them", async ({ app, page }) => {
     await app.open({ profile: { savedAt: Date.now(), settings: {}, widgets: [] }, query: "?edit" });
-    await page.click('#panel button:has-text("+ Button/Key")');
+    await page.click('#panel button:has-text("+ Add")'); await page.click('#wiz-body .types button:has-text("Button/Key")');
     await page.click('#wiz-body button:has-text("Add W, A, S and D Keys")');
     const ws = Object.fromEntries((await app.profile()).widgets.map(w => [w.label, w]));
     expect(Object.keys(ws)).toEqual(["W", "A", "S", "D"]);
