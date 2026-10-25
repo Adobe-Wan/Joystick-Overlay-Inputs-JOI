@@ -390,6 +390,11 @@ body.panel-hidden #toolbar { left: 50%; max-width: calc(100vw - 1.5rem); }
   width: max-content;   /* left: 50% would otherwise shrink it to the right half of the screen and wrap it with Hide Panel */
 }
 #toolbar .divider { width: 1px; align-self: stretch; background: var(--vg-line-default); margin: 0 var(--vg-space-1); }
+/* Text buttons a step narrower than elsewhere, so Undo and Redo fit on the one row at 1280 wide in a wider fallback font. */
+#toolbar button { padding-inline: var(--vg-space-3); }
+#toolbar button.icon { width: var(--vg-size-control); padding: 0; display: grid; place-items: center; color: var(--vg-text-2); }
+#toolbar button.icon:hover:not(:disabled) { color: var(--vg-text-accent); border-color: var(--vg-line-accent); }
+#toolbar button.icon svg { width: var(--vg-size-icon); height: var(--vg-size-icon); stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
 button, select, input[type=text], input[type=number] {
   font: var(--vg-weight-medium) var(--vg-text-sm) / var(--vg-leading-sm) var(--vg-font-ui); color: var(--vg-text-1); background: transparent;
   border: 1px solid var(--vg-line-control); border-radius: var(--vg-radius-sm); padding: var(--vg-space-1) var(--vg-space-4); min-height: var(--vg-size-control);
@@ -768,23 +773,19 @@ body.panel-hidden #fab-wrap { right: var(--vg-space-6); }
 #fab-menu button svg { width: 1.5rem; height: 1.5rem; }
 #fab-menu.open button { opacity: 1; pointer-events: auto; transform: translate(var(--x), var(--y)) scale(1); transition-delay: var(--d); }
 #fab-menu button:hover, #fab-menu button:focus-visible { background: var(--vg-navy-700); border-color: var(--vg-line-accent); color: var(--vg-text-accent); }
-/* Undo / Redo: small secondary buttons above the +, out of the way while its menu is open */
-#undo-row { position: absolute; left: 50%; bottom: calc(100% + var(--vg-space-3)); transform: translateX(-50%); display: flex; gap: var(--vg-space-2); transition: opacity var(--vg-duration-fast); }
-#fab-menu.open ~ #undo-row { opacity: 0; pointer-events: none; }
-.fab-mini { position: relative; width: 2.5rem; height: 2.5rem; min-height: 0; border-radius: 50%; padding: 0; display: grid; place-items: center;
-  background: var(--vg-navy-900); border: 1px solid var(--vg-line-control); color: var(--vg-text-2); box-shadow: var(--vg-shadow-raised); }
-.fab-mini:hover:not(:disabled), .fab-mini:focus-visible { background: var(--vg-navy-700); border-color: var(--vg-line-accent); color: var(--vg-text-accent); }
-.fab-mini:disabled { opacity: 0.4; cursor: default; }
-.fab-mini svg { width: var(--vg-size-icon); height: var(--vg-size-icon); stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
-/* Tooltips: the + shows its tip to the left, the small buttons above. */
+/* The + steps out of the way: placeFab() lifts it above any widget under its dock, and while a widget still sits under
+   it (dragged there, or no room above) it fades and lets the pointer through to the widget. Focus brings it back. */
+#fab-wrap { transition: bottom var(--vg-duration-base) var(--vg-ease-out), opacity var(--vg-duration-fast); }
+#fab-wrap.yield:not(:focus-within) { opacity: 0.2; pointer-events: none; }
+#fab-wrap.yield:not(:focus-within) * { pointer-events: none; }
+/* Tooltip: the + shows its tip to the left. */
 #fab-wrap [data-tip]::after { content: attr(data-tip); position: absolute; z-index: 3; white-space: nowrap; pointer-events: none; opacity: 0;
   background: var(--vg-navy-900); border: 1px solid var(--vg-line-default); color: var(--vg-text-1); font-size: var(--vg-text-xs); line-height: var(--vg-leading-xs); font-weight: var(--vg-weight-medium); letter-spacing: var(--vg-tracking-wide);
   padding: var(--vg-space-1) var(--vg-space-2); border-radius: var(--vg-radius-xs); box-shadow: var(--vg-shadow-raised); transition: opacity var(--vg-duration-fast); }
 #fab-wrap [data-tip]:hover::after, #fab-wrap [data-tip]:focus-visible::after { opacity: 1; transition-delay: 250ms; }
 #fab[data-tip]::after { right: calc(100% + var(--vg-space-3)); top: 50%; transform: translateY(-50%); }
 #fab[aria-expanded=true]::after { display: none; }
-.fab-mini[data-tip]::after { left: 50%; bottom: calc(100% + var(--vg-space-2)); transform: translateX(-50%); }
-@media (prefers-reduced-motion: reduce) { #fab, #fab-menu button, #undo-row { transition: none; } }
+@media (prefers-reduced-motion: reduce) { #fab, #fab-menu button, #fab-wrap { transition: none; } }
 /* Prominent way back into edit mode when the overlay is empty */
 #enter-edit { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; z-index: 10; pointer-events: none; }
 body:not(.editing):not(.has-widgets) #enter-edit { display: flex; }
@@ -899,6 +900,8 @@ html[data-vg-transparency="reduced"] .paper { -webkit-backdrop-filter: none; bac
 <div id="ui">
   <div id="toolbar" class="paper">
     <label class="switch" title="Leave edit mode (E)"><input type="checkbox" role="switch" id="edit-switch" checked><span class="track"><span class="thumb"></span></span>Edit Mode</label>
+    <button id="undo-btn" class="icon" aria-label="Undo" aria-keyshortcuts="Control+Z" title="Undo (Ctrl+Z)" disabled><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
+    <button id="redo-btn" class="icon" aria-label="Redo" aria-keyshortcuts="Control+Y" title="Redo (Ctrl+Y)" disabled><svg viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></button>
     <span class="divider"></span>
     <button class="primary" data-act="add-device" title="Add a stick, pedals, button, throttle, axis or label">+ Add</button>
     <button data-act="review" id="heat-btn" title="Session heatmap and what it says about your flying">Review</button>
@@ -911,10 +914,6 @@ html[data-vg-transparency="reduced"] .paper { -webkit-backdrop-filter: none; bac
   <div id="fab-wrap">
     <div id="fab-menu" role="menu" aria-label="Add to Overlay" inert></div>
     <button id="fab" class="primary" aria-haspopup="menu" aria-expanded="false" aria-controls="fab-menu" aria-label="Add to Overlay" aria-keyshortcuts="A" data-tip="Add (A)"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
-    <div id="undo-row">
-      <button id="undo-btn" class="fab-mini" aria-label="Undo" aria-keyshortcuts="Control+Z" data-tip="Undo (Ctrl+Z)" disabled><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
-      <button id="redo-btn" class="fab-mini" aria-label="Redo" aria-keyshortcuts="Control+Y" data-tip="Redo (Ctrl+Y)" disabled><svg viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></button>
-    </div>
   </div>
   <input type="file" id="file-in" accept=".json,.js,application/json" hidden>
   <input type="file" id="ref-in" accept="image/png,image/jpeg,image/webp" hidden>
@@ -1362,7 +1361,7 @@ let firstRun = false;
 let saveTimer = null;
 function save() {
   profile.savedAt = Date.now(); stampLayout();
-  recordHistory(); persist();
+  recordHistory(); persist(); queueFab();
 }
 function persist() {
   clearTimeout(saveTimer);
@@ -2723,7 +2722,7 @@ function rebuildAll() {
   updateOffscreenNote();
   hasInputs = profile.widgets.some(w => w.type !== "label");
   hasMouse = profile.widgets.some(w => w.mouse);
-  wake(true);
+  wake(true); queueFab();
 }
 // ---------- moving a layout between screen shapes ----------
 // Positions are saved together with the canvas they were arranged on (settings.layoutW/H). When the
@@ -3516,7 +3515,8 @@ document.addEventListener("pointerdown", e => {
     // Sizes can't change during a move: measure everything once here, so pointermove never forces a layout.
     const ids = new Set(ws.map(w => w.id)), bs = ws.map(boxOf);
     drag = { start: ws.map(w => ({ w, x: w.x, y: w.y })), box: unionBox(ws, bs), ext: unionBox(ws, ws.map(footprintOf)), ids, size: bs.length === 1 ? bs[0] : null,
-      others: profile.widgets.filter(o => !ids.has(o.id)).map(boxOf), sx: e.clientX, sy: e.clientY, sc: overlayScale(), moved: false };
+      others: profile.widgets.filter(o => !ids.has(o.id)).map(boxOf), sx: e.clientX, sy: e.clientY, sc: overlayScale(), moved: false,
+      fab: $("#fab-wrap").getBoundingClientRect() };
     wEl.setPointerCapture(e.pointerId);
     return;
   }
@@ -3587,6 +3587,9 @@ document.addEventListener("pointermove", e => {
     const r = snapMove(drag.box, rdx, rdy, drag.ids, e.altKey, drag.others, drag.ext);
     for (const s of drag.start) { s.w.x = Math.round(s.x + r.dx); s.w.y = Math.round(s.y + r.dy); positionWidget(s.w, drag.size); }
     drawGuides(r.guides);
+    // Dragged under the +: it yields until the drop, then placeFab finds it a spot.
+    const b = drag.box, k = drag.sc, at = { left: (b.x + r.dx) * k, right: (b.x + r.dx + b.w) * k, top: (b.y + r.dy) * k, bottom: (b.y + r.dy + b.h) * k };
+    $("#fab-wrap").classList.toggle("yield", rectsMeet(at, drag.fab));
     return;
   }
   if (marquee) {
@@ -3671,7 +3674,7 @@ function setEditing(on) {
   }
   applyReference(); drawGrid();
   setSelection([]); placeResize();
-  wake();
+  wake(); queueFab();
 }
 function addLabel() {
   const s = profile.settings;
@@ -4269,6 +4272,7 @@ $("#empty-device").addEventListener("click", startDeviceWizard);
 function togglePanel() {
   const hidden = document.body.classList.toggle("panel-hidden");
   $("#panel-btn").textContent = hidden ? "Show Panel" : "Hide Panel";
+  queueFab();
 }
 $("#toolbar").addEventListener("click", e => {
   const act = e.target.dataset && e.target.dataset.act; if (!act) return;
@@ -4985,6 +4989,36 @@ function closeFab(refocus) {
   if (refocus) $("#fab").focus();
 }
 $("#fab").addEventListener("click", () => $("#fab-menu").classList.contains("open") ? closeFab() : openFab());
+// The + docks bottom right against the panel, where presets and new widgets line up too. When a widget sits under the
+// dock, the + lifts to the lowest free spot above it in the same column (the closed menu fans up and left from there).
+// With no free spot below the toolbar, it stays docked and yields instead: faded, with clicks going through to the
+// widget, while the pointer is over a widget it covers. A (or Tab) still reaches it, and focus shows it in full.
+const FAB_GAP = 8;
+let fabRaf = 0, fabCovered = [];
+function queueFab() { if (!fabRaf) fabRaf = requestAnimationFrame(() => { fabRaf = 0; placeFab(); }); }
+const rectsMeet = (a, b, g = 0) => a.left < b.right + g && b.left < a.right + g && a.top < b.bottom + g && b.top < a.bottom + g;
+const stageRects = () => [...document.querySelectorAll("#stage .widget, #stage .holo-base")].map(e => e.getBoundingClientRect()).filter(r => r.width && r.height);
+function placeFab() {
+  const wrap = $("#fab-wrap");
+  if (!editing) { fabCovered = []; wrap.classList.remove("yield"); return; }
+  const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16, dock = 1.5 * rem;   // --vg-space-6
+  const r = wrap.getBoundingClientRect(), size = r.height, H = window.innerHeight, top = $("#toolbar").getBoundingClientRect().bottom + FAB_GAP;
+  const at = b => ({ left: r.left, right: r.right, top: H - b - size, bottom: H - b });
+  const column = stageRects().filter(o => o.left < r.right + FAB_GAP && r.left < o.right + FAB_GAP);
+  const tries = [dock, ...column.map(o => Math.ceil((H - o.top + FAB_GAP) / 4) * 4)].sort((a, b) => a - b);
+  let b = tries.find(t => at(t).top >= top && !column.some(o => rectsMeet(at(t), o, FAB_GAP))) ?? dock;
+  if (at(b).top < top) b = dock;
+  wrap.style.bottom = b === dock ? "" : b + "px";
+  const box = at(b);
+  fabCovered = column.filter(o => rectsMeet(box, o));
+  if (!fabCovered.length) wrap.classList.remove("yield");
+}
+// Covered: fade while the pointer is over a widget under the +, and come back when it leaves.
+document.addEventListener("pointermove", e => {
+  if (!fabCovered.length || drag) return;
+  const p = { left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY };
+  $("#fab-wrap").classList.toggle("yield", fabCovered.some(o => rectsMeet(p, o, 0.5)));
+});
 $("#undo-btn").addEventListener("click", undo);
 $("#coach").addEventListener("click", e => {
   const b = e.target.closest("[data-coach]"); if (!b) return;
