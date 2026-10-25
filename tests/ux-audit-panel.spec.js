@@ -163,3 +163,25 @@ test("every slider value button in the stick panel is at least 24 px tall, on th
   await page.keyboard.press("Escape");
   await expect(row.locator(".val")).toBeFocused();
 });
+
+// R16: quiet buttons in a section have no box, so their text lines up with the section's content edge.
+test("quiet reset buttons in panel sections start at the content edge and keep a full-height target", async ({ app, page }) => {
+  await app.open({ profile: base([stick({ boxW: 320, boxH: 320 }), stick({ id: "s2", x: 800 })]), devices: [h.DEV.virpil()], query: "?transparent" });
+  for (const ids of [["s1"], ["s1", "s2"]]) {
+    await edit(page, ids);
+    await page.evaluate(() => setProjector(selectedWidgets(), true));
+    await page.evaluate(() => renderPanel());
+    await openAll(page);
+    const bs = await page.evaluate(() => [...document.querySelectorAll("#panel .sec-b button.subtle")].filter(b => b.offsetParent).map(b => {
+      const body = b.closest(".sec-b"), r = document.createRange(); r.selectNodeContents(b);
+      const label = [...body.children].find(c => c.offsetParent && !c.classList.contains("actions"));
+      return { t: b.textContent, text: r.getBoundingClientRect().left, edge: body.getBoundingClientRect().left, label: label.getBoundingClientRect().left, h: b.getBoundingClientRect().height };
+    }));
+    expect(bs.map(b => b.t)).toEqual(expect.arrayContaining(["Fit to Content", "Reset Layout", "Reset Effects", "Reset Look", "Reset Projector"].filter(t => ids.length === 1 || t !== "Fit to Content")));
+    for (const b of bs) {
+      expect(Math.abs(b.text - b.edge), b.t).toBeLessThanOrEqual(1);
+      expect(Math.abs(b.text - b.label), b.t + " vs the content above").toBeLessThanOrEqual(1);
+      expect(b.h, b.t).toBeGreaterThanOrEqual(36);
+    }
+  }
+});

@@ -599,6 +599,11 @@ input[type=checkbox] { accent-color: var(--vg-accent-default); width: 1.25rem; h
 /* Quiet buttons for resets: there when you need them, not competing with the controls. */
 button.subtle { border-color: transparent; color: var(--vg-text-2); }
 button.subtle:hover { border-color: var(--vg-line-control); color: var(--vg-text-1); background: var(--vg-surface-ink-2); }
+/* Inside a panel section a quiet button (Fit to Content, Reset Layout, Reset Effects, Reset Look, Reset Projector) has
+   no box, so its text starts at the content edge like the labels above it. Its height keeps the 36 px target; hover
+   underlines instead of drawing a box that would no longer fit the text. */
+.sec-b button.subtle { padding-inline: 0; min-width: var(--vg-size-control); }
+.sec-b button.subtle:hover { border-color: transparent; background: none; color: var(--vg-text-1); text-decoration: underline; text-underline-offset: 0.25rem; }
 .icon-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: var(--vg-space-1); }
 #panel .icon-row + .icon-row { margin-top: var(--vg-space-1); }
 .icon-row.four { grid-template-columns: repeat(4, 1fr); }
