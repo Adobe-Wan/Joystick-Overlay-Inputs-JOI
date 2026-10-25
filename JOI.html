@@ -3829,12 +3829,17 @@ function showPreviewChip() {
   const c = $("#preview-chip"); c.classList.remove("min"); clearTimeout(chipTimer);
   chipTimer = setTimeout(() => { if ($("#offscreen-note").hidden) c.classList.add("min"); }, PREVIEW_CHIP_MS);
 }
+// Leaving the editor, Tab starts from the top of the page again: the browser keeps its focus starting point at the
+// last focused element even once that element is hidden, so the first Tab could land nowhere instead of on the chip.
+function resetTabStart() {
+  const b = document.body; b.tabIndex = -1; b.focus({ preventScroll: true }); b.removeAttribute("tabindex");
+}
 function setEditing(on) {
   const leaving = editing && !on;
   editing = on;
   document.body.classList.toggle("editing", on);
   $("#edit-switch").checked = on;
-  if (!on) { closeWelcome(); closeHelp(); closeFab(); if (wiz) closeWizard(); if (live) stopLive(false); showPreviewChip(); }
+  if (!on) { closeWelcome(); closeHelp(); closeFab(); if (wiz) closeWizard(); if (live) stopLive(false); showPreviewChip(); resetTabStart(); }
   // First time out of the editor with a layout and no profile.js next to the page: say once how to keep it.
   if (leaving && profile.widgets.length && !tipsSeen.backup && !window.JOI_PROFILE && !window.STAYONTARGET_PROFILE && !window.JOYVIZ_PROFILE) {
     tipsSeen.backup = true; try { localStorage.setItem(TIPS_KEY, JSON.stringify(tipsSeen)); } catch (e) {}
