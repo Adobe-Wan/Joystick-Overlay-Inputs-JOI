@@ -1632,8 +1632,8 @@ const isUnbound = w => w.type !== "label" && !w.match && !w.key && !w.mouse;
 const STICK_NAMES = {
   xy: { x: "X", y: "Y", name: "X and Y" },
   flight: { x: "YAW", y: "PIT", name: "Yaw and Pitch", hint: "The stick that aims the ship: left and right is yaw, forward and back is pitch." },
-  strafe: { x: "L/R", y: "U/D", name: "Strafe: Left / Right and Up / Down", hint: "The stick that slides the ship sideways and up or down." },
-  strafefb: { x: "L/R", y: "F/B", name: "Strafe: Left / Right and Forward / Back", hint: "Sideways and forward or back, for a throttle's thumbstick." }
+  strafe: { x: "L/R", y: "U/D", name: "Strafe and Up / Down", hint: "Left and right slides the ship sideways; forward and back moves it up or down." },
+  strafefb: { x: "L/R", y: "F/B", name: "Strafe and Forward / Back", hint: "Left and right slides the ship sideways; forward and back moves it forward or back, as a throttle's thumbstick does." }
 };
 const PEDAL_NAMES = { yaw: { r: "YAW", word: "Yaw", hint: "Pedals usually yaw the ship in Star Citizen." }, roll: { r: "ROLL", word: "Roll" }, rudder: { r: "RUD", word: "Rudder", hint: "Flight-sim wording." } };
 const stickNames = w => STICK_NAMES[w.axisNames] || STICK_NAMES.xy;

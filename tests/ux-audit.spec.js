@@ -43,8 +43,13 @@ test("a stick's axis-name tiles each fit on one line", async ({ app, page }) => 
   await edit(page, ["s1"]);
   const tiles = page.locator('#panel .tiles[aria-label="Axis names"] button');
   await expect(tiles).toHaveCount(4);
-  const sizes = await tiles.evaluateAll(bs => bs.map(b => { const r = b.getBoundingClientRect(), lh = parseFloat(getComputedStyle(b).lineHeight); return { h: r.height, lines: Math.round((b.scrollHeight - 2) / lh) }; }));
-  for (const s of sizes) { expect(s.lines).toBe(1); expect(s.h).toBe(32); }
+  // One line in this machine's font, with room to spare: the editor falls back from Segoe UI to whatever sans the
+  // machine has (DejaVu Sans on a Linux runner is about a fifth wider than Inter), so a label that just fits here
+  // would wrap there.
+  const sizes = await tiles.evaluateAll(bs => bs.map(b => { const r = b.getBoundingClientRect(), cs = getComputedStyle(b), lh = parseFloat(cs.lineHeight);
+    const c = document.createElement("canvas").getContext("2d"); c.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+    return { t: b.textContent, h: r.height, lines: Math.round((b.scrollHeight - 2) / lh), fill: c.measureText(b.textContent).width / (b.clientWidth - 8) }; }));
+  for (const s of sizes) { expect(s.lines, s.t).toBe(1); expect(s.h, s.t).toBe(32); expect(s.fill, s.t + " leaves room for a wider font").toBeLessThan(0.75); }
   // Pedals keep their three short names side by side.
   await app.open({ profile: base([pedals()]), devices: [h.DEV.virpil()], query: "?transparent" });
   await edit(page, ["p1"]);
