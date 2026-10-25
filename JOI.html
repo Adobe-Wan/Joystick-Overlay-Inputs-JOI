@@ -86,20 +86,22 @@
 }
 :root[data-vg-motion="reduced"] { --vg-duration-fast: 0ms; --vg-duration-base: 0ms; --vg-duration-slow: 0ms; --vg-duration-enter: 0ms; --vg-duration-exit: 0ms; }
 /* Manufacturer accents (design-system/themes/mfd-themes.css). When every widget wears one ship maker's Color Theme the
-   editor sets data-vg-theme on <html> and its accent follows; only these six tokens change. */
+   editor sets data-vg-theme on <html> and its accent follows; only these six tokens change. Under the warm makers
+   (accent hue about 20 to 75 degrees: ARGO, Banu, Drake, Mirai) the amber focus ring would match the selected tile
+   and the primary button, so there it turns near white (steel-50) and focus stays the one distinct mark (WCAG 2.4.7). */
 [data-vg-theme="aegis"] { --vg-accent-default: #92C1DA; --vg-accent-hover: #C0DBEA; --vg-accent-strong: #61A5C9; --vg-text-accent: #CDDBEC; --vg-accent-soft: rgba(146, 193, 218, 0.14); --vg-line-accent: #92C1DA; }
 [data-vg-theme="anvil"] { --vg-accent-default: #84E0C8; --vg-accent-hover: #B5ECDE; --vg-accent-strong: #4FD3B0; --vg-text-accent: #B4F2E9; --vg-accent-soft: rgba(132, 224, 200, 0.14); --vg-line-accent: #84E0C8; }
 [data-vg-theme="aopoa"] { --vg-accent-default: #77D991; --vg-accent-hover: #A7E6B8; --vg-accent-strong: #43CB67; --vg-text-accent: #D3F0D8; --vg-accent-soft: rgba(119, 217, 145, 0.14); --vg-line-accent: #77D991; }
-[data-vg-theme="argo"] { --vg-accent-default: #EDD62A; --vg-accent-hover: #F2E162; --vg-accent-strong: #C4AF11; --vg-text-accent: #F2E27A; --vg-accent-soft: rgba(237, 214, 42, 0.14); --vg-line-accent: #EDD62A; }
-[data-vg-theme="banu"] { --vg-accent-default: #DFF073; --vg-accent-hover: #ECF6AA; --vg-accent-strong: #D1EA37; --vg-text-accent: #ECF59F; --vg-accent-soft: rgba(223, 240, 115, 0.14); --vg-line-accent: #DFF073; }
+[data-vg-theme="argo"] { --vg-accent-default: #EDD62A; --vg-accent-hover: #F2E162; --vg-accent-strong: #C4AF11; --vg-text-accent: #F2E27A; --vg-accent-soft: rgba(237, 214, 42, 0.14); --vg-line-accent: #EDD62A; --vg-focus-ring: var(--vg-steel-50); }
+[data-vg-theme="banu"] { --vg-accent-default: #DFF073; --vg-accent-hover: #ECF6AA; --vg-accent-strong: #D1EA37; --vg-text-accent: #ECF59F; --vg-accent-soft: rgba(223, 240, 115, 0.14); --vg-line-accent: #DFF073; --vg-focus-ring: var(--vg-steel-50); }
 [data-vg-theme="consolidated"] { --vg-accent-default: #7BD1CB; --vg-accent-hover: #A8E1DD; --vg-accent-strong: #4AC0B8; --vg-text-accent: #D3EBD7; --vg-accent-soft: rgba(123, 209, 203, 0.14); --vg-line-accent: #7BD1CB; }
 [data-vg-theme="crusader"] { --vg-accent-default: #65AFE0; --vg-accent-hover: #98C9EA; --vg-accent-strong: #2E92D5; --vg-text-accent: #CEE4F5; --vg-accent-soft: rgba(101, 175, 224, 0.14); --vg-line-accent: #65AFE0; }
-[data-vg-theme="drake"] { --vg-accent-default: #E9A23B; --vg-accent-hover: #EFBC72; --vg-accent-strong: #CB8117; --vg-text-accent: #F0C27A; --vg-accent-soft: rgba(233, 162, 59, 0.14); --vg-line-accent: #E9A23B; }
+[data-vg-theme="drake"] { --vg-accent-default: #E9A23B; --vg-accent-hover: #EFBC72; --vg-accent-strong: #CB8117; --vg-text-accent: #F0C27A; --vg-accent-soft: rgba(233, 162, 59, 0.14); --vg-line-accent: #E9A23B; --vg-focus-ring: var(--vg-steel-50); }
 [data-vg-theme="esperia"] { --vg-accent-default: #EDF1F6; --vg-accent-hover: #FFFFFF; --vg-accent-strong: #C1CFE0; --vg-text-accent: #FFFFFF; --vg-accent-soft: rgba(237, 241, 246, 0.14); --vg-line-accent: #EDF1F6; }
 [data-vg-theme="gatac"] { --vg-accent-default: #9E70F5; --vg-accent-hover: #C5A9F9; --vg-accent-strong: #965AF1; --vg-text-accent: #E4CCFF; --vg-accent-soft: rgba(158, 112, 245, 0.14); --vg-line-accent: #9E70F5; }
 [data-vg-theme="greycat"] { --vg-accent-default: #8FE04A; --vg-accent-hover: #AFE97E; --vg-accent-strong: #6DC622; --vg-text-accent: #B9EE8F; --vg-accent-soft: rgba(143, 224, 74, 0.14); --vg-line-accent: #8FE04A; }
 [data-vg-theme="kruger"] { --vg-accent-default: #C2EBCD; --vg-accent-hover: #F0FAF3; --vg-accent-strong: #90DBA4; --vg-text-accent: #E9FBEF; --vg-accent-soft: rgba(194, 235, 205, 0.14); --vg-line-accent: #C2EBCD; }
-[data-vg-theme="mirai"] { --vg-accent-default: #C9C5AC; --vg-accent-hover: #E1DFD1; --vg-accent-strong: #AFA984; --vg-text-accent: #E4E1CC; --vg-accent-soft: rgba(201, 197, 172, 0.14); --vg-line-accent: #C9C5AC; }
+[data-vg-theme="mirai"] { --vg-accent-default: #C9C5AC; --vg-accent-hover: #E1DFD1; --vg-accent-strong: #AFA984; --vg-text-accent: #E4E1CC; --vg-accent-soft: rgba(201, 197, 172, 0.14); --vg-line-accent: #C9C5AC; --vg-focus-ring: var(--vg-steel-50); }
 [data-vg-theme="misc"] { --vg-accent-default: #34B3A6; --vg-accent-hover: #56CEC2; --vg-accent-strong: #2A8A80; --vg-text-accent: #E0E5E2; --vg-accent-soft: rgba(52, 179, 166, 0.14); --vg-line-accent: #34B3A6; }
 [data-vg-theme="origin"] { --vg-accent-default: #C4E3FC; --vg-accent-hover: #FEFFFF; --vg-accent-strong: #85C5F9; --vg-text-accent: #E3F1FF; --vg-accent-soft: rgba(196, 227, 252, 0.14); --vg-line-accent: #C4E3FC; }
 [data-vg-theme="rsi"] { --vg-accent-default: #E6EAF2; --vg-accent-hover: #FFFFFF; --vg-accent-strong: #BAC5DB; --vg-text-accent: #E6EAF2; --vg-accent-soft: rgba(230, 234, 242, 0.14); --vg-line-accent: #E6EAF2; }
