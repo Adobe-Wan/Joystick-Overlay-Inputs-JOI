@@ -506,6 +506,7 @@ input[type=checkbox] { accent-color: var(--vg-accent-default); width: 1.25rem; h
 #panel h4::after { content: ""; flex: 1; height: 1px; background: var(--vg-line-subtle); }
 #panel .row { display: flex; align-items: center; gap: var(--vg-space-2); margin: var(--vg-space-2) 0; }
 #panel .row > span { color: var(--vg-text-2); }
+#panel .on-group .row.member { margin-left: var(--vg-space-4); padding-left: var(--vg-space-3); border-left: 1px solid var(--vg-line-default); }
 #panel .row select, #panel .row input[type=text], #panel .row input[type=number] { width: 11rem; }
 #panel .hint { color: var(--vg-text-2); line-height: var(--vg-leading-sm); margin: var(--vg-space-2) 0; }
 #panel .hint.warn { color: var(--vg-status-warn); }
@@ -1241,7 +1242,8 @@ const WIDGET_CHECK = {
   accent: optHex, text: optHex, bg: optHex, border: optHex, bgAlpha: numRange(0, 100), theme: idText,
   axes: AXIS_MAP, inv: BOOL_MAP,
   persp: v => isObj(v) ? pickFields(v, PERSP_CHECK) : undefined, proj: v => isObj(v) ? pickFields(v, PROJ_CHECK) : undefined, holo: v => isObj(v) ? pickFields(v, HOLO_CHECK) : undefined,
-  fx: v => isObj(v) ? pickFields(v, FX_CHECK) : undefined
+  fx: v => isObj(v) ? pickFields(v, FX_CHECK) : undefined,
+  group: v => typeof v === "string" && ID_RE.test(v) ? v : undefined   // widgets that move as one (groupSelected)
 };
 const DEF = DEFAULT_SETTINGS;
 const SETTINGS_CHECK = {
@@ -1289,6 +1291,12 @@ function keepV2Sizes(w) {
   const old = { ...base, ...((w.type === "throttle" || w.type === "axis") && w.orient === "h" ? { bw: 20, bh: 152 } : {}) };
   w.dims = { ...old, ...(w.dims || {}) };
 }
+// A group is the widgets that share one w.group id. A group needs two: an id left on a single widget (its others
+// removed, or a file that names it once) is dropped.
+function pruneGroups(ws) {
+  const n = {}; for (const w of ws) if (w.group) n[w.group] = (n[w.group] || 0) + 1;
+  for (const w of ws) if (w.group && n[w.group] < 2) delete w.group;
+}
 function normalize(p) {
   const n = newProfile();
   if (!isObj(p)) return n;
@@ -1304,6 +1312,7 @@ function normalizeLayout(p, ver) {
   const ids = new Set();
   n.widgets = (isObj(p) && Array.isArray(p.widgets) ? p.widgets : []).map(normalizeWidget).filter(Boolean);
   for (const w of n.widgets) { while (ids.has(w.id)) w.id = uid(); ids.add(w.id); }   // two widgets can't share one runtime entry
+  pruneGroups(n.widgets);
   // Migrate the former 62% default background, too faint over Star Citizen's HUD, to 88%.
   if (n.settings.panelAlpha === 62) { n.settings.panelAlpha = 88; n.settings.panel = "#05080c"; n.settings.text = "#f2f7fb"; }
   for (const w of n.widgets) {
@@ -3297,10 +3306,6 @@ function setSelection(ids, mode) {
   panelMode = mode || (selected.size > 1 ? "multi" : selected.size === 1 ? "widget" : "home");
   syncSelectionClasses(); renderPanel();
 }
-function toggleSelected(id) {
-  if (selected.has(id)) selected.delete(id); else selected.add(id);
-  setSelection([...selected]);
-}
 // The corner handles follow the single selected widget's flat box; hidden otherwise.
 function placeResize(size) {
   const r = $("#resize"), ws = selectedWidgets(), w = ws.length === 1 ? ws[0] : null;
@@ -3316,6 +3321,25 @@ function syncSelectionClasses() {
   document.querySelectorAll(".holo-rig").forEach(e => e.classList.toggle("selected", selected.has(e.dataset.for)));   // outlines the base while editing
 }
 const selectedWidgets = () => profile.widgets.filter(w => selected.has(w.id));
+// Groups: a click selects every widget in the widget's group; a second click on it picks just that one (as Figma
+// enters a group), so it can still be moved and styled on its own.
+const groupMates = id => { const w = profile.widgets.find(o => o.id === id); return w && w.group ? profile.widgets.filter(o => o.group === w.group).map(o => o.id) : [id]; };
+const withGroups = ids => [...new Set(ids.flatMap(groupMates))];
+const wholeGroup = ws => ws.length > 1 && !!ws[0].group && ws.every(w => w.group === ws[0].group) && groupMates(ws[0].id).length === ws.length;
+function groupSelected() {
+  const ws = selectedWidgets();
+  if (ws.length < 2) { toast("Select two or more widgets to group them."); return; }
+  const g = uid(); for (const w of ws) w.group = g;
+  pruneGroups(profile.widgets); saveStep(); setSelection(ws.map(w => w.id));
+  toast(`Grouped ${ws.length} widgets. Ctrl+Shift+G ungroups them.`);
+}
+function ungroupSelected() {
+  const gs = new Set(selectedWidgets().map(w => w.group).filter(Boolean));
+  if (!gs.size) { toast("Nothing selected is in a group."); return; }
+  const ws = profile.widgets.filter(w => gs.has(w.group)); for (const w of ws) delete w.group;
+  saveStep(); setSelection([...selected]);
+  toast(`Ungrouped ${ws.length} widgets`);
+}
 
 // ---------- geometry, snapping, alignment ----------
 function boxOf(w) {
@@ -3509,14 +3533,23 @@ document.addEventListener("pointerdown", e => {
   const wEl = e.target.closest(".widget");
   if (wEl) {
     const id = wEl.dataset.id;
-    if (e.shiftKey || e.ctrlKey || e.metaKey) { toggleSelected(id); if (!selected.has(id)) return; }
-    else if (!selected.has(id)) setSelection([id]);
+    const mates = groupMates(id);
+    let enter = null;
+    if (e.shiftKey || e.ctrlKey || e.metaKey) {   // a group goes in or out of the selection as one
+      const add = !mates.every(m => selected.has(m));
+      for (const m of mates) if (add) selected.add(m); else selected.delete(m);
+      setSelection([...selected]); if (!add) return;
+    } else if (!selected.has(id)) {
+      // Inside a group already (one of its widgets picked alone), a click on another of its widgets stays inside.
+      const inside = selected.size === 1 && mates.length > 1 && mates.includes([...selected][0]);
+      setSelection(inside ? [id] : mates);
+    } else if (mates.length > 1 && selected.size === mates.length && mates.every(m => selected.has(m))) enter = id;   // on release, unless it moved
     const ws = selectedWidgets();
     // Sizes can't change during a move: measure everything once here, so pointermove never forces a layout.
     const ids = new Set(ws.map(w => w.id)), bs = ws.map(boxOf);
     drag = { start: ws.map(w => ({ w, x: w.x, y: w.y })), box: unionBox(ws, bs), ext: unionBox(ws, ws.map(footprintOf)), ids, size: bs.length === 1 ? bs[0] : null,
       others: profile.widgets.filter(o => !ids.has(o.id)).map(boxOf), sx: e.clientX, sy: e.clientY, sc: overlayScale(), moved: false,
-      fab: $("#fab-wrap").getBoundingClientRect() };
+      fab: $("#fab-wrap").getBoundingClientRect(), enter };
     wEl.setPointerCapture(e.pointerId);
     return;
   }
@@ -3606,7 +3639,7 @@ document.addEventListener("pointerup", () => {
     refreshWidget(w); syncSelectionClasses(); save(); renderPanel(); return;
   }
   if (baseDrag) { const z = baseDrag; baseDrag = null; drawGuides([]); if (z.moved) { save(); placeResize(); renderPanel(); } return; }
-  if (drag) { if (drag.moved) { save(); renderPanel(); } drag = null; drawGuides([]); return; }
+  if (drag) { const z = drag; drag = null; drawGuides([]); if (z.moved) { save(); renderPanel(); } else if (z.enter) setSelection([z.enter]); return; }
   if (marquee) {
     const r = marquee.rect;
     $("#marquee").style.display = "none";
@@ -3616,7 +3649,7 @@ document.addEventListener("pointerup", () => {
       const b = e.getBoundingClientRect();
       if (b.right > r.x && b.left < r.x + r.w && b.bottom > r.y && b.top < r.y + r.h) hit.add(e.dataset.id);
     });
-    marquee = null; setSelection([...hit]);
+    marquee = null; setSelection(withGroups([...hit]));
   }
 });
 
@@ -3639,6 +3672,7 @@ document.addEventListener("keydown", e => {
   else if ((e.key === "Delete" || e.key === "Backspace") && selected.size) deleteSelected();
   else if (e.key === "Escape") { if (selected.size) setSelection([]); else if (onCanvas) setEditing(false); }
   else if (k === "a" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); setSelection(profile.widgets.map(w => w.id)); }
+  else if (k === "g" && mod) { e.preventDefault(); if (e.shiftKey) ungroupSelected(); else groupSelected(); }
   else if (k === "d" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); if (selected.size) duplicateSelected(); }
   else if ((k === "z" && e.shiftKey || k === "y") && (e.ctrlKey || e.metaKey)) { e.preventDefault(); redo(); }
   else if (k === "z" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); undo(); }
@@ -3705,14 +3739,15 @@ function resetHeat() {
 }
 function deleteSelected() {
   const gone = selectedWidgets(); if (!gone.length) return;
-  profile.widgets = profile.widgets.filter(w => !selected.has(w.id));
+  profile.widgets = profile.widgets.filter(w => !selected.has(w.id)); pruneGroups(profile.widgets);
   for (const id of selected) delete runtime[id];
   selected.clear(); save(); rebuildAll(); setSelection([]);
   toast(gone.length === 1 ? `Removed ${gone[0].label || "the widget"}. Ctrl+Z brings it back.` : `Removed ${gone.length} widgets. Ctrl+Z brings them back.`);
 }
 function duplicateSelected() {
-  const copies = selectedWidgets().map(w => ({ ...JSON.parse(JSON.stringify(w)), id: uid(), x: w.x + CASCADE, y: w.y + CASCADE }));
-  profile.widgets.push(...copies); save(); rebuildAll(); setSelection(copies.map(c => c.id));
+  const regroup = {};   // copies of a group's widgets form a new group of their own
+  const copies = selectedWidgets().map(w => ({ ...JSON.parse(JSON.stringify(w)), id: uid(), x: w.x + CASCADE, y: w.y + CASCADE, ...(w.group ? { group: regroup[w.group] ||= uid() } : {}) }));
+  profile.widgets.push(...copies); pruneGroups(profile.widgets); save(); rebuildAll(); setSelection(copies.map(c => c.id));
 }
 
 // Reference screenshot behind the editor, so widgets can be lined up against the game HUD.
@@ -4853,8 +4888,17 @@ function renderHome(p) {
     refImage ? el("button", { onclick: clearReference }, "No Screenshot") : null));
   if (profile.widgets.length) {
     p.append(el("h4", {}, "On Screen"));
-    for (const w of profile.widgets) p.append(el("div", { class: "row" },
-      el("button", { "aria-label": "Edit " + (w.label || w.type), onclick: () => setSelection([w.id]) }, "Edit"), el("span", {}, w.label || w.type)));
+    // A group is one row, its widgets indented under it. Edit on the group row selects them all; on a widget, just it.
+    const row = (name, ids, cls = "row") => el("div", { class: cls }, el("button", { "aria-label": "Edit " + name, onclick: () => setSelection(ids) }, "Edit"), el("span", {}, name));
+    const shown = new Set();
+    for (const w of profile.widgets) {
+      if (!w.group) { p.append(row(w.label || w.type, [w.id])); continue; }
+      if (shown.has(w.group)) continue;
+      shown.add(w.group);
+      const ms = profile.widgets.filter(o => o.group === w.group), name = `Group of ${ms.length}`;
+      p.append(el("div", { class: "on-group", role: "group", "aria-label": name }, row(name, ms.map(o => o.id), "row group-row"),
+        ...ms.map(o => row(o.label || o.type, [o.id], "row member"))));
+    }
   }
   p.append(el("div", { class: "hint small" }, "Text too small? ", el("button", { class: "text", onclick: () => setSelection([], "settings") }, "Change the editor text size in Settings")));
   p.append(el("div", { class: "actions" }, el("button", { class: "danger subtle", onclick: resetAll, title: "Remove every widget and setting" }, "Reset All")));
@@ -5473,7 +5517,10 @@ function renderWidgetPanel(p) {
   const names = { stick: "Stick", throttle: "Throttle", pedals: "Pedals", axis: "Single Axis", button: "Button/Key", label: "Label" };
   const upd = () => { refreshWidget(w); syncSelectionClasses(); };
   const seen = w.match && padFor(w, connectedPads());
-  panelHead(p, w.mouse ? "Mouse" : names[w.type] || w.type, "", el("div", {}, el("div", { class: "fields" }, fld("Name", textIn(w, "label", upd), null, true)), bindRow(w, seen)));
+  const mates = groupMates(w.id);
+  const inGroup = mates.length > 1 ? el("div", { class: "bind-row" }, el("span", { class: "hint small" }, `In a group of ${mates.length}`),
+    el("button", { onclick: () => setSelection(mates), title: "Select every widget in this group" }, "Select Group")) : null;
+  panelHead(p, w.mouse ? "Mouse" : names[w.type] || w.type, "", el("div", {}, el("div", { class: "fields" }, fld("Name", textIn(w, "label", upd), null, true)), bindRow(w, seen), inGroup));
   positionSection(p, [w]);
   arrangeSection(p);
   layoutSection(p, [w]);
@@ -5520,8 +5567,12 @@ function bindRow(w, seen) {
   return el("div", { class: "bind-row" }, el("span", { class: "hint small" + cls }, text), el("button", { onclick: () => startRemap(w), title }, btn));
 }
 function renderMultiPanel(p) {
-  const ws = selectedWidgets();
-  panelHead(p, ws.length + " widgets selected", "Changes apply to all selected widgets. Shift+click a widget to add or remove it.");
+  const ws = selectedWidgets(), whole = wholeGroup(ws), grouped = ws.some(w => w.group);
+  const groupBtn = el("button", { onclick: groupSelected, title: "Keep these widgets together when you move them (Ctrl+G)", "aria-keyshortcuts": "Control+G" }, "Group");
+  const ungroupBtn = el("button", { onclick: ungroupSelected, title: "Let these widgets move on their own again (Ctrl+Shift+G)", "aria-keyshortcuts": "Control+Shift+G" }, "Ungroup");
+  panelHead(p, whole ? `Group of ${ws.length}` : ws.length + " widgets selected",
+    whole ? "Drag any of them to move the group. Click one again to edit just that widget." : "Changes apply to all selected widgets. Shift+click a widget to add or remove it.",
+    el("div", { class: "actions" }, whole ? null : groupBtn, grouped ? ungroupBtn : null));
   positionSection(p, ws);
   arrangeSection(p);
   layoutSection(p, ws);
