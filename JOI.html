@@ -5483,6 +5483,14 @@ function renderDevicesPanel(p) {
 }
 // Rebuilds the list only when what it says changes (a device comes or goes, a widget finds its device); otherwise
 // each tick just moves the activity meters and the pressed highlight.
+// How far a device has moved from where its axes sat when its row appeared, 0 to 1. Measured from rest, not from 0,
+// because many devices rest away from the middle: a hat idles at about 1.29 and toe brakes at -1, which would peg the
+// meter at full before anything moved. A hat (resting outside -1..1) counts as moved once it reports a direction.
+function devActivity(axes, rest) {
+  let m = 0;
+  axes.forEach((a, i) => { const r = rest[i] ?? a; m = Math.max(m, Math.abs(r) > 1 ? (Math.abs(a) <= 1 ? 1 : 0) : Math.abs(a - r)); });
+  return Math.min(1, m);
+}
 function fillDevices(body) {
   const pads = connectedPads(), raw = navigator.getGamepads ? [...navigator.getGamepads()] : [];
   const slots = Math.max(raw.length, pads.length);
@@ -5491,7 +5499,7 @@ function fillDevices(body) {
   const key = slots + "|" + pads.map(d => d.pad.index + d.id + d.nth + "," + d.pad.axes.length + "," + d.pad.buttons.length).join("|") + "|" + missing.map(w => w.id).join();
   if (body._key === key) {
     pads.forEach((d, i) => {
-      const r = body._rows[i], act = Math.round(Math.max(0, ...d.pad.axes.map(a => Math.abs(a))) * 100) + "%";
+      const r = body._rows[i], act = Math.round(devActivity(d.pad.axes, r.rest) * 100) + "%";
       r.row.classList.toggle("hot", d.pad.buttons.some(b => b.pressed));
       if (r.meter.style.width !== act) r.meter.style.width = act;
     });
@@ -5508,14 +5516,14 @@ function fillDevices(body) {
   frag.append(el("h4", {}, `Seen by the browser (${pads.length}${slots ? " of " + slots + " slots" : ""})`));
   if (!pads.length) frag.append(el("div", { class: "hint warn" }, "Nothing yet. Browsers hide devices until you press a button or move an axis fully after the page opens."));
   for (const d of pads) {
-    const act = Math.max(0, ...d.pad.axes.map(a => Math.abs(a))), pressed = d.pad.buttons.some(b => b.pressed);
-    const meter = el("span", { class: "dev-meter", "aria-hidden": "true" }, el("i", { style: `width:${Math.round(act * 100)}%` }));
+    const rest = d.pad.axes.slice(), pressed = d.pad.buttons.some(b => b.pressed);
+    const meter = el("span", { class: "dev-meter", "aria-hidden": "true" }, el("i", { style: "width:0%" }));
     const by = used(d);
     const row = el("div", { class: "dev-row" + (pressed ? " hot" : "") },
       el("b", {}, prettyName(d.id) + (pads.filter(x => x.key === d.key).length > 1 ? ` #${d.nth + 1}` : "")),
       el("small", {}, `Slot ${d.pad.index + 1} · ${d.pad.axes.length} axes · ${d.pad.buttons.length} buttons` + (by.length ? " · used by " + by.join(", ") : " · not used yet")),
       meter);
-    frag.append(row); body._rows.push({ row, meter: meter.firstChild });
+    frag.append(row); body._rows.push({ row, meter: meter.firstChild, rest });
   }
   if (missing.length) {
     frag.append(el("h4", {}, "Waiting for"));
