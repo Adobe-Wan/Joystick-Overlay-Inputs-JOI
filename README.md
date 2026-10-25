@@ -181,9 +181,9 @@ The editor (side panel, toolbar, dialogs) is drawn with **Verseglass**, a small 
 
 ## Cockpit Look (perspective and projection)
 Select a widget (or several) and use **Cockpit Look** in the side panel to make it sit naturally in your cockpit, either on an angled screen or projected like a hologram. Widgets start Flat; the looks are optional.
-- **Style:** **Flat** or **Projector** comes first. Flat shows the **Screens** presets (Flat, Left, Right, Dash, Low Left, Low Right, Overhead) and **Holograms** (Facing You, Visor HUD, Canopy Glass, Left Wall, Right Wall); Projector shows the Projector presets described in the next section. Hover a tile for its full name and a short description; the section header shows the style and the active preset.
+- **Style:** **Flat** or **Projector** comes first. Flat shows the **Screens** presets (Straight On, Left, Right, Dash, Low Left, Low Right, Overhead) and **Holograms** (Facing You, Visor HUD, Canopy Glass, Left Wall, Right Wall); Projector shows the Projector presets described in the next section. Hover a tile for its full name and a short description; the section header shows the style and the active preset.
 - Under the presets, for both styles and always visible: **Angle** (Tilt, Turn, Rotate, Skew X, Skew Y and Perspective, lower is stronger) and **Light and Background**: Glow (a halo in your highlight color, so it follows the theme), Background fade (lets the scene show through; the line under it says what the background actually shows at, from Background opacity in **Colors** and the fade) and Scanlines (off unless you turn them on).
-- **Reset to Flat** undoes all of it.
+- **Reset Look** undoes all of it: back to Flat and Straight On. Background opacity stays as you set it.
 - Snapping and alignment use the widget's flat footprint, so the tilted corners can sit slightly outside the guides.
 
 Perspective is a single CSS 3D transform per widget, which the GPU composites, and the projection effects are painted once. They cost nothing per frame, and flat widgets skip them entirely.
@@ -203,7 +203,7 @@ Projector makes a widget look like a hologram emitted from a small projector bas
 - **Effects:** **Fade toward base** (how much the drawn face dims toward the base; 0 keeps it even, readouts and titles always stay full strength), then **Float**, **Flicker** and **Color Fringe**, which need Subtle or Full motion.
 - **Scene: Dark / Bright.** Over planet glare, clouds or a bright sky, low-alpha light disappears. **Bright** brightens the base, rays and cone, turns the scanlines into lines of your highlight color and firms up the border so readouts stay legible.
 - **Project from One Base** (with several widgets selected) aims every selected widget at one base under the group. Dragging the group keeps them together; moving one widget on its own breaks the group, and you can press it again.
-- **Reset Projector** turns it off for the selected widgets; **Reset to Flat** removes it along with the rest of the look. While Projector is on, **3D depth** has no effect.
+- **Reset Projector** turns it off for the selected widgets; **Reset Look** removes it along with the rest of the look. While Projector is on, **3D depth** has no effect.
 
 Every color in the effect comes from the widget's theme, so switching the theme recolors the base, rays and glow. Themes with a near-white highlight borrow their border color (Esperia's pink) or use a cool white (RSI, Default).
 

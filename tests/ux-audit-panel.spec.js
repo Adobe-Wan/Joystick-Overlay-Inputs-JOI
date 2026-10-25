@@ -59,3 +59,26 @@ test("section edges in the stick panel use the accent or a neutral line, never a
   expect(await page.locator("#panel .bind-row .hint").evaluate(e => getComputedStyle(e).color)).toBe(WARN);
   expect(await page.content()).not.toMatch(/#B59CFF/i);
 });
+
+// R07: Flat is the Style (Flat or Projector) and nothing else; the first Screens look is Straight On.
+test("Cockpit Look: Flat is only the Style, the default screen look is Straight On, and Reset Look restores both", async ({ app, page }) => {
+  await app.open({ profile: base([stick()]), devices: [h.DEV.virpil()], query: "?transparent" });
+  await edit(page, ["s1"]);
+  const look = page.locator("#sec-look");
+  const head = page.locator('#panel .sec-t[aria-controls="sec-look"]');
+  await head.click();
+  await expect(page.locator('#panel [aria-label="Cockpit Look style"] button')).toHaveText(["Flat", "Projector"]);
+  const screens = look.locator('.looks[aria-label="Screens"] .look-tile');
+  await expect(screens.first()).toHaveAttribute("aria-label", "Straight On");
+  await expect(screens.first()).toHaveText("Straight On");
+  await expect(screens.first()).toHaveAttribute("aria-pressed", "true");
+  await expect(look.locator(".look-tile", { hasText: /^Flat$/ })).toHaveCount(0);
+  await expect(head.locator(".sum")).toHaveText("Flat · Straight On");
+  await look.locator('.look-tile[aria-label="Left Screen"]').click();
+  await expect(page.locator('#panel .sec-t[aria-controls="sec-look"] .sum')).toHaveText("Flat · Left Screen");
+  await expect(page.locator("#sec-look button", { hasText: "Reset to" })).toHaveCount(0);
+  await page.locator("#sec-look button", { hasText: "Reset Look" }).click();
+  await expect(page.locator('#panel .sec-t[aria-controls="sec-look"] .sum')).toHaveText("Flat · Straight On");
+  await expect(page.locator('#sec-look .look-tile[aria-label="Straight On"]')).toHaveAttribute("aria-pressed", "true");
+  expect(app.consoleErrors).toEqual([]);
+});

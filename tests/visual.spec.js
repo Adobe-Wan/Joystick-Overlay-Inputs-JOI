@@ -69,9 +69,9 @@ test.describe("visual", () => {
       save(); rebuildAll();
     });
   });
-  test("Flat on every widget", async ({ app, page }) => {
-    await shot(app, page, "flat", () => {
-      const l = LOOK_PRESETS.find(x => x.name === "Flat");
+  test("Straight On on every widget", async ({ app, page }) => {
+    await shot(app, page, "straight-on", () => {
+      const l = LOOK_PRESETS.find(x => x.name === "Straight On");
       for (const w of profile.widgets) { w.persp = lookPersp(l); w.proj = lookProj(l); delete w.holo; if (w.type === "stick") delete w.face; }
       save(); rebuildAll();
     });

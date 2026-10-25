@@ -2080,7 +2080,8 @@ function mixHex(a, b, t) {
 // 2.5D look: perspective + rotations + skew in a single transform string. The browser
 // composites it on the GPU, so it costs nothing per frame once applied.
 const PERSP_DEFAULT = { rx: 0, ry: 0, rz: 0, sx: 0, sy: 0, d: 900 };
-// Cockpit looks: where the widget sits (perspective) plus how it is lit (projection). Flat is the default.
+// Cockpit looks: where the widget sits (perspective) plus how it is lit (projection). Straight On is the default; it
+// is not called Flat, which is the Style choice (Flat or Projector) above the tiles.
 // proj: glow 0-100 (highlight-colored halo on the frame and text), scan (scanlines). alpha: the background opacity
 // the look sets (0-100, so the scene shows through a hologram). Angles follow Star Citizen cockpits: side
 // screens have their outer edge nearer the camera, consoles lie back toward the dash.
@@ -2088,7 +2089,7 @@ const PROJ_DEFAULT = { glow: 0, scan: false };
 // The panel shows the tiles in three groups (group) with a short label under each tile (tile); the full name is the
 // tooltip and the accessible name.
 const LOOK_PRESETS = [
-  { name: "Flat", tile: "Flat", group: "Screens", hint: "Straight on, no effects. The default.", persp: {} },
+  { name: "Straight On", tile: "Straight On", group: "Screens", hint: "Straight on, no effects. The default.", persp: {} },
   { name: "Left Screen", tile: "Left", group: "Screens", hint: "An angled MFD to the left of the pilot.", persp: { rx: 4, ry: 30 }, proj: { glow: 20 } },
   { name: "Right Screen", tile: "Right", group: "Screens", hint: "An angled MFD to the right of the pilot.", persp: { rx: 4, ry: -30 }, proj: { glow: 20 } },
   { name: "Dash Console", tile: "Dash", group: "Screens", hint: "Lies back on the console below the canopy.", persp: { rx: 40, d: 800 }, proj: { glow: 20 } },
@@ -5284,10 +5285,10 @@ function perspectiveSection(p, ws) {
   slider("Background opacity", bgp, "v", 0, 100, "%", () => { updProj(); syncOpacity(); }, "Lower it to let the scene show through.");
   toggleRow(p, "Scanlines", pproxy, "scan", updProj);
   p.append(el("div", { class: "hint small" }, "Snapping and alignment use the widget's flat footprint."));
-  p.append(el("div", { class: "actions" }, el("button", { class: "subtle", onclick: () => {
+  p.append(el("div", { class: "actions" }, el("button", { class: "subtle", title: "Back to Flat and Straight On. Background opacity stays as it is.", onclick: () => {
     for (const w of ws) { w.persp = { ...PERSP_DEFAULT }; delete w.proj; delete w.holo; delete w.face; }
     save(); updProj(); renderPanel();
-  } }, "Reset to Flat")));
+  } }, "Reset Look")));
 }
 // Width and Height in px: the widget's box as it sits on screen (its flat footprint). Typing a value fixes it;
 // smaller than the content just fits the content. With several selected, Match makes them all as wide and/or as
