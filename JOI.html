@@ -1413,6 +1413,7 @@ function download(name, text, type) {
   const url = URL.createObjectURL(new Blob([text], { type })), a = el("a", { href: url, download: name });
   document.body.append(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10000);   // after the download has had time to start
+  toast(name === "profile.js" ? "Downloaded profile.js. Move it into the folder that holds JOI.html." : `Downloaded ${name} to your browser's downloads.`, 4000);
 }
 function copyDialog(name, text) {
   const d = $("#save-copy"), area = $("#save-copy-text"), status = $("#save-copy-status"), back = document.activeElement;
@@ -3670,9 +3671,11 @@ function resetHeat() {
   wake(true); toast("Heatmap reset");
 }
 function deleteSelected() {
+  const gone = selectedWidgets(); if (!gone.length) return;
   profile.widgets = profile.widgets.filter(w => !selected.has(w.id));
   for (const id of selected) delete runtime[id];
   selected.clear(); save(); rebuildAll(); setSelection([]);
+  toast(gone.length === 1 ? `Removed ${gone[0].label || "the widget"}. Ctrl+Z brings it back.` : `Removed ${gone.length} widgets. Ctrl+Z brings them back.`);
 }
 function duplicateSelected() {
   const copies = selectedWidgets().map(w => ({ ...JSON.parse(JSON.stringify(w)), id: uid(), x: w.x + CASCADE, y: w.y + CASCADE }));
