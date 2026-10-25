@@ -50,6 +50,7 @@ Layouts are designed on a 1920×1080 canvas and **fit to the screen size** autom
 - **Reference screenshot.** The editor shows a Star Citizen screenshot behind your widgets so you can place them around the HUD. It only shows in the editor, never on stream. Change it any time on the editor's Setup tab: **Capture Game View** (from OBS, below), a sample, **Load My Own Screenshot** or **No Screenshot**.
 - **Center lines** (blue) mark the middle of the screen. While dragging, **smart guides** (pink) snap a widget's edges or center to the screen center, edges, safe margin and other widgets. When nothing is close, it snaps to the **grid**. Hold **Alt** to drag freely.
 - **Select several:** drag a box on empty space, or Shift+click widgets. Ctrl+A selects all. Drag any selected widget to move them together.
+- **Group:** with several selected, press Ctrl+G (or the Group button in the panel) and they stay together after that: dragging or nudging any member moves the whole group, and a click on one selects the group. A second click on a member picks just that one. Ctrl+Shift+G or Ungroup lets them move on their own again. On Screen lists a group as one row.
 - **Align and place:** with a selection, use the panel's align buttons (left, center, right, top, middle, bottom). *Center on Screen*, *Center Horizontally*, *Center at Bottom* and *Move to Bottom* move the selection as one block.
 - **Spacing:** with 2+ selected, type a **Gap** in px (for example 16) and press **Space Horizontally** or **Space Vertically** to set them that far apart. Leave the gap on *Auto* to spread 3+ widgets evenly across their current width or height.
 - **Nudge** with the arrow keys (Shift = 10px). **P** or **Hide Panel** hides the side panel so you can see the whole screen. **?** lists every shortcut.
@@ -231,7 +232,8 @@ The single-key shortcuts work when no button or field has focus: click an empty 
 | Delete or Backspace | Remove the selected widgets |
 | Arrows / Shift+arrows | Nudge 1px / 10px |
 | Ctrl+A / Ctrl+D | Select all / duplicate |
-| Ctrl+Z / Ctrl+Y | Undo / redo (also Ctrl+Shift+Z; the small buttons above the + do the same) |
+| Ctrl+Z / Ctrl+Y | Undo / redo (also Ctrl+Shift+Z; the Undo and Redo buttons in the toolbar do the same) |
+| Ctrl+G / Ctrl+Shift+G | Group the selection / ungroup |
 | P | Hide / show the side panel |
 | C | Capture the game view from OBS after a 5 s countdown; press again to capture now (see *Capture the game view from OBS*) |
 | L | Live: show the game behind the editor, refreshed about twice a second |
