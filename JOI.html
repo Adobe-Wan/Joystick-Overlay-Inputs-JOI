@@ -1755,6 +1755,15 @@ const TYPES = {
   axis: { name: "Single Axis", steps: [
     { key: "a", ask: "Move the axis to its MAXIMUM", dir: +1 } ] }
 };
+// A single axis that a preset or template made says which control and which way, in the widget's own words: the
+// way named is the one that reads positive (up on a bar, right on a dial, forward on Rev / Fwd's bar), so a guess
+// can't invert it. Any other axis keeps the generic step.
+const AXIS_ASKS = { "up / down": "Push the control you use for Up / Down all the way up",
+  roll: "Move the control you use for Roll fully right", "rev / fwd": "Push the control you use for Rev / Fwd fully forward" };
+function stepAsk(s) {
+  const w = wiz.type === "axis" && wiz.remap && profile.widgets.find(o => o.id === wiz.remap);
+  return (w && AXIS_ASKS[String(w.label || "").trim().toLowerCase()]) || s.ask.charAt(0) + s.ask.slice(1).toLowerCase();
+}
 
 // ---------- wizard ----------
 let wiz = null;
@@ -4978,7 +4987,7 @@ function renderWiz() {
     actions(el("button", { onclick: () => { closeWizard(); $("#file-in").click(); } }, "Import a Profile Instead"));
   } else if (wiz.stage === "steps") {
     const steps = TYPES[wiz.type].steps, cur = steps[wiz.step];
-    head(...st(2, TYPES[wiz.type].name), cur.ask.charAt(0) + cur.ask.slice(1).toLowerCase() + (cur.optional ? " (if you have it)" : ""),
+    head(...st(2, TYPES[wiz.type].name), stepAsk(cur) + (cur.optional ? " (if you have it)" : ""),
       (wiz.step === 0 ? "Start with everything at rest, then move it all the way and let go." : "Move it all the way and let go."));
     b.append(el("div", { class: "live", role: "progressbar", "aria-label": "Movement detected", "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": "0" }, el("i", { id: "wiz-live" })));
     if (steps.length > 1) steps.forEach((s, i) => b.append(el("div", { class: i < wiz.step ? "step done" : i === wiz.step ? "step active" : "step" }, s.ask.charAt(0) + s.ask.slice(1).toLowerCase())));
