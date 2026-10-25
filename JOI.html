@@ -4911,7 +4911,7 @@ function renderWiz() {
   } else {
     const devText = wiz.key ? `the ${keyLabel(wiz.key)} key on your keyboard`
       : wiz.kind === "button" ? `${devName(wiz.dev)}, ${wiz.hat ? "hat " + HAT_DIRS[wiz.hat.dir].toLowerCase() : "button " + (wiz.button + 1)}` : devName(wiz.dev);
-    head(...st(3), "Name It", `Detected ${devText}. The name shows on the widget, for example ${wiz.key ? '"W" or "Boost"' : '"Left Stick"'}.`);
+    head(...st(3), "Name It", `Detected ${devText}. The name shows on the widget, for example ${wiz.key ? '"W" or "Boost"' : '"Pitch / Yaw" or "Strafe"'}.`);
     const name = textIn(wiz, "name"); name.classList.add("name-in"); name.setAttribute("aria-label", "Widget name"); name.dataset.autofocus = "";
     name.addEventListener("keydown", e => { if (e.key === "Enter") wizFinish(); });
     b.append(name);
@@ -5547,7 +5547,7 @@ function renderSettingsPanel(p) {
   toggleRow(size, "Reduce transparency", s, "reduceTransparency", applySettings, "Solid panels instead of frosted glass: easier to read over a busy game view, and less work for OBS.");
   const perfSec = section(p, "Performance", { key: "s-perf" });
   choiceRow(perfSec, "Draw rate", s, "fps", [[60, "60 FPS", "The smoothest motion. Best for most setups."], [30, "30 FPS", "Half the work for OBS. Motion looks a little less smooth, but a press still shows right away. Pick it if the overlay stutters, lags or falls out of sync with your game."]], applySettings, { aria: "Draw rate" });
-  perfSec.append(el("div", { class: "hint small" }, "How many times a second the overlay redraws while you move your controls. When you let go it stops redrawing, unless the Projector look is set to Subtle or Full."));
+  perfSec.append(el("div", { class: "hint small" }, "How many times a second the overlay redraws while you move your controls. When you let go it stops redrawing, unless a widget's Projector Motion is set to Subtle or Full."));
   themeSection(p, profile.widgets.filter(w => w.type !== "label"), true);
   const bg = section(p, "Page Background", { key: "s-bg" });
   toggleRow(bg, "Solid page background", { get v() { return s.background === "solid"; }, set v(x) { s.background = x ? "solid" : "transparent"; } }, "v", applySettings,
@@ -5604,7 +5604,8 @@ function renderReviewPanel(p) {
     for (const w of ws) {
       const st = reviewStats(w), pc = v => Math.round(v * 100) + "%";
       const row = el("div", { class: "row" }, el("b", {}, w.label || w.type));
-      if (!st || st.total < 0.5) row.append(el("small", {}, "No movement yet."));
+      if (isUnbound(w)) row.append(el("small", {}, "Not bound to an input yet, so nothing to count. Bind Inputs on the Setup panel connects it."));
+      else if (!st || st.total < 0.5) row.append(el("small", {}, "No movement yet."));
       else row.append(el("div", { class: "meter", role: "img", "aria-label": `${pc(st.full)} at full deflection, ${pc(st.rest)} at rest` },
           el("i", { class: "full", style: `width:${st.full * 100}%` }), el("i", { class: "rest", style: `width:${st.rest * 100}%` })),
         el("small", {}, `${pc(st.full)} at full deflection · ${pc(st.rest)} at rest`));
