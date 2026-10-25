@@ -180,3 +180,45 @@ test.describe("R10 Help", () => {
     expect(m.foot).toBeLessThanOrEqual(m.vh);
   });
 });
+
+test.describe("R12 the bind dialog keeps clear of the widget it binds", () => {
+  const rects = page => page.evaluate(() => {
+    const R = e => { const b = e.getBoundingClientRect(); return { l: b.left, t: b.top, r: b.right, b: b.bottom }; };
+    return { dlg: R(document.getElementById("wiz-body")), w: R(runtime[wiz.remap].root), vw: innerWidth, vh: innerHeight };
+  });
+  const apart = (a, b) => a.r <= b.l || b.r <= a.l || a.b <= b.t || b.b <= a.t;
+  for (const [vw, vh] of [[1600, 900], [1366, 768]]) {
+    test(`Projections at ${vw} x ${vh}: no step's dialog covers its widget, and all of it is on screen`, async ({ app, page }) => {
+      await page.setViewportSize({ width: vw, height: vh });
+      await app.open({ query: "?edit", devices: [h.DEV.virpil()] });
+      await page.click('#welcome [data-welcome-preset="adobewan-projections"]');
+      for (let i = 0; i < 4; i++) {
+        const m = await rects(page);
+        expect(apart(m.dlg, m.w), `step ${i + 1} dialog clear of its widget`).toBe(true);
+        expect(m.dlg.l).toBeGreaterThanOrEqual(0); expect(m.dlg.t).toBeGreaterThanOrEqual(0);
+        expect(m.dlg.r).toBeLessThanOrEqual(m.vw); expect(m.dlg.b).toBeLessThanOrEqual(m.vh);
+        await page.click('#wiz-body .actions button:has-text("Skip for Now")');
+      }
+    });
+  }
+  test("the readout in the dialog follows the stick, before and after an axis is captured", async ({ app, page }) => {
+    await app.open({ query: "?edit", devices: [h.DEV.virpil()] });
+    await page.click('#welcome [data-welcome-preset="adobewan-projections"]');
+    await expect(page.locator("#wiz-body .kicker")).toHaveText("Bind Inputs · 1 of 4 · Strafe");
+    const read = () => page.locator("#wiz-read").textContent();
+    await expect.poll(read).toMatch(/^L\/R\s+0%\s+U\/D\s+–$/);
+    await page.evaluate(() => window.__fakeGP.set(0, { axes: { 0: 0.3 } })); await app.frames(5);
+    await expect.poll(read).toMatch(/^L\/R\s+30%/);
+    await page.evaluate(() => window.__fakeGP.set(0, { axes: { 0: 0 } })); await app.frames(5);
+    await app.play(h.throwAxis(0, 5, h.AX.x, 0, 1));
+    await expect.poll(() => page.evaluate(() => wiz && wiz.step)).toBe(1);
+    await page.evaluate(() => window.__fakeGP.set(0, { axes: { 0: -0.4 } })); await app.frames(5);
+    await expect.poll(read).toMatch(/^L\/R\s+-40%\s+U\/D\s+0%$/);
+  });
+  test("a dialog that is not binding a widget stays in the middle", async ({ app, page }) => {
+    await app.open({ profile: base([stick()]), devices: [h.DEV.virpil()], query: "?edit" });
+    await page.click("#toolbar [data-act=add-device]");
+    expect(await page.evaluate(() => document.getElementById("wizard").classList.contains("placed"))).toBe(false);
+    await expect(page.locator("#wiz-read")).toHaveCount(0);
+  });
+});

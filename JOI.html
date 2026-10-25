@@ -779,6 +779,10 @@ kbd { font: var(--vg-weight-medium) 0.85em / 1 var(--vg-font-data); padding: 0.1
 #wizard .types small { color: var(--vg-text-2); font-weight: var(--vg-weight-regular); font-size: var(--vg-text-xs); line-height: var(--vg-leading-xs); }
 #wizard .live { height: var(--vg-size-meter-h); margin: var(--vg-space-3) 0 var(--vg-space-1); background: var(--vg-surface-ink-2); border-radius: var(--vg-radius-xs); overflow: hidden; }
 #wizard .live i { display: block; height: 100%; width: 0; background: var(--vg-accent-default); }
+/* Bind and Rebind: beside the widget being bound, not on top of it (placeWiz sets the side) */
+#wizard.open.placed { display: block; }
+#wizard.placed .dialog { position: absolute; }
+#wizard .readout { margin: var(--vg-space-1) 0 0; text-align: left; min-height: var(--vg-leading-sm); color: var(--vg-text-1); font: var(--vg-weight-medium) var(--vg-text-sm) / var(--vg-leading-sm) var(--vg-font-data); white-space: pre; font-variant-numeric: tabular-nums; }
 #wizard .name-in { width: 100%; font-size: var(--vg-text-md); margin: var(--vg-space-1) 0; }
 #wizard .added { display: flex; flex-wrap: wrap; gap: var(--vg-space-1); margin: var(--vg-space-3) 0; padding: 0; list-style: none; }
 #wizard .added li { display: inline-flex; align-items: center; min-height: var(--vg-size-chip-h); padding: 0 var(--vg-space-2); border-radius: var(--vg-radius-pill); border: 1px solid var(--vg-line-default); background: var(--vg-accent-soft); color: var(--vg-text-1); font-size: var(--vg-text-xs); }
@@ -1926,6 +1930,46 @@ function withAnalogButtons(pad, ps) {
   ps.analog.forEach((_, i) => { v[BTN_AXIS + i] = axisValue(pad, BTN_AXIS + i); });
   return v;
 }
+// Bind and Rebind: one line in the dialog that reads like the widget, so the pilot sees the move register even with
+// the widget out of sight. A captured axis shows its live value (signed, as the widget will); the axis being asked
+// for shows how far the strongest move has gone; the steps still to come show a dash.
+function readoutNames(w) {
+  if (w.type === "stick") { const n = stickNames(w); return { x: n.x, y: n.y }; }
+  if (w.type === "pedals") return { r: pedalNames(w).r, bl: "L TOE", br: "R TOE" };
+  if (w.type === "throttle") return { t: "THR" };
+  return { a: (w.label || "Axis").toUpperCase() };
+}
+function wizReadout(pads, lead) {
+  const out = $("#wiz-read"); if (!out) return;
+  const w = profile.widgets.find(o => o.id === wiz.remap); if (!w) return;
+  const names = readoutNames(w), d = wiz.dev && pads.find(o => sameDev(o, wiz.dev)), pct = v => Math.round(clamp(v, -1, 1) * 100) + "%";
+  const text = TYPES[wiz.type].steps.map((st, i) => {
+    let v = "\u2013";
+    if (i < wiz.step && wiz.axes[st.key] != null && d) { const x = axisValue(d.pad, wiz.axes[st.key]); if (x != null) v = pct(wiz.inv[st.key] ? -x : x); }
+    else if (i === wiz.step) v = pct(lead);
+    return names[st.key] + " " + v.padStart(5);
+  }).join("   ");
+  if (out.textContent !== text) out.textContent = text;
+}
+// While Bind or Rebind runs for a widget, the dialog moves to the side of the widget with the most room, so the
+// widget stays in view; anchored on the side that faces the widget, so a hint that grows the dialog grows away from it.
+function placeWiz() {
+  const host = $("#wizard"), d = $("#wiz-body");
+  const w = wiz && wiz.remap && profile.widgets.find(o => o.id === wiz.remap), root = w && runtime[w.id] && runtime[w.id].root;
+  const r = root && root.isConnected && root.getBoundingClientRect();
+  Object.assign(d.style, { left: "", top: "", right: "", bottom: "" });
+  host.classList.toggle("placed", !!(r && r.width));
+  if (!host.classList.contains("placed")) return;
+  const vw = innerWidth, vh = innerHeight, m = 16, gap = 24, dw = d.offsetWidth, dh = d.offsetHeight, g4 = v => Math.round(v / 4) * 4;
+  const room = { top: r.top - gap - m - dh, bottom: vh - r.bottom - gap - m - dh, left: r.left - gap - m - dw, right: vw - r.right - gap - m - dw };
+  const side = Object.keys(room).reduce((a, k) => room[k] > room[a] ? k : a, "top");
+  const cx = g4(clamp(r.left + r.width / 2 - dw / 2, m, Math.max(m, vw - dw - m))), cy = g4(clamp(r.top + r.height / 2 - dh / 2, m, Math.max(m, vh - dh - m)));
+  if (side === "top") Object.assign(d.style, { left: cx + "px", bottom: g4(clamp(vh - r.top + gap, m, vh - dh - m)) + "px" });
+  else if (side === "bottom") Object.assign(d.style, { left: cx + "px", top: g4(clamp(r.bottom + gap, m, vh - dh - m)) + "px" });
+  else if (side === "left") Object.assign(d.style, { right: g4(clamp(vw - r.left + gap, m, vw - dw - m)) + "px", top: cy + "px" });
+  else Object.assign(d.style, { left: g4(clamp(r.right + gap, m, vw - dw - m)) + "px", top: cy + "px" });
+}
+window.addEventListener("resize", () => { if (wiz) requestAnimationFrame(placeWiz); });
 function wizHint(text) {
   const h = $("#wiz-hint"); if (h && h.textContent !== text) h.textContent = text;
 }
@@ -1975,6 +2019,7 @@ function wizardTick(pads) {
   }
   const live = $("#wiz-live");
   if (live) { const pc = Math.round(clamp(lead / 0.8, 0, 1) * 100); live.style.width = pc + "%"; live.parentNode.setAttribute("aria-valuenow", pc); }
+  wizReadout(pads, lead);
   if (!det.pick) {
     if (!det.armedAt) {
       if (wiz.dev && !pads.some(d => sameDev(d, wiz.dev))) wizHint("The device disconnected. Plug it back in to continue.");
@@ -5033,7 +5078,7 @@ function renderWiz() {
   host.classList.toggle("open", !!wiz);
   b.innerHTML = "";
   if (wiz) wake();   // the steps poll the devices every frame
-  if (!wiz) return;   // closeWizard puts focus back
+  if (!wiz) { host.classList.remove("placed"); return; }   // closeWizard puts focus back
   if (wiz.remap && wiz.stage === "name") return finishRemap();   // re-detecting keeps the widget's name
   const total = 3;
   const queued = !!wiz.remap && bindQueue[0] === wiz.remap;
@@ -5092,6 +5137,7 @@ function renderWiz() {
     head(...st(2, TYPES[wiz.type].name), stepAsk(cur) + (cur.optional ? " (if you have it)" : ""),
       (wiz.step === 0 ? "Start with everything at rest, then move it all the way and let go." : "Move it all the way and let go."));
     b.append(el("div", { class: "live", role: "progressbar", "aria-label": "Movement detected", "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": "0" }, el("i", { id: "wiz-live" })));
+    if (wiz.remap) b.append(el("p", { class: "readout", id: "wiz-read", "aria-label": "What the widget reads now" }));
     if (steps.length > 1) steps.forEach((s, i) => b.append(el("div", { class: i < wiz.step ? "step done" : i === wiz.step ? "step active" : "step" }, s.ask.charAt(0) + s.ask.slice(1).toLowerCase())));
     if (wiz.dev) b.append(el("p", { class: "tip" }, "Device: " + devName(wiz.dev)));
     b.append(el("p", { class: "tip", id: "wiz-hint", "aria-live": "polite" }), noPad());
@@ -5107,6 +5153,7 @@ function renderWiz() {
     actions(el("button", { onclick: wiz.kind === "button" ? startButtonWizard : () => wizChooseType(wiz.type) }, "Start Over"),
       el("button", { class: "primary", onclick: wizFinish }, "Add to Overlay"));
   }
+  placeWiz();
   setTimeout(() => {
     const f = b.querySelector("[data-autofocus]") || b.querySelector(".types button, .actions button.primary, .actions button");
     if (f) { f.focus(); if (f.select) f.select(); }
