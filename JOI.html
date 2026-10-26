@@ -512,7 +512,7 @@ input[type=checkbox] { accent-color: var(--vg-accent-default); width: 1.25rem; h
 #panel .hint { color: var(--vg-text-2); line-height: var(--vg-leading-sm); margin: var(--vg-space-2) 0; }
 #panel .hint.warn { color: var(--vg-status-warn); }
 #panel .hint.ok { color: var(--vg-status-ok); }
-#panel .bind-row { display: flex; align-items: center; justify-content: space-between; gap: var(--vg-space-2); margin: var(--vg-space-1) 0 0; }
+#panel .bind-row { display: flex; align-items: center; justify-content: space-between; gap: var(--vg-space-2); margin: var(--vg-space-3) 0; }
 #panel .bind-row .hint { margin: 0; }
 #panel .bind-row button { min-height: var(--vg-size-control-sm); padding: 0 var(--vg-space-3); font-size: var(--vg-text-xs); white-space: nowrap; }
 #panel .review-list { display: grid; gap: var(--vg-space-2); margin: var(--vg-space-2) 0; }
@@ -791,6 +791,12 @@ kbd { font: var(--vg-weight-medium) 0.85em / 1 var(--vg-font-data); padding: 0.1
 #wizard .actions { display: flex; gap: var(--vg-space-2); flex-wrap: wrap; justify-content: flex-end; margin-top: var(--vg-space-5); }
 #wizard .tip { color: var(--vg-text-2); font-size: var(--vg-text-sm); line-height: var(--vg-leading-sm); margin-top: var(--vg-space-4); }
 #wiz-hint:empty { display: none; }
+#wiz-diag p { margin: var(--vg-space-2) 0 0; }
+#wiz-diag ol { margin: var(--vg-space-1) 0 0; padding-left: var(--vg-space-5); }
+#wiz-diag li + li { margin-top: var(--vg-space-1); }
+#wiz-diag b { color: var(--vg-text-1); }
+#wiz-diag .warn { color: var(--vg-status-warn); }
+#wiz-diag .actions { justify-content: flex-start; margin-top: var(--vg-space-3); }
 /* Round + button with a radial menu, bottom right of the editing area */
 #fab-wrap { position: fixed; right: calc(var(--vg-size-panel-w) + 2rem); bottom: var(--vg-space-6); width: var(--vg-size-fab); height: var(--vg-size-fab); z-index: 25; }
 body.panel-hidden #fab-wrap { right: var(--vg-space-6); }
@@ -1983,6 +1989,35 @@ window.addEventListener("resize", () => { if (wiz) requestAnimationFrame(placeWi
 function wizHint(text) {
   const h = $("#wiz-hint"); if (h && h.textContent !== text) h.textContent = text;
 }
+// When nothing has registered for HINT_MS, the dialog says what JOI can actually see instead of a bare "nothing is
+// moving": every device the browser lists (a stick that isn't named never reached JOI), the ones listed but silent
+// (they read 0 on every axis: not reporting yet, or held by another app), whether the browser's controller slots
+// are full, and what to try, with a way to Check Devices from right here. Rebuilt only when what it says changes.
+function wizDiag(pads, show, pressing) {
+  const box = $("#wiz-diag"); if (!box) return;
+  if (!show || !pads.length) { if (!box.hidden) { box.hidden = true; box._key = ""; placeWiz(); } return; }
+  const det = wiz.det || { pads: {} };
+  const rows = pads.map(d => { const ps = det.pads[detKey(d)]; return { name: padName(d, pads), silent: !!(ps && ps.unreported) }; });
+  const full = pads.length >= PAD_SLOTS, key = rows.map(r => r.name + (r.silent ? "*" : "")).join("|") + (full ? "|full" : "");
+  box.hidden = false;
+  if (box._key === key) return;
+  box._key = key;
+  const seen = el("p", {}, `Nothing ${pressing ? "pressed" : "moving"} yet. JOI sees `);
+  rows.forEach((r, i) => seen.append(i ? (i === rows.length - 1 ? " and " : ", ") : "", el("b", {}, r.name), r.silent ? el("span", { class: "warn" }, " (sends no data)") : ""));
+  seen.append(".");
+  const parts = [seen];
+  if (full) parts.push(el("p", { class: "warn-box" }, `All ${PAD_SLOTS} controller slots are taken: browsers and OBS pass at most ${PAD_SLOTS} game controllers to a page. `
+    + "Unplug or disable one you don't need on stream (a Steam or vJoy virtual controller, a spare device), then reload."));
+  parts.push(el("p", {}, "Device missing or silent? Try these in order:"),
+    el("ol", {},
+      el("li", {}, "Press a button on it. Browsers only list a device after its first press."),
+      el("li", {}, "Check Windows sees it move: Win+R, joy.cpl, Properties."),
+      el("li", {}, "Close apps that might hold it (a tester or configurator, another JOI tab), replug it and reload."),
+      el("li", {}, "In OBS? Try JOI.html in Chrome or Edge. If it works there, re-add the browser source.")),
+    el("div", { class: "actions" }, el("button", { onclick: () => { closeWizard(); setSelection([], "devices"); } }, "Check Devices")));
+  box.replaceChildren(...parts);
+  placeWiz();
+}
 function wizardTick(pads) {
   if (!wiz) return;
   const np = $("#wiz-nopad"); if (np) np.hidden = pads.length > 0;
@@ -2033,10 +2068,14 @@ function wizardTick(pads) {
   if (!det.pick) {
     if (!det.armedAt) {
       if (wiz.dev && !pads.some(d => sameDev(d, wiz.dev))) wizHint("The device disconnected. Plug it back in to continue.");
-      else wizHint(now - det.t0 < DET.HINT_MS ? "" : lead > 0.15 ? "Almost there. Move it all the way to the end."
-        : "Nothing is moving yet. Move it all the way, or open Check Devices if it isn't listed.");
+      else {
+        const late = now - det.t0 >= DET.HINT_MS;
+        wizHint(late && lead > 0.15 ? "Almost there. Move it all the way to the end." : "");
+        wizDiag(pads, late && lead <= 0.15);
+      }
       return;
     }
+    wizDiag(pads, false);
     if (now - det.armedAt < DET.GRACE_MS) return;
     const c = [];
     for (const k in det.pads) { const ps = det.pads[k]; ps.peak.forEach((e, i) => { if (e) c.push({ ps, i, e }); }); }
@@ -2045,6 +2084,7 @@ function wizardTick(pads) {
     if (c[1] && Math.abs(c[0].e) < DET.RATIO * Math.abs(c[1].e) && now - det.armedAt < DET.WAIT_MS) { wizHint("Two axes moved together. Move only the one asked for."); return; }
     det.pick = { ...c[0], at: now, last: null };
   }
+  wizDiag(pads, false);
   const p = det.pick;
   let sign = Math.sign(p.e);
   if (step.stays) {   // a throttle stays where it is left, so where it settles says which end is forward
@@ -2084,7 +2124,12 @@ function buttonTick(pads, now) {
       for (let j = 0; j < 8; j++) track(HAT_KEY + a * 8 + j, dir === j);
     });
   }
-  if (!det.firstAt) { wizHint(now - det.t0 < DET.HINT_MS ? "" : "Nothing pressed yet. A switch that stays on needs flipping off and on again."); return; }
+  if (!det.firstAt) {
+    const late = now - det.t0 >= DET.HINT_MS;
+    wizHint(late ? "A switch that stays on needs flipping off and on again." : "");
+    wizDiag(pads, late, true);
+    return;
+  }
   if (now - det.firstAt < DET.BTN_WIN_MS) return;
   let best = null;
   for (const k in det.pads) { const ps = det.pads[k]; ps.held.forEach((t, i) => { if (t >= DET.BTN_MS && (!best || t > best.t)) best = { d: ps.d, i, t }; }); }
@@ -5091,6 +5136,8 @@ const ADD_ITEMS = [
 // A device's name, numbered among identical ones: "VPC Stick #2".
 const deviceLabel = (id, nth) => prettyName(id) + (nth ? " #" + (nth + 1) : "");
 const devName = d => deviceLabel(d.id, d.nth);
+// A device as Check Devices lists it: identical twins numbered from #1, so the pilot can tell their two sticks apart.
+const padName = (d, pads) => prettyName(d.id) + (pads.filter(x => x.key === d.key).length > 1 ? ` #${d.nth + 1}` : "");
 function renderWiz() {
   const host = $("#wizard"), b = $("#wiz-body");
   host.classList.toggle("open", !!wiz);
@@ -5127,6 +5174,7 @@ function renderWiz() {
   const noPad = text => { const n = el("p", { class: "tip", id: "wiz-nopad" },
     text || "Wiggle a stick or press a button first: the browser only lists a device once it has moved."); n.hidden = connectedPads().length > 0; return n; };
   const actions = (...xs) => b.append(el("div", { class: "actions" }, ...xs));
+  const diag = () => Object.assign(el("div", { class: "tip", id: "wiz-diag", "aria-live": "polite" }), { hidden: true });
 
   if (wiz.kind === "done") {
     head(0, "Added", `${wiz.last.label || "Your widget"} is on your overlay`,
@@ -5137,7 +5185,7 @@ function renderWiz() {
   } else if (wiz.kind === "button" && wiz.stage === "press") {
     head(...st(2, "Button/Key"), queued ? `Press the Button or Key for ${wiz.label || "This Widget"}` : "Press the Button or Key You Want to Show", "Any button on any device (hold it for a moment), or any key on your keyboard.");
     Object.assign(b.querySelector("#wiz-title"), { tabIndex: -1 }).dataset.autofocus = "";
-    b.append(el("p", { class: "tip", id: "wiz-hint", "aria-live": "polite" }),
+    b.append(el("p", { class: "tip", id: "wiz-hint", "aria-live": "polite" }), diag(),
       noPad("Keyboard keys work right away. For a device button, press it once so the browser lists the device."));
     if (!wiz.remap) b.append(el("p", { class: "tip" }, "Showing movement keys? ", el("button", { class: "text", onclick: addWasd, title: "Add W, A, S and D as keycaps, laid out like a keyboard" }, "Add W, A, S and D Keys")));
     actions(wiz.remap ? null : el("button", { onclick: startDeviceWizard }, "Back"), skip(), el("button", { onclick: closeWizard }, "Cancel"));
@@ -5157,7 +5205,7 @@ function renderWiz() {
     if (wiz.remap) b.append(el("p", { class: "readout", id: "wiz-read", "aria-label": "What the widget reads now" }));
     if (steps.length > 1) steps.forEach((s, i) => b.append(el("div", { class: i < wiz.step ? "step done" : i === wiz.step ? "step active" : "step" }, s.ask.charAt(0) + s.ask.slice(1).toLowerCase())));
     if (wiz.dev) b.append(el("p", { class: "tip" }, "Device: " + devName(wiz.dev)));
-    b.append(el("p", { class: "tip", id: "wiz-hint", "aria-live": "polite" }), noPad());
+    b.append(el("p", { class: "tip", id: "wiz-hint", "aria-live": "polite" }), diag(), noPad());
     actions(wiz.remap ? el("button", { onclick: closeWizard }, "Cancel") : el("button", { onclick: startDeviceWizard }, "Back"), skip(),
       cur.optional ? el("button", { class: "primary", "data-autofocus": "", onclick: wizSkip }, "Skip, I Don't Have This") : null);
   } else {
@@ -5813,7 +5861,7 @@ function fillDevices(body) {
     const meter = el("span", { class: "dev-meter", "aria-hidden": "true" }, el("i", { style: "width:0%" }));
     const by = used(d);
     const row = el("div", { class: "dev-row" + (pressed ? " hot" : "") },
-      el("b", {}, prettyName(d.id) + (pads.filter(x => x.key === d.key).length > 1 ? ` #${d.nth + 1}` : "")),
+      el("b", {}, padName(d, pads)),
       el("small", {}, `Slot ${d.pad.index + 1} · ${d.pad.axes.length} axes · ${d.pad.buttons.length} buttons` + (by.length ? " · used by " + by.join(", ") : " · not used yet")),
       meter);
     frag.append(row); body._rows.push({ row, meter: meter.firstChild, rest });
