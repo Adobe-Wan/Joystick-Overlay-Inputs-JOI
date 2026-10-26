@@ -211,12 +211,22 @@ Every color in the effect comes from the widget's theme, so switching the theme 
 **OBS tips.** The page can't add light to the game footage behind it (OBS composites the overlay on top), so the hologram fakes it with low alphas and white-pushed cores. For true additive light, right-click the browser source in OBS and set **Blending Mode** to **Screen** or **Additive**. The Subtle and Full tiers depend on **Enable Browser Source Hardware Acceleration** (see below).
 
 ## Performance in OBS
-If the overlay lags behind your game, or OBS's stats show rendering lag or skipped frames:
+### Lags while you fly? The game is probably using all of the GPU
+If the widgets keep up while OBS is in front but lag or stutter in the game (often worse in first person, where Star Citizen draws the whole cockpit), the game is taking the whole GPU and OBS's browser has to wait its turn. OBS's own stats can look fine at the same time, because OBS keeps showing the overlay's last finished frame. JOI itself is light: with either AdobeWan template, moving every input at once took under a fifth of one CPU core in our tests, and nothing at all once you let go. So the fix is on the OBS and Windows side. Try these in order, and check after each one:
+
+1. **Cap the game's frame rate** a little below what your GPU reaches (Star Citizen's Graphics settings, or **Max Frame Rate** in your GPU's control panel). A GPU at 100% has nothing left for OBS; even a few percent of headroom helps.
+2. **Turn off browser hardware acceleration:** OBS **Settings → Advanced → Sources**, untick **Enable Browser Source Hardware Acceleration**, then restart OBS. The overlay is then drawn on the CPU, which the game leaves mostly free, and OBS hands the finished picture to the GPU itself. Keep **Projector Motion** on **Static** (or use Flat) with this setting: Subtle and Full redraw all the time and cost more on the CPU.
+3. **Run OBS as administrator.** Windows then gives OBS's drawing priority over the game's.
+4. **Draw rate 30 FPS** (below) halves the frames the overlay asks for.
+
+**Settings → Performance → Smoothness Check** shows whether it worked. Fly for a minute with the game in front, then open the editor (**Interact**): it lists how many frames a second OBS let the overlay draw while your controls moved, the longest pause, and the session's best and worst. A rate well under the best means the overlay is still being held back.
+
+### Everyday settings
 - **Settings → Performance → Draw rate** is how many times a second the overlay redraws while you move your controls. **60 FPS** is the smoothest. **30 FPS** halves the work OBS does for JOI: motion looks a little less smooth, but a press still shows right away. Pick it if the overlay stutters, lags or falls out of sync with your game. It applies to every profile.
 - **Projector Subtle and Full** animate even when nothing moves, so OBS keeps redrawing the source (60 times a second, or 30 at a 30 FPS draw rate). **Static** or **Flat** costs nothing while your hands are off the controls.
 - Make the Browser source the same size as your OBS canvas (Base Resolution), not larger: a 4K source is four times the work of a 1080p one. JOI scales its layout to the source size.
 - Widgets only redraw when an input actually changes. Small wobbles a stick, throttle or pedal makes at rest (under half a percent) are ignored, so a resting device costs nothing to draw.
-- Keep **Enable Browser Source Hardware Acceleration** on (OBS Settings, Advanced). That's the default. The Projector look's Subtle and Full motion tiers rely on it: without it their float and glow are drawn on the CPU every frame.
+- **Enable Browser Source Hardware Acceleration** (OBS Settings, Advanced) is on by default, and it's the better choice when your GPU has room to spare, especially with Projector Subtle or Full. Turn it off only when the game leaves the GPU no room (see above).
 - Set the Browser Source FPS to 60. Going higher only adds load. If OBS is still struggling, tick **Use custom frame rate** in the source's properties and set it to 30: OBS then asks the page for only 30 frames a second, whatever is on screen.
 - If the overlay is always a little behind the game but smooth, it's latency rather than load: add a **Render Delay** filter to your game capture (start around 30 to 50 ms) to line the two up.
 

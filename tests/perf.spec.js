@@ -76,3 +76,43 @@ test("Draw rate 30 also steps Projector motion, which runs freely again at 60", 
   expect(c.every(([s]) => s === "running")).toBe(true);
   expect(await page.evaluate(() => stepT)).toBe(0);
 });
+
+// Smoothness Check: what the browser lets the overlay draw while inputs move, so a pilot can see a game starving OBS.
+const checkText = page => page.evaluate(() => { setSelection([], "settings"); return document.querySelector("#frame-check").textContent; });
+
+test("Smoothness Check waits for movement, then reports frames a second while inputs move", async ({ app, page }) => {
+  await app.open({ profile: VALID, devices: DEVICES, query: "?edit" });
+  await page.waitForTimeout(600);
+  expect(await checkText(page)).toMatch(/^Move a control/);
+  expect(await page.evaluate(() => frameReport())).toBeNull();
+  await drive(page, "Math.sin(t / (20 + 7 * i + s))");
+  await page.waitForTimeout(2500);
+  const r = await page.evaluate(() => frameReport());
+  expect(r.fps).toBeGreaterThan(15);   // a loaded test machine (or a trace being recorded) runs below 60
+  expect(r.fps).toBeLessThanOrEqual(r.best + 0.01);
+  expect(r.slow).toBe(false);
+  expect(await checkText(page)).toMatch(/frames a second, longest pause \d+ ms\. Best this session: \d+/);
+  await expect(page.locator("#frame-check")).not.toHaveClass(/warn/);
+  // At rest the loop polls on a timer, and those ticks are not frames OBS was asked for: nothing more is counted.
+  await page.evaluate(() => clearInterval(window.__drive));
+  await page.waitForTimeout(1000);
+  const before = await page.evaluate(() => frameStats.buckets.reduce((n, b) => n + b.frames, 0));
+  await page.waitForTimeout(1500);
+  expect(await page.evaluate(() => frameStats.buckets.reduce((n, b) => n + b.frames, 0))).toBe(before);
+});
+
+test("Smoothness Check warns when frames come far slower than the session's best", async ({ app, page }) => {
+  await app.open({ profile: VALID, devices: DEVICES, query: "?edit" });
+  await drive(page, "Math.sin(t / (20 + 7 * i + s))");
+  await page.waitForTimeout(2500);
+  // Stand in for a starved browser: every frame now takes about 100 ms.
+  await page.evaluate(() => { const spin = () => { const end = performance.now() + 95; while (performance.now() < end); window.__spin = requestAnimationFrame(spin); }; window.__spin = requestAnimationFrame(spin); });
+  await page.waitForTimeout(6000);
+  await page.evaluate(() => cancelAnimationFrame(window.__spin));
+  const r = await page.evaluate(() => frameReport());
+  expect(r.slow).toBe(true);
+  expect(r.worst).toBeLessThan(r.best * 0.5);
+  expect(r.longest).toBeGreaterThan(90);
+  expect(await checkText(page)).toContain("holding OBS's browser back");
+  await expect(page.locator("#frame-check")).toHaveClass(/warn/);
+});

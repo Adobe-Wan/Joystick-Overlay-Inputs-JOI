@@ -127,7 +127,7 @@ test.describe("R10 Help", () => {
   const fs = require("fs"), path = require("path");
   const slug = t => t.trim().toLowerCase().replace(/[^\w\- ]/g, "").replace(/ /g, "-");
   const anchors = fs.readFileSync(path.join(__dirname, "..", "README.md"), "utf8").split("\n").filter(l => /^#{1,6} /.test(l)).map(l => slug(l.replace(/^#+ /, "")));
-  test("the toolbar's Help opens shortcuts, four how-tos with README links, and Start a New Setup; Escape goes back to Help", async ({ app, page }) => {
+  test("the toolbar's Help opens shortcuts, five how-tos with README links, and Start a New Setup; Escape goes back to Help", async ({ app, page }) => {
     await app.open({ profile: base([stick()]), devices: [h.DEV.virpil()], query: "?edit" });
     await page.click("#toolbar [data-act=help]");
     await expect(page.locator("#help")).toHaveClass(/open/);
@@ -141,7 +141,7 @@ test.describe("R10 Help", () => {
     }));
     expect(c.heads).toEqual(["Keyboard Shortcuts", "How To"]);
     expect(c.keys).toBeGreaterThanOrEqual(14);
-    expect(c.howtos.map(o => o.title)).toEqual(["Bind or Rebind a Widget", "Arrange and Align", "Back Up and Share a Profile", "Add to OBS and Capture the Game View"]);
+    expect(c.howtos.map(o => o.title)).toEqual(["Bind or Rebind a Widget", "Arrange and Align", "Back Up and Share a Profile", "Add to OBS and Capture the Game View", "Overlay Lags While You Fly"]);
     for (const o of c.howtos) {
       expect(o.sentences, o.title).toBeGreaterThanOrEqual(2); expect(o.sentences, o.title).toBeLessThanOrEqual(3);
       expect(o.last, o.title + " ends with its link").toBe("A");
