@@ -2427,7 +2427,7 @@ function buildWidget(w, grow) {
   applyEffects(root, w);
   const holo = holoOf(w);
   applyPerspective(root, w);
-  const rt = getRt(w); rt.root = root; rt.spans = {};
+  const rt = getRt(w); rt.root = root; rt.spans = {}; rt.sprites = null;   // sprites are sized for this build's scale
   // A new canvas is blank: inNew draws it on the next pass, and the cached input and pad lookup start over.
   rt.axIdx = w.axes ? Object.values(w.axes) : [];
   rt.inVals = new Float64Array(rt.axIdx.length + 2).fill(NaN); rt.inNew = true; rt.padGen = -1;
@@ -3097,26 +3097,45 @@ function drawStick(w, rt, pad) {
   const depth = depthOf(w), px = R + x * (R - DOT_R - 1), py = R - y * (R - DOT_R - 1);
   g.strokeStyle = hexA(accent, 0.5); g.setLineDash([3, 3]);
   g.beginPath(); g.moveTo(px, 0); g.lineTo(px, S); g.moveTo(0, py); g.lineTo(S, py); g.stroke(); g.setLineDash([]);
+  // The dot's soft parts (its glow, and with 3D depth the shadow it casts) are blurred once into a sprite per widget
+  // (dotSprite): a canvas blur or shadowBlur is a Gaussian pass on every frame, and on the CPU it was a quarter of a
+  // moving stick's script time. The sprite lands on the dot's subpixel position by resampling, which a blur hides;
+  // the dot itself is drawn live, so its edge stays crisp.
   if (depth > 0) {
     // A lit sphere: soft shadow cast down-right, accent glow, then a radial gradient with a specular highlight.
-    // The blur stays a live filter: a cached sprite would land on other subpixel positions and shift the pixels.
-    const r = DOT_R + 2.5 * depth;
-    g.fillStyle = `rgba(0,0,0,${0.55 * depth})`; g.filter = `blur(${(1.5 + 2 * depth).toFixed(1)}px)`;
-    g.beginPath(); g.ellipse(px + 2 * depth, py + 3.5 * depth, r, r * 0.8, 0, 0, Math.PI * 2); g.fill(); g.filter = "none";
-    g.shadowColor = accent; g.shadowBlur = 10;
+    const r = DOT_R + 2.5 * depth, half = Math.ceil(r + 10 + 6 * depth) + 2;
+    const soft = dotSprite(rt, `depth ${accent} ${depth}`, half, (sg, o) => {
+      sg.fillStyle = `rgba(0,0,0,${0.55 * depth})`; sg.filter = `blur(${(1.5 + 2 * depth).toFixed(1)}px)`;
+      sg.beginPath(); sg.ellipse(o + 2 * depth, o + 3.5 * depth, r, r * 0.8, 0, 0, Math.PI * 2); sg.fill(); sg.filter = "none";
+      sg.shadowColor = accent; sg.shadowBlur = 10; sg.shadowOffsetX = 4 * half;   // only the glow lands on the sprite
+      sg.fillStyle = accent; sg.beginPath(); sg.arc(o - 4 * half, o, r, 0, Math.PI * 2); sg.fill();
+    });
+    g.drawImage(soft, px - half, py - half, 2 * half, 2 * half);
     const ball = g.createRadialGradient(px - r * 0.35, py - r * 0.4, r * 0.1, px, py, r);
     ball.addColorStop(0, mixHex(accent, "#ffffff", 0.75)); ball.addColorStop(0.35, accent); ball.addColorStop(1, mixHex(accent, "#000000", 0.55));
-    g.fillStyle = ball; g.beginPath(); g.arc(px, py, r, 0, Math.PI * 2); g.fill(); g.shadowBlur = 0;
+    g.fillStyle = ball; g.beginPath(); g.arc(px, py, r, 0, Math.PI * 2); g.fill();
   } else if (holo) {   // the glow is a sprite under the dot, no shadowBlur in the projected path
     g.drawImage(holoSprite(rt, rt.holoColors.glow), px - 20, py - 20, 40, 40);
     g.fillStyle = accent; g.beginPath(); g.arc(px, py, DOT_R, 0, Math.PI * 2); g.fill();
     g.globalCompositeOperation = "source-over";
     tearStrip(c, rt);
   } else {
-    g.fillStyle = accent; g.shadowColor = accent; g.shadowBlur = 12;
-    g.beginPath(); g.arc(px, py, DOT_R, 0, Math.PI * 2); g.fill(); g.shadowBlur = 0;
+    const half = DOT_R + 14;
+    const glow = dotSprite(rt, `glow ${accent}`, half, (sg, o) => {
+      sg.shadowColor = accent; sg.shadowBlur = 12; sg.shadowOffsetX = 4 * half;
+      sg.fillStyle = accent; sg.beginPath(); sg.arc(o - 4 * half, o, DOT_R, 0, Math.PI * 2); sg.fill();
+    });
+    g.drawImage(glow, px - half, py - half, 2 * half, 2 * half);
+    g.fillStyle = accent; g.beginPath(); g.arc(px, py, DOT_R, 0, Math.PI * 2); g.fill();
   }
   setText(rt.spans.x, x); setText(rt.spans.y, y);
+}
+// A square sprite of 2 * half CSS px, painted once by paint(g, half) and kept on the runtime under key (which names
+// the colors and sizes it was painted with, so a theme change paints a new one).
+function dotSprite(rt, key, half, paint) {
+  const s = rt.sprites || (rt.sprites = {});
+  if (!s[key] || s[key]._w !== 2 * half) { const c = makeCanvas(2 * half, 2 * half); paint(c._g, half); s[key] = c; }
+  return s[key];
 }
 function roundRect(g, x, y, w, h, r) {
   r = Math.min(r, w / 2, h / 2); g.beginPath();
@@ -3351,7 +3370,10 @@ function frame(now, timed) {
   // Draw rate 30: input seen between passes waits for the next one, so OBS gets at most 30 new frames a second.
   movePending = movePending || moved;
   const gapOk = profile.settings.fps !== 30 || now - drawnAt >= 1000 / 30 - 2;
-  if ((movePending && gapOk) || passDue || heatDue || check) {
+  // Readout text is written in a pass too, never between two: at 30 FPS a text write on a frame of its own would be
+  // one more frame for OBS to take (37 a second instead of 30, measured), and a stale value wakes a pass when due.
+  const textDue = textQueue.length > 0 && now - textAt >= TEXT_MS;
+  if (((movePending || textDue) && gapOk) || passDue || heatDue || check) {
     movePending = false; drawnAt = now;
     if (stepT) stepHolo(now);
     const all = redrawAll; passDue = redrawAll = false;
@@ -3373,8 +3395,8 @@ function frame(now, timed) {
         if (rt.dirty && rt.dropOn && rt.fringe) holoFringe(rt, rt.dropDx);   // a dropout's color split follows the new frame
       } catch (err) { drawFailed(rt, w, err); }   // one broken widget leaves the others drawing
     }
+    flushText(now);
   }
-  flushText(now);
   holoPerf(now, dt);
   if (!loopNeeded()) { stopLoop(); if (!padList.length) idleCheck(); return; }
   const capturing = editing && wiz && (wiz.stage === "steps" || wiz.stage === "press");   // detection counts frames

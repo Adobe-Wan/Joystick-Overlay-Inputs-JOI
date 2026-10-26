@@ -222,8 +222,22 @@ If the widgets keep up while OBS is in front but lag or stutter in the game (oft
 
 **Settings → Performance → Smoothness Check** shows whether it worked. Fly for a minute with the game in front, then open the editor (**Interact**): it lists how many frames a second OBS let the overlay draw while your controls moved, the longest pause, and the session's best and worst. A rate well under the best means the overlay is still being held back.
 
+### Before you record: the OBS checklist
+Every new frame the overlay makes is a frame OBS's browser has to composite and hand over, and that work waits in line behind the game. The checklist keeps that line short. Each item is independent; do the ones that fit your setup.
+
+1. **Cap the game** a little under what your GPU manages (Star Citizen: Options → Graphics → Max FPS, or VSync; or Max Frame Rate for the game in your GPU's control panel). A game at an uncapped frame rate fills the GPU even while you sit still, which is why the overlay can hitch in quiet moments.
+2. **Capture with Game Capture**, not Display Capture.
+3. **Browser source = canvas size** (Base Resolution), 1080p for a 1080p recording. A 4K source is four times the work.
+4. **OBS Settings → Advanced → General → Process Priority: Above Normal.** Windows then gives OBS's own threads their turn sooner when the game is busy.
+5. **Browser Source Hardware Acceleration** (Settings → Advanced → Sources): on when your GPU has room, off when the game leaves it none (see above). After a change, restart OBS.
+6. **Fewer browsers inside OBS.** Chat and activity docks (Twitch, YouTube, custom browser docks) and alert or chat browser sources all run in the same browser engine as JOI, and each one takes frames of its own. Close the docks and hide the sources you don't need while you record.
+7. **Disable the preview while you fly** (right-click the preview → Disable Preview). OBS then renders the scene once for the recording instead of twice.
+8. **Windows and driver settings.** Settings → System → Display → Graphics: add obs64.exe and set it to High performance (matters on laptops and PCs with two GPUs). NVIDIA Control Panel → Manage 3D Settings: **Background Application Max Frame Rate** must be Off (it throttles OBS as soon as the game is in front). If the overlay still hitches, try Windows Game Mode off for a session and compare.
+9. **A leaf next to obs-browser-page.exe?** Open Task Manager while you fly. If the browser processes show Windows 11's Efficiency mode leaf, Windows is running them on its slow setting. Add `UseEcoQoSForBackgroundProcess` to the launch flag you may already use for background input (see [Inputs freeze while the game is in front](#inputs-freeze-while-the-game-is-in-front)): `--disable-features=EnableWindowsGamingInputDataFetcher,UseEcoQoSForBackgroundProcess`.
+10. **In JOI:** Draw rate **30 FPS** and Projector Motion **Static** (Subtle and Full keep OBS compositing new frames with your hands off the controls). Then fly a minute and read the **Smoothness Check**.
+
 ### Everyday settings
-- **Settings → Performance → Draw rate** is how many times a second the overlay redraws while you move your controls. **60 FPS** is the smoothest. **30 FPS** halves the work OBS does for JOI: motion looks a little less smooth, but a press still shows right away. Pick it if the overlay stutters, lags or falls out of sync with your game. It applies to every profile.
+- **Settings → Performance → Draw rate** is how many times a second the overlay redraws while you move your controls. **60 FPS** is the smoothest. **30 FPS** halves the work OBS does for JOI: the page changes at most 30 times a second, readouts and Projector motion included, so OBS takes at most 30 new frames from it. Motion looks a little less smooth, but a press still shows right away. Pick it if the overlay stutters, lags or falls out of sync with your game. It applies to every profile.
 - **Projector Subtle and Full** animate even when nothing moves, so OBS keeps redrawing the source (60 times a second, or 30 at a 30 FPS draw rate). **Static** or **Flat** costs nothing while your hands are off the controls.
 - Make the Browser source the same size as your OBS canvas (Base Resolution), not larger: a 4K source is four times the work of a 1080p one. JOI scales its layout to the source size.
 - Widgets only redraw when an input actually changes. Small wobbles a stick, throttle or pedal makes at rest (under half a percent) are ignored, so a resting device costs nothing to draw.
