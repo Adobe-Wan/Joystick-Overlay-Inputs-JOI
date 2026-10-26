@@ -925,6 +925,9 @@ html[data-vg-transparency="reduced"] .paper { -webkit-backdrop-filter: none; bac
         <section aria-labelledby="help-obs"><h4 id="help-obs">Add to OBS and Capture the Game View</h4>
           <p>In OBS, add a Browser source, check Local file, pick JOI.html and set it to your canvas size. Right-click the source and choose Interact to edit. Capture Game View on the Setup panel puts a screenshot of your game behind the editor, so you can place widgets around the HUD.</p>
           <a href="https://github.com/Adobe-Wan/Joystick-Overlay-Inputs-JOI#set-up-in-obs" target="_blank" rel="noopener noreferrer">More in the README: Set up in OBS</a></section>
+        <section aria-labelledby="help-lag"><h4 id="help-lag">Overlay Lags While You Fly</h4>
+          <p>If the widgets keep up with OBS in front but fall behind in the game, the game is likely using all of your GPU, and OBS's browser waits its turn. Try these in order: cap the game's frame rate a little below what your GPU reaches; in OBS Settings, Advanced, turn off Browser Source Hardware Acceleration and restart OBS, so the overlay draws on the CPU, out of the game's way; and set Projector Motion to Static. Settings, Performance, Smoothness Check shows whether it helped.</p>
+          <a href="https://github.com/Adobe-Wan/Joystick-Overlay-Inputs-JOI#performance-in-obs" target="_blank" rel="noopener noreferrer">More in the README: Performance in OBS</a></section>
       </div>
     </div>
     <div class="foot">
@@ -3274,7 +3277,7 @@ function drawFailed(rt, w, err) {
 // work for it and the Projector's CSS animations stay on the compositor. A movement seen by the timer is drawn
 // straight away and switches back.
 const IDLE_MS = 500, POLL_MS = 16;
-let movePending = false, drawnAt = 0;
+let movePending = false, drawnAt = 0, inputAt = -Infinity;
 let rafId = 0, tickT = 0, passDue = true, redrawAll = true, hasInputs = false, idleT = 0, checkAt = 0, movedAt = 0;
 const obsState = { visible: true, active: true };
 const loopPaused = () => document.hidden || (!editing && (!obsState.visible || !obsState.active));
@@ -3335,6 +3338,7 @@ function frame(now, timed) {
   // Next frame first: an error below skips this frame's work, never the overlay.
   if (timed) tickT = setTimeout(tick, POLL_MS); else rafId = requestAnimationFrame(frame);
   if (loopPaused()) { stopLoop(); return; }
+  if (!timed && lastFrame && now - inputAt < IDLE_MS) frameSample(now, now - lastFrame);
   const dt = lastFrame ? Math.min(0.1, (now - lastFrame) / 1000) : 0; lastFrame = now;
   heatClock += dt;
   const padMoved = pollPads(), moved = mouseTick(dt) || padMoved;
@@ -3362,6 +3366,7 @@ function frame(now, timed) {
         // A still stick costs no drawing at all, which keeps OBS's browser source light.
         const changed = inputChanged(w, rt, pad);
         if (changed) movedAt = now;
+        if (changed && !all) inputAt = now;   // a full repaint (boot, rebuild) is not movement, for the Smoothness Check
         if (changed || heatDue) heatCredit(w, rt, pad);
         rt.dirty = changed || heatDue || all;
         if (rt.dirty) drawWidget(w, rt, pad);
@@ -3376,6 +3381,44 @@ function frame(now, timed) {
   const smooth = now - movedAt < IDLE_MS || perfPending() || capturing;   // the frame-time check needs real frames
   if (smooth && timed) { clearTimeout(tickT); tickT = 0; rafId = requestAnimationFrame(frame); }
   else if (!smooth && !timed) { cancelAnimationFrame(rafId); rafId = 0; tickT = setTimeout(tick, POLL_MS); }
+}
+// Smoothness check: how often the browser hands the page a frame while inputs move. In OBS that rate is set by the
+// source's FPS, and it drops when something starves OBS's browser, most often a game using all of the GPU. Only
+// frames on requestAnimationFrame within IDLE_MS of a movement count, in one-second buckets for the last 60 s.
+const FRAME_SECS = 60, FRAME_RECENT = 30, FRAME_MIN_S = 0.5;
+const frameStats = { buckets: [], best: 0, worst: Infinity };
+function frameSample(now, gap) {
+  const sec = Math.floor(now / 1000), B = frameStats.buckets;
+  let b = B[B.length - 1];
+  if (!b || b.sec !== sec) {
+    if (b) closeBucket(b);
+    b = { sec, frames: 0, time: 0, longest: 0 }; B.push(b);
+    while (B.length && B[0].sec <= sec - FRAME_SECS) B.shift();
+  }
+  b.frames++; b.time += gap; b.longest = Math.max(b.longest, gap);
+}
+// A finished second with enough movement in it counts toward the session's best and worst rates.
+function closeBucket(b) {
+  if (b.time < FRAME_MIN_S * 1000) return;
+  const fps = b.frames * 1000 / b.time;
+  frameStats.best = Math.max(frameStats.best, fps); frameStats.worst = Math.min(frameStats.worst, fps);
+}
+// The last FRAME_RECENT s of movement: frames a second and the longest wait between two frames, in ms.
+function frameReport(now = performance.now()) {
+  const from = Math.floor(now / 1000) - FRAME_RECENT;
+  let frames = 0, time = 0, longest = 0;
+  for (const b of frameStats.buckets) if (b.sec > from) { frames += b.frames; time += b.time; longest = Math.max(longest, b.longest); }
+  if (time < FRAME_MIN_S * 1000) return null;
+  const fps = frames * 1000 / time, best = Math.max(frameStats.best, fps);
+  return { fps, longest, best, worst: Math.min(frameStats.worst, fps), slow: fps < best * 0.75 };
+}
+function frameCheckText() {
+  const r = frameReport();
+  if (!r) return { text: "Move a control and this shows how many frames a second OBS lets the overlay draw.", slow: false };
+  const n = v => Math.round(v);
+  let text = `Last ${FRAME_RECENT} s of movement: ${n(r.fps)} frames a second, longest pause ${n(r.longest)} ms. Best this session: ${n(r.best)}, worst: ${n(r.worst)}.`;
+  if (r.slow) text += " That's well below its best, so something, usually the game using all of the GPU, is holding OBS's browser back. See Performance in Help.";
+  return { text, slow: r.slow };
 }
 // ---------- projector motion ----------
 // Subtle and Full move without script: the opacity ripple and the idle float are CSS keyframes, built here once and
@@ -5851,6 +5894,11 @@ function renderSettingsPanel(p) {
   const perfSec = section(p, "Performance", { key: "s-perf" });
   choiceRow(perfSec, "Draw rate", s, "fps", [[60, "60 FPS", "The smoothest motion. Best for most setups."], [30, "30 FPS", "Half the work for OBS. Motion looks a little less smooth, but a press still shows right away. Pick it if the overlay stutters, lags or falls out of sync with your game."]], applySettings, { aria: "Draw rate" });
   perfSec.append(el("div", { class: "hint small" }, "How many times a second the overlay redraws while you move your controls. When you let go it stops redrawing, unless a widget's Projector Motion is set to Subtle or Full."));
+  // Smoothness check: fly with the game in front, then open the editor (Interact) and read what OBS allowed.
+  const check = el("div", { class: "hint small", id: "frame-check", "aria-live": "off" });
+  perfSec.append(el("h5", {}, "Smoothness Check"), check);
+  const fillCheck = () => { const c = frameCheckText(); check.textContent = c.text; check.classList.toggle("warn", c.slow); };
+  fillCheck(); devTimer = setInterval(fillCheck, 1000);
   themeSection(p, profile.widgets.filter(w => w.type !== "label"), true);
   const bg = section(p, "Page Background", { key: "s-bg" });
   toggleRow(bg, "Solid page background", { get v() { return s.background === "solid"; }, set v(x) { s.background = x ? "solid" : "transparent"; } }, "v", applySettings,
