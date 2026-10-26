@@ -3277,7 +3277,7 @@ function drawFailed(rt, w, err) {
 // work for it and the Projector's CSS animations stay on the compositor. A movement seen by the timer is drawn
 // straight away and switches back.
 const IDLE_MS = 500, POLL_MS = 16;
-let movePending = false, drawnAt = 0;
+let movePending = false, drawnAt = 0, inputAt = -Infinity;
 let rafId = 0, tickT = 0, passDue = true, redrawAll = true, hasInputs = false, idleT = 0, checkAt = 0, movedAt = 0;
 const obsState = { visible: true, active: true };
 const loopPaused = () => document.hidden || (!editing && (!obsState.visible || !obsState.active));
@@ -3338,7 +3338,7 @@ function frame(now, timed) {
   // Next frame first: an error below skips this frame's work, never the overlay.
   if (timed) tickT = setTimeout(tick, POLL_MS); else rafId = requestAnimationFrame(frame);
   if (loopPaused()) { stopLoop(); return; }
-  if (!timed && lastFrame && now - movedAt < IDLE_MS) frameSample(now, now - lastFrame);
+  if (!timed && lastFrame && now - inputAt < IDLE_MS) frameSample(now, now - lastFrame);
   const dt = lastFrame ? Math.min(0.1, (now - lastFrame) / 1000) : 0; lastFrame = now;
   heatClock += dt;
   const padMoved = pollPads(), moved = mouseTick(dt) || padMoved;
@@ -3366,6 +3366,7 @@ function frame(now, timed) {
         // A still stick costs no drawing at all, which keeps OBS's browser source light.
         const changed = inputChanged(w, rt, pad);
         if (changed) movedAt = now;
+        if (changed && !all) inputAt = now;   // a full repaint (boot, rebuild) is not movement, for the Smoothness Check
         if (changed || heatDue) heatCredit(w, rt, pad);
         rt.dirty = changed || heatDue || all;
         if (rt.dirty) drawWidget(w, rt, pad);

@@ -82,7 +82,7 @@ const checkText = page => page.evaluate(() => { setSelection([], "settings"); re
 
 test("Smoothness Check waits for movement, then reports frames a second while inputs move", async ({ app, page }) => {
   await app.open({ profile: VALID, devices: DEVICES, query: "?edit" });
-  await page.waitForTimeout(600);
+  await page.waitForTimeout(600);   // the first paint after loading draws every widget, which is not movement
   expect(await checkText(page)).toMatch(/^Move a control/);
   expect(await page.evaluate(() => frameReport())).toBeNull();
   await drive(page, "Math.sin(t / (20 + 7 * i + s))");
