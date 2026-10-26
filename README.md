@@ -214,10 +214,11 @@ Every color in the effect comes from the widget's theme, so switching the theme 
 ### Lags while you fly? The game is probably using all of the GPU
 If the widgets keep up while OBS is in front but lag or stutter in the game (often worse in first person, where Star Citizen draws the whole cockpit), the game is taking the whole GPU and OBS's browser has to wait its turn. OBS's own stats can look fine at the same time, because OBS keeps showing the overlay's last finished frame. JOI itself is light: with either AdobeWan template, moving every input at once took under a fifth of one CPU core in our tests, and nothing at all once you let go. So the fix is on the OBS and Windows side. Try these in order, and check after each one:
 
-1. **Cap the game's frame rate** a little below what your GPU reaches (Star Citizen's Graphics settings, or **Max Frame Rate** in your GPU's control panel). A GPU at 100% has nothing left for OBS; even a few percent of headroom helps.
-2. **Turn off browser hardware acceleration:** OBS **Settings → Advanced → Sources**, untick **Enable Browser Source Hardware Acceleration**, then restart OBS. The overlay is then drawn on the CPU, which the game leaves mostly free, and OBS hands the finished picture to the GPU itself. Keep **Projector Motion** on **Static** (or use Flat) with this setting: Subtle and Full redraw all the time and cost more on the CPU.
-3. **Run OBS as administrator.** Windows then gives OBS's drawing priority over the game's.
-4. **Draw rate 30 FPS** (below) halves the frames the overlay asks for.
+1. **Cap the game's frame rate** a little below what your GPU reaches (Star Citizen's Graphics settings, or **Max Frame Rate** in your GPU's control panel). An uncapped game keeps the GPU at 100% even in quiet moments, which is why the overlay can hitch when little is happening. Even a few percent of headroom helps.
+2. **Capture the game with Game Capture** rather than Window or Display Capture: it costs OBS the least.
+3. **Turn off browser hardware acceleration:** OBS **Settings → Advanced → Sources**, untick **Enable Browser Source Hardware Acceleration**, then restart OBS. The overlay is then drawn on the CPU, which the game leaves mostly free, and OBS hands the finished picture to the GPU itself. Keep **Projector Motion** on **Static** (or use Flat) with this setting: Subtle and Full redraw all the time and cost more on the CPU. If your CPU is the busy one instead, this can make things worse: keep it only if the Smoothness Check improves.
+4. **Run OBS as administrator.** Windows then gives OBS's drawing priority over the game's.
+5. **Draw rate 30 FPS** (below) halves the frames the overlay asks for.
 
 **Settings → Performance → Smoothness Check** shows whether it worked. Fly for a minute with the game in front, then open the editor (**Interact**): it lists how many frames a second OBS let the overlay draw while your controls moved, the longest pause, and the session's best and worst. A rate well under the best means the overlay is still being held back.
 
