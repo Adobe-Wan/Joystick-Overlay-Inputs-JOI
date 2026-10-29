@@ -214,7 +214,7 @@ Every color in the effect comes from the widget's theme, so switching the theme 
 ### Lags while you fly? The game is probably using all of the GPU
 If the widgets keep up while OBS is in front but lag or stutter in the game (often worse in first person, where Star Citizen draws the whole cockpit), the game is taking the whole GPU and OBS's browser has to wait its turn. OBS's own stats can look fine at the same time, because OBS keeps showing the overlay's last finished frame. JOI itself is light: with either AdobeWan template, moving every input at once took under a fifth of one CPU core in our tests, and nothing at all once you let go. So the fix is on the OBS and Windows side, and the game's own settings can stay as they are. Try these in order, and check after each one:
 
-1. **Take the overlay off the GPU:** OBS **Settings → Advanced**, in the **Sources** group untick **Enable Browser Source Hardware Acceleration**, click OK and restart OBS (it only takes effect on restart). The overlay is then drawn by the CPU, which Star Citizen leaves mostly free, and OBS just uploads the finished picture. Set **Projector Motion** to **Static** (or use Flat) with it: Subtle and Full redraw all the time and would spend that CPU for nothing. If your CPU is the busy part of your PC instead, this can make things worse: keep it only if the Smoothness Check improves.
+1. **Take the overlay off the GPU:** OBS **Settings → Advanced**, in the **Sources** group untick **Enable Browser Source Hardware Acceleration**, click OK and restart OBS (it only takes effect on restart). The overlay is then drawn by the CPU, which Star Citizen leaves mostly free, and OBS just uploads the finished picture. Set **Projector Motion** to **Still** (or use Flat) with it: Subtle and Full redraw all the time and would spend that CPU for nothing. If your CPU is the busy part of your PC instead, this can make things worse: keep it only if the Smoothness Check improves.
 2. **Run OBS as administrator.** Windows then gives OBS's drawing priority over the game's.
 3. **Draw rate 30 FPS** (below) halves the frames the overlay asks OBS to take.
 4. **Capture the game with Game Capture** rather than Window or Display Capture: it costs OBS the least.
@@ -226,7 +226,7 @@ If the widgets keep up while OBS is in front but lag or stutter in the game (oft
 Every new frame the overlay makes is a frame OBS's browser has to composite and hand over, and that work waits in line behind the game. The checklist keeps that line short without touching the game's settings. Each item is independent; do the ones that fit your setup.
 
 1. **Browser Source Hardware Acceleration off** (Settings → Advanced, the Sources group; restart OBS after). Star Citizen keeps the GPU busy and the CPU mostly idle, so the overlay draws faster on the CPU. Leave it on only if your CPU is the busy part.
-2. **In JOI:** Projector Motion **Static** (Subtle and Full keep OBS compositing new frames with your hands off the controls) and Draw rate **30 FPS**. Then fly a minute and read the **Smoothness Check**.
+2. **In JOI:** Projector Motion **Still** (Subtle and Full keep OBS compositing new frames with your hands off the controls) and Draw rate **30 FPS**. Then fly a minute and read the **Smoothness Check**.
 3. **Run OBS as administrator** so Windows gives its drawing priority over the game's, and set **OBS Settings → Advanced → General → Process Priority: Above Normal** so its threads get their turn sooner.
 4. **Capture with Game Capture**, not Display Capture.
 5. **Browser source = canvas size** (Base Resolution), 1080p for a 1080p recording. A 4K source is four times the work.
@@ -238,7 +238,7 @@ Every new frame the overlay makes is a frame OBS's browser has to composite and 
 
 ### Everyday settings
 - **Settings → Performance → Draw rate** is how many times a second the overlay redraws while you move your controls. **60 FPS** is the smoothest. **30 FPS** halves the work OBS does for JOI: the page changes at most 30 times a second, readouts and Projector motion included, so OBS takes at most 30 new frames from it. Motion looks a little less smooth, but a press still shows right away. Pick it if the overlay stutters, lags or falls out of sync with your game. It applies to every profile.
-- **Projector Subtle and Full** animate even when nothing moves, so OBS keeps redrawing the source (60 times a second, or 30 at a 30 FPS draw rate). **Static** or **Flat** costs nothing while your hands are off the controls.
+- **Projector Subtle and Full** animate even when nothing moves, so OBS keeps redrawing the source (60 times a second, or 30 at a 30 FPS draw rate). **Still** or **Flat** costs nothing while your hands are off the controls.
 - Make the Browser source the same size as your OBS canvas (Base Resolution), not larger: a 4K source is four times the work of a 1080p one. JOI scales its layout to the source size.
 - Widgets only redraw when an input actually changes. Small wobbles a stick, throttle or pedal makes at rest (under half a percent) are ignored, so a resting device costs nothing to draw.
 - **Enable Browser Source Hardware Acceleration** (OBS Settings, Advanced) is on by default, and it's the better choice when your GPU has room to spare, especially with Projector Subtle or Full. Turn it off only when the game leaves the GPU no room (see above).

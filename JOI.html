@@ -926,7 +926,7 @@ html[data-vg-transparency="reduced"] .paper { -webkit-backdrop-filter: none; bac
           <p>In OBS, add a Browser source, check Local file, pick JOI.html and set it to your canvas size. Right-click the source and choose Interact to edit. Capture Game View on the Setup panel puts a screenshot of your game behind the editor, so you can place widgets around the HUD.</p>
           <a href="https://github.com/Adobe-Wan/Joystick-Overlay-Inputs-JOI#set-up-in-obs" target="_blank" rel="noopener noreferrer">More in the README: Set up in OBS</a></section>
         <section aria-labelledby="help-lag"><h4 id="help-lag">Overlay Lags While You Fly</h4>
-          <p>If the widgets keep up with OBS in front but fall behind in the game, the game is likely using all of your GPU, and OBS's browser waits its turn. Try these in order: in OBS Settings, Advanced, turn off Browser Source Hardware Acceleration and restart OBS, so the overlay draws on the CPU, which the game leaves free; set Projector Motion to Static and Draw rate to 30; run OBS as administrator; and only if you can spare it, cap the game's frame rate a little below what your GPU reaches. Settings, Performance, Smoothness Check shows whether it helped.</p>
+          <p>If the widgets keep up with OBS in front but fall behind in the game, the game is likely using all of your GPU, and OBS's browser waits its turn. Try these in order: in OBS Settings, Advanced, turn off Browser Source Hardware Acceleration and restart OBS, so the overlay draws on the CPU, which the game leaves free; set Projector Motion to Still and Draw rate to 30; run OBS as administrator; and only if you can spare it, cap the game's frame rate a little below what your GPU reaches. Settings, Performance, Smoothness Check shows whether it helped.</p>
           <a href="https://github.com/Adobe-Wan/Joystick-Overlay-Inputs-JOI#performance-in-obs" target="_blank" rel="noopener noreferrer">More in the README: Performance in OBS</a></section>
       </div>
     </div>
@@ -5704,8 +5704,9 @@ function projectorSection(p, ws) {
   p = section(p, "Projector", { key: "projector", open: false, fam: "style", icon: "projector" });
   const px = v => (v > 0 ? "+" : "") + v + " px";
   p.append(el("h5", {}, "Basics"));
-  choiceRow(p, "Motion", proxy, "tier", [["static", "Still", "No motion. Costs nothing per frame."], ["subtle", "Subtle", "A slow float and a rare, gentle dropout."],
-    ["full", "Full", "Color split and tears during dropouts, photons on the rays, dust in the beam."]], upd, { aria: "Projector motion" });
+  choiceRow(p, "Motion", proxy, "tier", [["static", "Still", "No motion. Costs nothing per frame: the overlay only redraws when you move a control. The choice for recording and streaming, and the one to pick if the overlay ever freezes or stutters in your stream output."],
+    ["subtle", "Subtle", "A slow float and a rare, gentle dropout. Animates all the time, so OBS keeps drawing the overlay even with your hands off the controls."],
+    ["full", "Full", "Color split and tears during dropouts, photons on the rays, dust in the beam. The heaviest: it animates all the time and adds canvas work during dropouts. For a GPU with room to spare."]], upd, { aria: "Projector motion" });
   if (REDUCED_MOTION) p.append(el("div", { class: "hint small" }, "Your system asks for less motion, so the projector stays still."));
   sliderRow(p, "Intensity", proxy, "intensity", 0, 100, "%", updIntensity).addEventListener("change", upd);
   choiceRow(p, "Scene", proxy, "footage", [["dark", "Dark", "Space and dim cockpits."], ["bright", "Bright", "Planet glare and clouds: brighter light and lines so readouts stay legible."]], upd, { aria: "Scene brightness" });
@@ -5914,11 +5915,15 @@ function renderSettingsPanel(p) {
   choiceRow(display, "Editor text size", s, "uiScale", [["auto", "Auto", "Grows with the screen, so 4K stays readable."], [1, "100%"], [1.25, "125%"], [1.5, "150%"], [2, "200%"], [2.5, "250%"]], applySettings, { wrap: true });
   toggleRow(display, "Reduce transparency", s, "reduceTransparency", applySettings, "Solid panels instead of frosted glass: easier to read over a busy game view, and less work for OBS.");
   const perfSec = section(p, "Performance", { key: "s-perf" });
-  choiceRow(perfSec, "Draw rate", s, "fps", [[60, "60 FPS", "The smoothest motion. Best for most setups."], [30, "30 FPS", "Half the work for OBS. Motion looks a little less smooth, but a press still shows right away. Pick it if the overlay stutters, lags or falls out of sync with your game."]], applySettings, { aria: "Draw rate" });
-  perfSec.append(el("div", { class: "hint small" }, "How many times a second the overlay redraws while you move your controls. When you let go it stops redrawing, unless a widget's Projector Motion is set to Subtle or Full."));
+  // Why these settings exist, in the words a pilot sees the problem in: the overlay freezing in the stream output.
+  perfSec.append(el("div", { class: "hint small" }, "Use these when the overlay freezes, stutters or lags behind in your stream or recording while the game itself stays smooth. That happens when the game takes the whole GPU and OBS's browser has to wait for it. First, in OBS Settings, Advanced, turn off Browser Source Hardware Acceleration and restart OBS, so the overlay is drawn by the CPU instead. Then use the two settings below and read the Smoothness Check."));
+  choiceRow(perfSec, "Draw rate", s, "fps", [[60, "60 FPS", "Redraws up to 60 times a second while you move a control. The smoothest motion: keep it while the overlay keeps up with your game."], [30, "30 FPS", "Redraws at most 30 times a second, readouts and Projector motion included, so OBS takes half as many new frames from the overlay. A press still shows right away. Pick it when the overlay stutters, lags or freezes in your stream or recording."]], applySettings, { aria: "Draw rate" });
+  perfSec.append(el("div", { class: "hint small" }, "How many times a second the overlay redraws while you move your controls. When you let go it stops redrawing, unless a widget's Projector Motion is set to Subtle or Full: those animate all the time, so Still is the cheapest choice while you record."));
   // Smoothness check: fly with the game in front, then open the editor (Interact) and read what OBS allowed.
   const check = el("div", { class: "hint small", id: "frame-check", "aria-live": "off" });
-  perfSec.append(el("h5", {}, "Smoothness Check"), check);
+  perfSec.append(el("h5", {}, "Smoothness Check"),
+    el("div", { class: "hint small" }, "Tells you whether a change helped. Fly for a minute with the game in front, then open the editor (Interact) and come back here: it shows how many frames a second OBS let the overlay draw while your controls moved. Compare the number before and after each setting you change."),
+    check);
   const fillCheck = () => { const c = frameCheckText(); check.textContent = c.text; check.classList.toggle("warn", c.slow); };
   fillCheck(); devTimer = setInterval(fillCheck, 1000);
   themeSection(p, profile.widgets.filter(w => w.type !== "label"), true);
