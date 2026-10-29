@@ -272,6 +272,12 @@ If the widgets move while OBS is the active window but stop as soon as you click
 - **Run OBS at the same level as the game.** Windows doesn't pass input from an app running as administrator to one that isn't. If Star Citizen or the RSI Launcher runs as administrator, run OBS as administrator too (shortcut **Properties → Compatibility → Run this program as an administrator**), or run neither that way.
 - **Still frozen?** Note your OBS version (Help → About) and which widgets freeze (sticks, pedals, buttons, or all of them), and open an issue.
 
+## G-Sync stopped working?
+JOI in OBS doesn't affect G-Sync: it only draws into your stream, never over the game. But any app that keeps its own window on top of Star Citizen, even an invisible one, can turn G-Sync off while it runs. On our test PC (Windows 11, NVIDIA, Vulkan and DX11, Borderless, Windowed and Fullscreen) every always-on-top window we tried did it, Microsoft's own Game Bar widgets included.
+- **Tobii eye tracker users:** Tobii's software keeps a one-pixel always-on-top window running in the background, and that alone turned G-Sync off on our test PC. Quit the Tobii app (and its tray icon) and check again.
+- **How to check:** turn on your monitor's own refresh-rate counter in its on-screen menu, or NVIDIA Control Panel → **Display** → **G-SYNC Indicator**. With G-Sync working, the counter follows your in-game FPS. If it sits at your monitor's maximum while the game runs slower, something is drawing over the game.
+- **Other suspects:** desktop widgets, stream chat or alert windows set to "always on top", and other overlays that run as their own window.
+
 ## Sharing a layout
 In **Profiles & Share**, click **Download .json** under **This Profile** and send that file (plus `JOI.html` if they don't have it yet). It holds the profile on screen. They open the editor and choose **Import a Profile**, which adds it as a new profile next to theirs. With the same hardware it works right away. With different hardware they select each widget and press **Rebind** to use their own.
 
