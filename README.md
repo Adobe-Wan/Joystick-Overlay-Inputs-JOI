@@ -211,12 +211,37 @@ Every color in the effect comes from the widget's theme, so switching the theme 
 **OBS tips.** The page can't add light to the game footage behind it (OBS composites the overlay on top), so the hologram fakes it with low alphas and white-pushed cores. For true additive light, right-click the browser source in OBS and set **Blending Mode** to **Screen** or **Additive**. The Subtle and Full tiers depend on **Enable Browser Source Hardware Acceleration** (see below).
 
 ## Performance in OBS
-If the overlay lags behind your game, or OBS's stats show rendering lag or skipped frames:
-- **Settings → Performance → Draw rate** is how many times a second the overlay redraws while you move your controls. **60 FPS** is the smoothest. **30 FPS** halves the work OBS does for JOI: motion looks a little less smooth, but a press still shows right away. Pick it if the overlay stutters, lags or falls out of sync with your game. It applies to every profile.
-- **Projector Subtle and Full** animate even when nothing moves, so OBS keeps redrawing the source (60 times a second, or 30 at a 30 FPS draw rate). **Static** or **Flat** costs nothing while your hands are off the controls.
+### Lags while you fly? The game is probably using all of the GPU
+If the widgets keep up while OBS is in front but lag or stutter in the game (often worse in first person, where Star Citizen draws the whole cockpit), the game is taking the whole GPU and OBS's browser has to wait its turn. OBS's own stats can look fine at the same time, because OBS keeps showing the overlay's last finished frame. JOI itself is light: with either AdobeWan template, moving every input at once took under a fifth of one CPU core in our tests, and nothing at all once you let go. So the fix is on the OBS and Windows side, and the game's own settings can stay as they are. Try these in order, and check after each one:
+
+1. **Take the overlay off the GPU:** OBS **Settings → Advanced**, in the **Sources** group untick **Enable Browser Source Hardware Acceleration**, click OK and restart OBS (it only takes effect on restart). The overlay is then drawn by the CPU, which Star Citizen leaves mostly free, and OBS just uploads the finished picture. Set **Projector Motion** to **Still** (or use Flat) with it: Subtle and Full redraw all the time and would spend that CPU for nothing. If your CPU is the busy part of your PC instead, this can make things worse: keep it only if the Smoothness Check improves.
+2. **Run OBS as administrator.** Windows then gives OBS's drawing priority over the game's.
+3. **Draw rate 30 FPS** (below) halves the frames the overlay asks OBS to take.
+4. **Capture the game with Game Capture** rather than Window or Display Capture: it costs OBS the least.
+5. **If you can spare it, cap the game's frame rate** a little below what your GPU reaches (Star Citizen's Graphics settings, or **Max Frame Rate** in your GPU's control panel). Most pilots won't want to, and with step 1 done it is rarely needed; it is listed because an uncapped game keeps the GPU at 100% even in quiet moments, which is the root of the hitching.
+
+**Settings → Performance → Smoothness Check** shows whether it worked. Fly for a minute with the game in front, then open the editor (**Interact**): it lists how many frames a second OBS let the overlay draw while your controls moved, the longest pause, and the session's best and worst. A rate well under the best means the overlay is still being held back.
+
+### Before you record: the OBS checklist
+Every new frame the overlay makes is a frame OBS's browser has to composite and hand over, and that work waits in line behind the game. The checklist keeps that line short without touching the game's settings. Each item is independent; do the ones that fit your setup.
+
+1. **Browser Source Hardware Acceleration off** (Settings → Advanced, the Sources group; restart OBS after). Star Citizen keeps the GPU busy and the CPU mostly idle, so the overlay draws faster on the CPU. Leave it on only if your CPU is the busy part.
+2. **In JOI:** Projector Motion **Still** (Subtle and Full keep OBS compositing new frames with your hands off the controls) and Draw rate **30 FPS**. Then fly a minute and read the **Smoothness Check**.
+3. **Run OBS as administrator** so Windows gives its drawing priority over the game's, and set **OBS Settings → Advanced → General → Process Priority: Above Normal** so its threads get their turn sooner.
+4. **Capture with Game Capture**, not Display Capture.
+5. **Browser source = canvas size** (Base Resolution), 1080p for a 1080p recording. A 4K source is four times the work.
+6. **Fewer browsers inside OBS.** Chat and activity docks (Twitch, YouTube, custom browser docks) and alert or chat browser sources all run in the same browser engine as JOI, and each one takes frames of its own. Close the docks and hide the sources you don't need while you record.
+7. **Disable the preview while you fly** (right-click the preview → Disable Preview). OBS then renders the scene once for the recording instead of twice.
+8. **Windows and driver settings.** Settings → System → Display → Graphics: add obs64.exe and set it to High performance (matters on laptops and PCs with two GPUs). NVIDIA Control Panel → Manage 3D Settings: **Background Application Max Frame Rate** must be Off (it throttles OBS as soon as the game is in front). If the overlay still hitches, try Windows Game Mode off for a session and compare.
+9. **A leaf next to obs-browser-page.exe?** Open Task Manager while you fly. If the browser processes show Windows 11's Efficiency mode leaf, Windows is running them on its slow setting. Add `UseEcoQoSForBackgroundProcess` to the launch flag you may already use for background input (see [Inputs freeze while the game is in front](#inputs-freeze-while-the-game-is-in-front)): `--disable-features=EnableWindowsGamingInputDataFetcher,UseEcoQoSForBackgroundProcess`.
+10. **Last resort: cap the game** a little under what your GPU manages (Star Citizen: Options → Graphics → Max FPS, or VSync). Few pilots will want to, and with item 1 done it is rarely needed; an uncapped game is simply what fills the GPU even while you sit still.
+
+### Everyday settings
+- **Settings → Performance → Draw rate** is how many times a second the overlay redraws while you move your controls. **60 FPS** is the smoothest. **30 FPS** halves the work OBS does for JOI: the page changes at most 30 times a second, readouts and Projector motion included, so OBS takes at most 30 new frames from it. Motion looks a little less smooth, but a press still shows right away. Pick it if the overlay stutters, lags or falls out of sync with your game. It applies to every profile.
+- **Projector Subtle and Full** animate even when nothing moves, so OBS keeps redrawing the source (60 times a second, or 30 at a 30 FPS draw rate). **Still** or **Flat** costs nothing while your hands are off the controls.
 - Make the Browser source the same size as your OBS canvas (Base Resolution), not larger: a 4K source is four times the work of a 1080p one. JOI scales its layout to the source size.
 - Widgets only redraw when an input actually changes. Small wobbles a stick, throttle or pedal makes at rest (under half a percent) are ignored, so a resting device costs nothing to draw.
-- Keep **Enable Browser Source Hardware Acceleration** on (OBS Settings, Advanced). That's the default. The Projector look's Subtle and Full motion tiers rely on it: without it their float and glow are drawn on the CPU every frame.
+- **Enable Browser Source Hardware Acceleration** (OBS Settings, Advanced) is on by default, and it's the better choice when your GPU has room to spare, especially with Projector Subtle or Full. Turn it off only when the game leaves the GPU no room (see above).
 - Set the Browser Source FPS to 60. Going higher only adds load. If OBS is still struggling, tick **Use custom frame rate** in the source's properties and set it to 30: OBS then asks the page for only 30 frames a second, whatever is on screen.
 - If the overlay is always a little behind the game but smooth, it's latency rather than load: add a **Render Delay** filter to your game capture (start around 30 to 50 ms) to line the two up.
 

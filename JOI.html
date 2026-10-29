@@ -925,6 +925,9 @@ html[data-vg-transparency="reduced"] .paper { -webkit-backdrop-filter: none; bac
         <section aria-labelledby="help-obs"><h4 id="help-obs">Add to OBS and Capture the Game View</h4>
           <p>In OBS, add a Browser source, check Local file, pick JOI.html and set it to your canvas size. Right-click the source and choose Interact to edit. Capture Game View on the Setup panel puts a screenshot of your game behind the editor, so you can place widgets around the HUD.</p>
           <a href="https://github.com/Adobe-Wan/Joystick-Overlay-Inputs-JOI#set-up-in-obs" target="_blank" rel="noopener noreferrer">More in the README: Set up in OBS</a></section>
+        <section aria-labelledby="help-lag"><h4 id="help-lag">Overlay Lags While You Fly</h4>
+          <p>If the widgets keep up with OBS in front but fall behind in the game, the game is likely using all of your GPU, and OBS's browser waits its turn. Try these in order: in OBS Settings, Advanced, turn off Browser Source Hardware Acceleration and restart OBS, so the overlay draws on the CPU, which the game leaves free; set Projector Motion to Still and Draw rate to 30; run OBS as administrator; and only if you can spare it, cap the game's frame rate a little below what your GPU reaches. Settings, Performance, Smoothness Check shows whether it helped.</p>
+          <a href="https://github.com/Adobe-Wan/Joystick-Overlay-Inputs-JOI#performance-in-obs" target="_blank" rel="noopener noreferrer">More in the README: Performance in OBS</a></section>
       </div>
     </div>
     <div class="foot">
@@ -2424,7 +2427,7 @@ function buildWidget(w, grow) {
   applyEffects(root, w);
   const holo = holoOf(w);
   applyPerspective(root, w);
-  const rt = getRt(w); rt.root = root; rt.spans = {};
+  const rt = getRt(w); rt.root = root; rt.spans = {}; rt.sprites = null;   // sprites are sized for this build's scale
   // A new canvas is blank: inNew draws it on the next pass, and the cached input and pad lookup start over.
   rt.axIdx = w.axes ? Object.values(w.axes) : [];
   rt.inVals = new Float64Array(rt.axIdx.length + 2).fill(NaN); rt.inNew = true; rt.padGen = -1;
@@ -3094,26 +3097,45 @@ function drawStick(w, rt, pad) {
   const depth = depthOf(w), px = R + x * (R - DOT_R - 1), py = R - y * (R - DOT_R - 1);
   g.strokeStyle = hexA(accent, 0.5); g.setLineDash([3, 3]);
   g.beginPath(); g.moveTo(px, 0); g.lineTo(px, S); g.moveTo(0, py); g.lineTo(S, py); g.stroke(); g.setLineDash([]);
+  // The dot's soft parts (its glow, and with 3D depth the shadow it casts) are blurred once into a sprite per widget
+  // (dotSprite): a canvas blur or shadowBlur is a Gaussian pass on every frame, and on the CPU it was a quarter of a
+  // moving stick's script time. The sprite lands on the dot's subpixel position by resampling, which a blur hides;
+  // the dot itself is drawn live, so its edge stays crisp.
   if (depth > 0) {
     // A lit sphere: soft shadow cast down-right, accent glow, then a radial gradient with a specular highlight.
-    // The blur stays a live filter: a cached sprite would land on other subpixel positions and shift the pixels.
-    const r = DOT_R + 2.5 * depth;
-    g.fillStyle = `rgba(0,0,0,${0.55 * depth})`; g.filter = `blur(${(1.5 + 2 * depth).toFixed(1)}px)`;
-    g.beginPath(); g.ellipse(px + 2 * depth, py + 3.5 * depth, r, r * 0.8, 0, 0, Math.PI * 2); g.fill(); g.filter = "none";
-    g.shadowColor = accent; g.shadowBlur = 10;
+    const r = DOT_R + 2.5 * depth, half = Math.ceil(r + 10 + 6 * depth) + 2;
+    const soft = dotSprite(rt, `depth ${accent} ${depth}`, half, (sg, o) => {
+      sg.fillStyle = `rgba(0,0,0,${0.55 * depth})`; sg.filter = `blur(${(1.5 + 2 * depth).toFixed(1)}px)`;
+      sg.beginPath(); sg.ellipse(o + 2 * depth, o + 3.5 * depth, r, r * 0.8, 0, 0, Math.PI * 2); sg.fill(); sg.filter = "none";
+      sg.shadowColor = accent; sg.shadowBlur = 10; sg.shadowOffsetX = 4 * half;   // only the glow lands on the sprite
+      sg.fillStyle = accent; sg.beginPath(); sg.arc(o - 4 * half, o, r, 0, Math.PI * 2); sg.fill();
+    });
+    g.drawImage(soft, px - half, py - half, 2 * half, 2 * half);
     const ball = g.createRadialGradient(px - r * 0.35, py - r * 0.4, r * 0.1, px, py, r);
     ball.addColorStop(0, mixHex(accent, "#ffffff", 0.75)); ball.addColorStop(0.35, accent); ball.addColorStop(1, mixHex(accent, "#000000", 0.55));
-    g.fillStyle = ball; g.beginPath(); g.arc(px, py, r, 0, Math.PI * 2); g.fill(); g.shadowBlur = 0;
+    g.fillStyle = ball; g.beginPath(); g.arc(px, py, r, 0, Math.PI * 2); g.fill();
   } else if (holo) {   // the glow is a sprite under the dot, no shadowBlur in the projected path
     g.drawImage(holoSprite(rt, rt.holoColors.glow), px - 20, py - 20, 40, 40);
     g.fillStyle = accent; g.beginPath(); g.arc(px, py, DOT_R, 0, Math.PI * 2); g.fill();
     g.globalCompositeOperation = "source-over";
     tearStrip(c, rt);
   } else {
-    g.fillStyle = accent; g.shadowColor = accent; g.shadowBlur = 12;
-    g.beginPath(); g.arc(px, py, DOT_R, 0, Math.PI * 2); g.fill(); g.shadowBlur = 0;
+    const half = DOT_R + 14;
+    const glow = dotSprite(rt, `glow ${accent}`, half, (sg, o) => {
+      sg.shadowColor = accent; sg.shadowBlur = 12; sg.shadowOffsetX = 4 * half;
+      sg.fillStyle = accent; sg.beginPath(); sg.arc(o - 4 * half, o, DOT_R, 0, Math.PI * 2); sg.fill();
+    });
+    g.drawImage(glow, px - half, py - half, 2 * half, 2 * half);
+    g.fillStyle = accent; g.beginPath(); g.arc(px, py, DOT_R, 0, Math.PI * 2); g.fill();
   }
   setText(rt.spans.x, x); setText(rt.spans.y, y);
+}
+// A square sprite of 2 * half CSS px, painted once by paint(g, half) and kept on the runtime under key (which names
+// the colors and sizes it was painted with, so a theme change paints a new one).
+function dotSprite(rt, key, half, paint) {
+  const s = rt.sprites || (rt.sprites = {});
+  if (!s[key] || s[key]._w !== 2 * half) { const c = makeCanvas(2 * half, 2 * half); paint(c._g, half); s[key] = c; }
+  return s[key];
 }
 function roundRect(g, x, y, w, h, r) {
   r = Math.min(r, w / 2, h / 2); g.beginPath();
@@ -3274,7 +3296,7 @@ function drawFailed(rt, w, err) {
 // work for it and the Projector's CSS animations stay on the compositor. A movement seen by the timer is drawn
 // straight away and switches back.
 const IDLE_MS = 500, POLL_MS = 16;
-let movePending = false, drawnAt = 0;
+let movePending = false, drawnAt = 0, inputAt = -Infinity;
 let rafId = 0, tickT = 0, passDue = true, redrawAll = true, hasInputs = false, idleT = 0, checkAt = 0, movedAt = 0;
 const obsState = { visible: true, active: true };
 const loopPaused = () => document.hidden || (!editing && (!obsState.visible || !obsState.active));
@@ -3335,6 +3357,7 @@ function frame(now, timed) {
   // Next frame first: an error below skips this frame's work, never the overlay.
   if (timed) tickT = setTimeout(tick, POLL_MS); else rafId = requestAnimationFrame(frame);
   if (loopPaused()) { stopLoop(); return; }
+  if (!timed && lastFrame && now - inputAt < IDLE_MS) frameSample(now, now - lastFrame);
   const dt = lastFrame ? Math.min(0.1, (now - lastFrame) / 1000) : 0; lastFrame = now;
   heatClock += dt;
   const padMoved = pollPads(), moved = mouseTick(dt) || padMoved;
@@ -3347,7 +3370,10 @@ function frame(now, timed) {
   // Draw rate 30: input seen between passes waits for the next one, so OBS gets at most 30 new frames a second.
   movePending = movePending || moved;
   const gapOk = profile.settings.fps !== 30 || now - drawnAt >= 1000 / 30 - 2;
-  if ((movePending && gapOk) || passDue || heatDue || check) {
+  // Readout text is written in a pass too, never between two: at 30 FPS a text write on a frame of its own would be
+  // one more frame for OBS to take (37 a second instead of 30, measured), and a stale value wakes a pass when due.
+  const textDue = textQueue.length > 0 && now - textAt >= TEXT_MS;
+  if (((movePending || textDue) && gapOk) || passDue || heatDue || check) {
     movePending = false; drawnAt = now;
     if (stepT) stepHolo(now);
     const all = redrawAll; passDue = redrawAll = false;
@@ -3362,20 +3388,59 @@ function frame(now, timed) {
         // A still stick costs no drawing at all, which keeps OBS's browser source light.
         const changed = inputChanged(w, rt, pad);
         if (changed) movedAt = now;
+        if (changed && !all) inputAt = now;   // a full repaint (boot, rebuild) is not movement, for the Smoothness Check
         if (changed || heatDue) heatCredit(w, rt, pad);
         rt.dirty = changed || heatDue || all;
         if (rt.dirty) drawWidget(w, rt, pad);
         if (rt.dirty && rt.dropOn && rt.fringe) holoFringe(rt, rt.dropDx);   // a dropout's color split follows the new frame
       } catch (err) { drawFailed(rt, w, err); }   // one broken widget leaves the others drawing
     }
+    flushText(now);
   }
-  flushText(now);
   holoPerf(now, dt);
   if (!loopNeeded()) { stopLoop(); if (!padList.length) idleCheck(); return; }
   const capturing = editing && wiz && (wiz.stage === "steps" || wiz.stage === "press");   // detection counts frames
   const smooth = now - movedAt < IDLE_MS || perfPending() || capturing;   // the frame-time check needs real frames
   if (smooth && timed) { clearTimeout(tickT); tickT = 0; rafId = requestAnimationFrame(frame); }
   else if (!smooth && !timed) { cancelAnimationFrame(rafId); rafId = 0; tickT = setTimeout(tick, POLL_MS); }
+}
+// Smoothness check: how often the browser hands the page a frame while inputs move. In OBS that rate is set by the
+// source's FPS, and it drops when something starves OBS's browser, most often a game using all of the GPU. Only
+// frames on requestAnimationFrame within IDLE_MS of a movement count, in one-second buckets for the last 60 s.
+const FRAME_SECS = 60, FRAME_RECENT = 30, FRAME_MIN_S = 0.5;
+const frameStats = { buckets: [], best: 0, worst: Infinity };
+function frameSample(now, gap) {
+  const sec = Math.floor(now / 1000), B = frameStats.buckets;
+  let b = B[B.length - 1];
+  if (!b || b.sec !== sec) {
+    if (b) closeBucket(b);
+    b = { sec, frames: 0, time: 0, longest: 0 }; B.push(b);
+    while (B.length && B[0].sec <= sec - FRAME_SECS) B.shift();
+  }
+  b.frames++; b.time += gap; b.longest = Math.max(b.longest, gap);
+}
+// A finished second with enough movement in it counts toward the session's best and worst rates.
+function closeBucket(b) {
+  if (b.time < FRAME_MIN_S * 1000) return;
+  const fps = b.frames * 1000 / b.time;
+  frameStats.best = Math.max(frameStats.best, fps); frameStats.worst = Math.min(frameStats.worst, fps);
+}
+// The last FRAME_RECENT s of movement: frames a second and the longest wait between two frames, in ms.
+function frameReport(now = performance.now()) {
+  const from = Math.floor(now / 1000) - FRAME_RECENT;
+  let frames = 0, time = 0, longest = 0;
+  for (const b of frameStats.buckets) if (b.sec > from) { frames += b.frames; time += b.time; longest = Math.max(longest, b.longest); }
+  if (time < FRAME_MIN_S * 1000) return null;
+  const fps = frames * 1000 / time, best = Math.max(frameStats.best, fps);
+  return { fps, longest, best, worst: Math.min(frameStats.worst, fps), slow: fps < best * 0.75 };
+}
+function frameCheckText() {
+  const r = frameReport();
+  if (!r) return { text: "Move a control and this shows how many frames a second OBS lets the overlay draw.", slow: false };
+  const n = v => Math.round(v);
+  let text = `Last ${FRAME_RECENT} s of movement: ${n(r.fps)} frames a second, longest pause ${n(r.longest)} ms. Best this session: ${n(r.best)}, worst: ${n(r.worst)}.`;
+  if (r.slow) text += " That's well below its best, so something, usually the game using all of the GPU, is holding OBS's browser back. See Performance in Help.";
+  return { text, slow: r.slow };
 }
 // ---------- projector motion ----------
 // Subtle and Full move without script: the opacity ripple and the idle float are CSS keyframes, built here once and
@@ -5639,8 +5704,9 @@ function projectorSection(p, ws) {
   p = section(p, "Projector", { key: "projector", open: false, fam: "style", icon: "projector" });
   const px = v => (v > 0 ? "+" : "") + v + " px";
   p.append(el("h5", {}, "Basics"));
-  choiceRow(p, "Motion", proxy, "tier", [["static", "Still", "No motion. Costs nothing per frame."], ["subtle", "Subtle", "A slow float and a rare, gentle dropout."],
-    ["full", "Full", "Color split and tears during dropouts, photons on the rays, dust in the beam."]], upd, { aria: "Projector motion" });
+  choiceRow(p, "Motion", proxy, "tier", [["static", "Still", "No motion. Costs nothing per frame: the overlay only redraws when you move a control. The choice for recording and streaming, and the one to pick if the overlay ever freezes or stutters in your stream output."],
+    ["subtle", "Subtle", "A slow float and a rare, gentle dropout. Animates all the time, so OBS keeps drawing the overlay even with your hands off the controls."],
+    ["full", "Full", "Color split and tears during dropouts, photons on the rays, dust in the beam. The heaviest: it animates all the time and adds canvas work during dropouts. For a GPU with room to spare."]], upd, { aria: "Projector motion" });
   if (REDUCED_MOTION) p.append(el("div", { class: "hint small" }, "Your system asks for less motion, so the projector stays still."));
   sliderRow(p, "Intensity", proxy, "intensity", 0, 100, "%", updIntensity).addEventListener("change", upd);
   choiceRow(p, "Scene", proxy, "footage", [["dark", "Dark", "Space and dim cockpits."], ["bright", "Bright", "Planet glare and clouds: brighter light and lines so readouts stay legible."]], upd, { aria: "Scene brightness" });
@@ -5849,8 +5915,17 @@ function renderSettingsPanel(p) {
   choiceRow(display, "Editor text size", s, "uiScale", [["auto", "Auto", "Grows with the screen, so 4K stays readable."], [1, "100%"], [1.25, "125%"], [1.5, "150%"], [2, "200%"], [2.5, "250%"]], applySettings, { wrap: true });
   toggleRow(display, "Reduce transparency", s, "reduceTransparency", applySettings, "Solid panels instead of frosted glass: easier to read over a busy game view, and less work for OBS.");
   const perfSec = section(p, "Performance", { key: "s-perf" });
-  choiceRow(perfSec, "Draw rate", s, "fps", [[60, "60 FPS", "The smoothest motion. Best for most setups."], [30, "30 FPS", "Half the work for OBS. Motion looks a little less smooth, but a press still shows right away. Pick it if the overlay stutters, lags or falls out of sync with your game."]], applySettings, { aria: "Draw rate" });
-  perfSec.append(el("div", { class: "hint small" }, "How many times a second the overlay redraws while you move your controls. When you let go it stops redrawing, unless a widget's Projector Motion is set to Subtle or Full."));
+  // Why these settings exist, in the words a pilot sees the problem in: the overlay freezing in the stream output.
+  perfSec.append(el("div", { class: "hint small" }, "Use these when the overlay freezes, stutters or lags behind in your stream or recording while the game itself stays smooth. That happens when the game takes the whole GPU and OBS's browser has to wait for it. First, in OBS Settings, Advanced, turn off Browser Source Hardware Acceleration and restart OBS, so the overlay is drawn by the CPU instead. Then use the two settings below and read the Smoothness Check."));
+  choiceRow(perfSec, "Draw rate", s, "fps", [[60, "60 FPS", "Redraws up to 60 times a second while you move a control. The smoothest motion: keep it while the overlay keeps up with your game."], [30, "30 FPS", "Redraws at most 30 times a second, readouts and Projector motion included, so OBS takes half as many new frames from the overlay. A press still shows right away. Pick it when the overlay stutters, lags or freezes in your stream or recording."]], applySettings, { aria: "Draw rate" });
+  perfSec.append(el("div", { class: "hint small" }, "How many times a second the overlay redraws while you move your controls. When you let go it stops redrawing, unless a widget's Projector Motion is set to Subtle or Full: those animate all the time, so Still is the cheapest choice while you record."));
+  // Smoothness check: fly with the game in front, then open the editor (Interact) and read what OBS allowed.
+  const check = el("div", { class: "hint small", id: "frame-check", "aria-live": "off" });
+  perfSec.append(el("h5", {}, "Smoothness Check"),
+    el("div", { class: "hint small" }, "Tells you whether a change helped. Fly for a minute with the game in front, then open the editor (Interact) and come back here: it shows how many frames a second OBS let the overlay draw while your controls moved. Compare the number before and after each setting you change."),
+    check);
+  const fillCheck = () => { const c = frameCheckText(); check.textContent = c.text; check.classList.toggle("warn", c.slow); };
+  fillCheck(); devTimer = setInterval(fillCheck, 1000);
   themeSection(p, profile.widgets.filter(w => w.type !== "label"), true);
   const bg = section(p, "Page Background", { key: "s-bg" });
   toggleRow(bg, "Solid page background", { get v() { return s.background === "solid"; }, set v(x) { s.background = x ? "solid" : "transparent"; } }, "v", applySettings,
